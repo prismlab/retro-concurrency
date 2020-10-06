@@ -1,0 +1,8 @@
+retro-parallel.pdf
+*.bbl
+*.blg
+*.log
+*.out
+*~
+*.aux
+retro-parallel-sources
