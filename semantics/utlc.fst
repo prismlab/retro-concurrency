@@ -56,4 +56,18 @@ let rec eval_st s =
 
 let eval e = eval_st (E e, empty, [])
 
-let ex1 = eval (EAbs "x" (EVar "x"))
+(* Helper Functions *)
+
+let var x = EVar x
+
+val app : l:list exp{Cons? l} -> Tot exp
+let app l =
+  match l with
+  | [x] -> x
+  | x::y::xs -> FStar.List.Tot.fold_left (fun expr v -> EApp expr v) (EApp x y) xs
+
+let lam x e = EAbs x e
+
+let ex1 = eval (lam "x" (var "x"))
+
+let ex2 = eval (app [lam "x" (var "x"); lam "y" (var "y")])
