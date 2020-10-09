@@ -3,10 +3,11 @@ module Handler
 open FStar.All
 
 noeq type exp =
-  | EConst : v:nat -> exp
+  | EConst : v:int -> exp
   | EVar : v:string -> exp
   | EApp : fn:exp -> arg:exp -> exp
   | EAbs : x:string -> body:exp -> exp
+  | EArith : (f:int->int->int) -> e1:exp -> e2:exp -> exp
 	| EPerform : label:string -> param:exp -> exp
 	| EHandle : e:exp -> h:handler -> exp
 
@@ -17,7 +18,7 @@ and handler =
 and env = string -> Tot (option value)
 
 and value =
-  | VNat  : n:nat -> value
+  | VInt  : n:int -> value
   | VCont : k:continuation -> value
   | VClos : e:exp (*EAbs? e *) -> v:env -> value
   | VOper : l:string -> k:continuation -> value
@@ -25,7 +26,9 @@ and value =
 and frame =
   | FArg : e:exp -> n:env -> frame
   | FFun : v:value -> frame
-
+  | FArith1 : (f:int->int->int) -> e:exp -> n:env -> frame
+  | FArith2 : (f:int->int->int) -> n:int -> frame
+  
 and fiber = list frame * env * handler
 
 and continuation = list fiber
@@ -59,19 +62,23 @@ exception Stuck
 val step : s:state -> ML (option state)
 let step s =
   match s with
-  | E (EConst n), r, k -> Some (V (VNat n), r, k)
-
+  | E (EConst n), r, k -> Some (V (VInt n), r, k)
   | E (EVar x), r, k ->
       begin match r x with
       | None -> raise Stuck (* unbound variable! *)
       | Some v -> Some (V v, r, k)
       end
 
+  (* Arithmetic *)
+  | E (EArith f e1 e2), r, (fs,r2,h)::k -> Some (E e1, r, (FArith1 f e2 r::fs,r2,h)::k)
+  | V (VInt n1), _, (FArith1 f e2 r2::fs,r,h)::k -> Some (E e2, r2, (FArith2 f n1::fs,r,h)::k)
+  | V (VInt n2), r, (FArith2 f n1::fs,r2,h)::k -> Some (V (VInt (f n1 n2)), r, (fs,r2,h)::k)
+  
   (* Function Application *)
   | E (EApp f x), r, (fs,r2,h)::k -> Some (E f, r, (FArg x r::fs,r2,h)::k)
   | E (EAbs x e), r, k -> Some (V (VClos (EAbs x e) r), r, k)
   | V (VClos e v), _, (FArg x r2::fs,r3,h)::k -> Some (E x, r2, (FFun (VClos e v)::fs,r3,h)::k)
-  | V v, r, (FFun (VClos (EAbs x e) r2)::fs,r3,h)::k -> Some (E e, extend r2 x v, (fs,r3,h)::k)
+  | V v, _, (FFun (VClos (EAbs x e) r2)::fs,r3,h)::k -> Some (E e, extend r2 x v, (fs,r3,h)::k)
 
   (* Continuation resumption *)
   | V (VCont k), _, (FArg x r2::fs,r3,h)::k' -> Some (E x, r2, (FFun (VCont k)::fs,r3,h)::k')
@@ -137,10 +144,12 @@ let handle e h = EHandle e h
 
 let continue k e = EApp (EVar k) e
 
-let nat_to_string s = 
+let int_state_to_string s = 
   match s with
-  | (V (VNat n), _,_) -> string_of_int n
-  | _ -> "unexpected nat"
+  | (V (VInt n), _,_) -> string_of_int n
+  | _ -> "unexpected state"
+
+let (+) e1 e2 = EArith (+) e1 e2
 
 (******************************************************************************)
 (* Examples *)
@@ -153,7 +162,7 @@ let ex2 = app [lam "x" (var "x"); lam "y" (var "y")]
 let ex3 = perform "x" (c 0)
 
 let ex4 = handle (perform "E" (c 0))
-          (case_eff "E" "v" "k" (continue "k" (c 1))
+          (case_eff "E" "v" "k" (continue "k" ((var "v") + (c 1)))
           (case_val "x" (var "x")))
 
 let () = (* eval ex1; eval ex2; eval ex3; eval ex4 *) ()
