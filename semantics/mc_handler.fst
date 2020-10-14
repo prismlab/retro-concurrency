@@ -18,7 +18,7 @@ and handler =
   | HExn    : label:string -> v:string -> e:exp -> rest:handler -> handler
   | HEffect : label:string -> v:string -> k:string -> e:exp -> rest:handler -> handler
 
-and env = string -> Tot (option value)
+noeq type env = string -> Tot (option value)
 
 and value =
   | VInt  : n:int -> value
@@ -33,7 +33,7 @@ and frame =
   | FArith1 : (f:int->int->int) -> e:exp -> n:env -> frame
   | FArith2 : (f:int->int->int) -> n:int -> frame
 
-and fiber = list frame * env * handler
+and fiber = list frame * (handler * env)
 
 and continuation = l:list fiber{Cons? l}
 
@@ -83,7 +83,7 @@ let rec get_exn_case h l =
 
 exception Stuck
 
-let empty_continuation = [[],empty_env, HValue "x" (EVar "x")]
+let empty_continuation = [[], (HValue "x" (EVar "x"), empty_env)]
 
 val step0 : term -> list frame -> ML (option (term * list frame))
 let step0 t fs =
@@ -128,53 +128,53 @@ let ostep t (k:continuation) cs =
   assert (Cons? k);
   match t, k with
   (* Return *)
-  | V v, [[],_r,_h] -> Some (V v, C cs) (* Return from OCaml to C *)
-  | V v, ([],r,h)::k ->  (* Handler value return case *)
+  | V v, [[],_h] -> Some (V v, C cs) (* Return from OCaml to C *)
+  | V v, ([],(h,r))::k ->  (* Handler value return case *)
       let x,e = get_return_case h in
       Some (E e (extend_env r x v), O (OS k cs))
 
   (* Function Application *)
-  | V v, ((FFun (VClos (EOAbs x e) r2)::fs,r3,h)::k) ->
-      Some (E e (extend_env r2 x v), O (OS ((fs,r3,h)::k) cs))
-  | V v, ((FFun (VClos (ECAbs x e) r2)::fs,r3,h)::k) -> (* External call *)
-      Some (E e (extend_env r2 x v), C (CS [] (Some (OS ((fs,r3,h)::k) cs))))
+  | V v, ((FFun (VClos (EOAbs x e) r)::fs,h)::k) ->
+      Some (E e (extend_env r x v), O (OS ((fs,h)::k) cs))
+  | V v, ((FFun (VClos (ECAbs x e) r)::fs,h)::k) -> (* External call *)
+      Some (E e (extend_env r x v), C (CS [] (Some (OS ((fs,h)::k) cs))))
 
   (* Continuation resumption *)
-  | V v, ((FFun (VCont k)::FFun(VClos (EOAbs x e) r2)::fs,r,h)::k') ->
-      Some (E e (extend_env r2 x v), O (OS (k @ ((fs,r,h)::k')) cs))
+  | V v, ((FFun (VCont k)::FFun(VClos (EOAbs x e) r)::fs,h)::k') ->
+      Some (E e (extend_env r x v), O (OS (k @ ((fs,h)::k')) cs))
 
   (* Install handler *)
-  | E (EHandle e h) r, k -> Some (E e r, O (OS (([],r,h)::k) cs))
+  | E (EHandle e h) r, k -> Some (E e r, O (OS (([],(h,r))::k) cs))
 
   (* Perform operation *)
-  | V v, [FFun (VEff l k)::fs,r,h] ->
+  | V v, [FFun (VEff l k)::fs,h] ->
       (* Outermost handler has only the value case *)
-      Some (E (ERaise "Unhandled_effect" (EConst 0)) empty_env, O (OS (k @ ([fs,r,h])) cs))
-  | V v, ((FFun (VEff l k)::fs2,r2,h2)::(fs3,r3,h3)::k') ->
-      begin match get_effect_case h2 l with
+      Some (E (ERaise "Unhandled_effect" (EConst 0)) empty_env, O (OS (k @ ([fs,h])) cs))
+  | V v, ((FFun (VEff l k)::fs,(h,r))::(fs',h')::k') ->
+      begin match get_effect_case h l with
       | Some (x,kv,e) ->
-          let new_r = extend_env (extend_env r2 kv (VCont (k @ [(fs2,r2,h2)]))) x v in
-          Some (E e new_r, O (OS ((fs3,r3,h3)::k') cs))
-      | None -> Some (V v, O (OS ((FFun (VEff l (k @ [(fs2,r2,h2)]))::fs3,r3,h3)::k') cs))
+          let new_r = extend_env (extend_env r kv (VCont (k @ [fs,(h,r)]))) x v in
+          Some (E e new_r, O (OS ((fs',h')::k') cs))
+      | None -> Some (V v, O (OS ((FFun (VEff l (k @ [fs,(h,r)]))::fs',h')::k') cs))
       end
 
    (* Raise exception *)
-   | V v, [FFun (VExn l)::fs,r,h] ->
+   | V v, [FFun (VExn l)::fs,h] ->
       (* Outermost handler has only the value case *)
       let CS fs osopt = cs in
       Some (V v, C (CS (FFun (VExn l)::fs) osopt))
-   | V v, ((FFun (VExn l)::fs2,r2,h2)::(fs3,r3,h3)::k') ->
-       begin match get_exn_case h2 l with
+   | V v, ((FFun (VExn l)::fs,(h,r))::(fs',h')::k') ->
+       begin match get_exn_case h l with
        | Some (x,e) ->
-           let new_r = extend_env r2 x v in
-           Some (E e new_r, O (OS ((fs3,r3,h3)::k') cs))
-       | None -> Some (V v, O (OS ((FFun (VExn l)::fs3,r3,h3)::k') cs))
+           let new_r = extend_env r x v in
+           Some (E e new_r, O (OS ((fs',h')::k') cs))
+       | None -> Some (V v, O (OS ((FFun (VExn l)::fs',h')::k') cs))
        end
 
   (* Other local operations *)
-  | _, (fs,r,h)::k ->
+  | _, (fs,h)::k ->
       begin match step0 t fs with
-      | Some (t',fs') -> Some (t',O (OS ((fs',r,h)::k) cs))
+      | Some (t',fs') -> Some (t',O (OS ((fs',h)::k) cs))
       | None -> raise Stuck (* No further reduction *)
       end
 
@@ -200,8 +200,8 @@ let cstep t fs osopt =
       | None -> (* no handler *)
           FStar.IO.print_string ("Unhandled exception: " ^ l ^ "\n");
           raise Stuck
-      | Some (OS ((fs,r,h)::k) cs) ->
-          Some (V v, O (OS ((FFun (VExn l)::fs,r,h)::k) cs))
+      | Some (OS ((fs,h)::k) cs) ->
+          Some (V v, O (OS ((FFun (VExn l)::fs,h)::k) cs))
       | Some (OS [] cs) -> (* impossible case *)
           raise Stuck
       end
@@ -281,7 +281,7 @@ let callback e = app [olam "x" e; c 0]
 (* Examples *)
 (******************************************************************************)
 
-let ex1 = olam "x" (var "x") 
+let ex1 = olam "x" (var "x")
 (* Expect [fun x -> x] for [eval ex1] in utop *)
 
 let ex2 = app [olam "x" (var "x"); olam "y" (var "y")]
@@ -319,3 +319,19 @@ let ex7 = handle (c 0)
 
 let ex8 = perform "eff" (c 0)
 (* Expect [exception Stuck] for [eval ex8] in utop. Effects cannot be performed in C. *)
+
+let run () =
+  begin match eval ex1 with
+  | V (VClos (EOAbs "x" (EVar "x")) _), _ -> ()
+  | _ -> failwith "ex1 failed"
+  end;
+  begin match eval ex2 with
+  | V (VClos (EOAbs "y" (EVar "y")) _), _ -> ()
+  | _ -> failwith "ex2 failed"
+  end;
+  if not (int_state_to_string (eval ex3) = "42") then failwith "ex3 failed";
+  if not (int_state_to_string (eval ex4) = "1") then failwith "ex4 failed";
+  if not (int_state_to_string (eval ex5) = "3") then failwith "ex5 failed";
+  if not (int_state_to_string (eval ex6) = "42") then failwith "ex6 failed";
+  try ignore (eval ex7); failwith "ex7 failed" with | Stuck -> () | e -> raise e;
+  try ignore (eval ex8); failwith "ex8 failed" with | Stuck -> () | e -> raise e
