@@ -2,16 +2,17 @@ module Mc_handler
 
 open FStar.All
 
+type lam_kind = | Clam | Olam
+
 noeq type exp =
   | EConst : v:int -> exp
   | EVar : v:string -> exp
   | EApp : fn:exp -> arg:exp -> exp
-  | EOAbs : x:string -> body:exp -> exp
-  | ECAbs : x:string -> body:exp -> exp
+  | EAbs : k:lam_kind -> x:string -> body:exp -> exp
   | EArith : (f:int->int->int) -> e1:exp -> e2:exp -> exp
-	| EHandle : e:exp -> h:handler -> exp
+  | EHandle : e:exp -> h:handler -> exp
   | ERaise : label:string -> param:exp -> exp
-	| EPerform : label:string -> param:exp -> exp
+  | EPerform : label:string -> param:exp -> exp
 
 and handler =
   | HValue  : x:string -> e:exp -> handler
@@ -23,7 +24,7 @@ noeq type env = string -> Tot (option value)
 and value =
   | VInt  : n:int -> value
   | VCont : k:continuation -> value
-  | VClos : e:exp (*EAbs? e *) -> v:env -> value
+  | VClos : e:exp{EAbs? e} -> v:env -> value
   | VEff : l:string -> k:continuation -> value
   | VExn : l:string -> value
 
@@ -37,7 +38,7 @@ and fiber = list frame * (handler * env)
 
 and continuation = l:list fiber{Cons? l}
 
-and ostack =
+noeq type ostack =
   | OS: continuation -> cstack -> ostack
 
 and cstack =
@@ -105,8 +106,7 @@ let step0 t fs =
 
   (* Function Application *)
   | E (EApp f x) r, fs -> Some (E f r, FArg x r::fs)
-  | E (EOAbs x e) r, fs -> Some (V (VClos (EOAbs x e) r), fs)
-  | E (ECAbs x e) r, fs -> Some (V (VClos (ECAbs x e) r), fs)
+  | E (EAbs k x e) r, fs -> Some (V (VClos (EAbs k x e) r), fs)
   | V (VClos e v), FArg x r2::fs -> Some (E x r2, FFun (VClos e v)::fs)
 
   (* Continuation resumption *)
@@ -129,18 +129,18 @@ let ostep t (k:continuation) cs =
   match t, k with
   (* Return *)
   | V v, [[],_h] -> Some (V v, C cs) (* Return from OCaml to C *)
-  | V v, ([],(h,r))::k ->  (* Handler value return case *)
+  | V v, ([],(h,r))::k' ->  (* Handler value return case *)
       let x,e = get_return_case h in
-      Some (E e (extend_env r x v), O (OS k cs))
+      Some (E e (extend_env r x v), O (OS k' cs))
 
   (* Function Application *)
-  | V v, ((FFun (VClos (EOAbs x e) r)::fs,h)::k) ->
+  | V v, ((FFun (VClos (EAbs Olam x e) r)::fs,h)::k) ->
       Some (E e (extend_env r x v), O (OS ((fs,h)::k) cs))
-  | V v, ((FFun (VClos (ECAbs x e) r)::fs,h)::k) -> (* External call *)
+  | V v, ((FFun (VClos (EAbs Clam x e) r)::fs,h)::k) -> (* External call *)
       Some (E e (extend_env r x v), C (CS [] (Some (OS ((fs,h)::k) cs))))
 
   (* Continuation resumption *)
-  | V v, ((FFun (VCont k)::FFun(VClos (EOAbs x e) r)::fs,h)::k') ->
+  | V v, ((FFun (VCont k)::FFun(VClos (EAbs Olam x e) r)::fs,h)::k') ->
       Some (E e (extend_env r x v), O (OS (k @ ((fs,h)::k')) cs))
 
   (* Install handler *)
@@ -189,9 +189,9 @@ let cstep t fs osopt =
       end
 
   (* Function Application *)
-  | V v, FFun (VClos (EOAbs x e) r2)::fs -> (* callback *)
+  | V v, FFun (VClos (EAbs Olam x e) r2)::fs -> (* callback *)
       Some (E e (extend_env r2 x v), O (OS empty_continuation (CS fs osopt)))
-  | V v, FFun (VClos (ECAbs x e) r2)::fs ->
+  | V v, FFun (VClos (EAbs Clam x e) r2)::fs ->
       Some (E e (extend_env r2 x v), C (CS fs osopt))
 
   (* Raise exception *)
@@ -202,8 +202,6 @@ let cstep t fs osopt =
           raise Stuck
       | Some (OS ((fs,h)::k) cs) ->
           Some (V v, O (OS ((FFun (VExn l)::fs,h)::k) cs))
-      | Some (OS [] cs) -> (* impossible case *)
-          raise Stuck
       end
 
   (* Other local operations *)
@@ -246,9 +244,9 @@ let app l =
   | [x] -> x
   | x::y::xs -> FStar.List.Tot.fold_left (fun expr v -> EApp expr v) (EApp x y) xs
 
-let olam x e = EOAbs x e
+let olam x e = EAbs Olam x e
 
-let clam x e = ECAbs x e
+let clam x e = EAbs Clam x e
 
 let c n = EConst n
 
@@ -322,11 +320,11 @@ let ex8 = perform "eff" (c 0)
 
 let run () =
   begin match eval ex1 with
-  | V (VClos (EOAbs "x" (EVar "x")) _), _ -> ()
+  | V (VClos (EAbs Olam "x" (EVar "x")) _), _ -> ()
   | _ -> failwith "ex1 failed"
   end;
   begin match eval ex2 with
-  | V (VClos (EOAbs "y" (EVar "y")) _), _ -> ()
+  | V (VClos (EAbs Olam "y" (EVar "y")) _), _ -> ()
   | _ -> failwith "ex2 failed"
   end;
   if not (int_state_to_string (eval ex3) = "42") then failwith "ex3 failed";
