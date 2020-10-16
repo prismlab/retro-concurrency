@@ -90,6 +90,7 @@
 
 \newcommand{\ostep}{\xrightarrow{o}}
 \newcommand{\cstep}{\xrightarrow{c}}
+\newcommand{\step}{\rightarrow}
 
 \begin{document}
 
@@ -108,14 +109,22 @@
 
 \section{Introduction}
 
-\bibliographystyle{ACM-Reference-Format}
-\bibliography{sample-base}
-
 \section{Semantics}
+
+The initial configuration for an expression $e$ is
+$\configa{e}{\emptyset}{\cstacka{[]}{\bullet}}$. We define {\sf continue} and
+{\sf discontinue} as follows:
+
+\begin{smathpar}
+	\begin{array}{rcl}
+		\textsf{continue} ~k ~e & = & k ~(\olam{x}{x}) ~e \\
+		\textsf{discontinue} ~k ~l ~e & = & k ~(\olam{x}{\throw{l}{x}}) ~e
+	\end{array}
+\end{smathpar}
 
 \begin{figure*}
 	\begin{minipage}[t]{0.49\linewidth}
-	\begin{mathpar}
+	\begin{smathpar}
 	\begin{array}{rrcl}
 		\text{Constants} & n & \coloneqq & ℕ \\
 		\text{Abstractions} & \Lambda & \coloneqq & \lambda \mid \llambda \\
@@ -127,10 +136,10 @@
 		\text{Frames} & r & \coloneqq & \farg{e}{\env} \mid \ffun{v} \mid \faritha{\odot}{e}{\env} \mid \farithb{\odot}{ℕ} \\
 		\text{Environments} & \env & \coloneqq & \emptyset \mid \envext{\env}{x}{v} \\
 	\end{array}
-	\end{mathpar}
+	\end{smathpar}
 	\end{minipage}
 	\begin{minipage}[t]{0.49\linewidth}
-	\begin{mathpar}
+	\begin{smathpar}
 	\begin{array}{rrcl}
 		\text{Handler Closures} & \hc & \coloneqq & (h,\env) \\
 		\text{Frame List} & \fl & \coloneqq & [] \mid r :: \fl \\
@@ -142,7 +151,7 @@
 		\text{Terms} & \term & \coloneqq & e \mid v \\
 		\text{Configurations} & \config & \coloneqq & \configa{\tau}{\env}{\stack}
 	\end{array}
-	\end{mathpar}
+	\end{smathpar}
 	\end{minipage}
 	\caption{Term Syntax}
 	\label{sem:syntax}
@@ -175,7 +184,7 @@
 											 & (e, \env, \ffun{\exnval{l}}::\fl)
 		\end{array}
 	\end{smathpar}
-	\caption{Local Reductions -- $(\term, \env, \fl) \rightsquigarrow (\tau, \fl)$.}
+	\caption{Local Reductions -- $(\term, \env, \fl) \rightsquigarrow (\tau, \env, \fl)$.}
 	\label{sem:step}
 \end{figure*}
 
@@ -185,9 +194,10 @@
 			\textsc{LocalO}   & (\term,\env,(\fl,\hc) \kcons k,\cstack) & \ostep
 												& \configa{\term'}{\env'}{\ostacka{(\fl',\hc) \kcons k}{\cstack}}
 												& \text{if } (\term,\env,\fl) \rightsquigarrow (\term',\env',\fl') \\
-			\textsc{RetToC}   & (v, \env, [([],\hc)], \cstack) & \ostep
-												& \configa{v}{\env}{\cstack}  \\
-			\textsc{RetFiber} & (v, \_, ([],(h,\env)) \kcons k, \cstack) & \ostep
+			\textsc{RetC}   & (v, \_, [([],(h,\env))], \cstack) & \ostep
+												& \configa{e}{\envext{\env}{x}{v}}{\cstack}
+												& \text{if } \{\caseval{x}{e}\} \in h \\
+			\textsc{RetFib} & (v, \_, ([],(h,\env)) \kcons k, \cstack) & \ostep
 												& \configa{e}{\envext{\env}{x}{v}}{\ostacka{k}{\cstack}}
 												& \text{if } \{\caseval{x}{e}\} \in h \\
 			\textsc{CallO}    & (v, \_, (\oclos{x}{e}{\env}::\fl,\hc) \kcons k, \cstack) & \ostep
@@ -199,8 +209,9 @@
 			\textsc{Handle}   & (\handle{e}{h}, \env, k, \cstack) & \ostep
 												& \configa{e}{\env}{\ostacka{([],(h,\env)) \kcons k}{\cstack}} \\
 			\textsc{EffUnHn}  & (v, \_, [\ffun{\effval{l}{k}}::\fl,(h,\env)], \cstack) & \ostep
-												& \configa{\throw{\textsf{unhandled}}{0}}{\emptyset}{\ostacka{k ~@~ [(\fl,(h,\env))]}{\cstack}}
+												& \configa{e}{\emptyset}{\ostacka{k ~@~ [(\fl,(h,\env))]}{\cstack}}
 												& \text{if } \{\caseeff{l}{\_}{\_}{\_}\} \notin h \\
+									& & & & \text{and } {e = \throw{\textsf{unhandled}}{0}} \\
 			\textsc{EffHn}    & (v, \_, (\ffun{\effval{l}{k}}::\fl,(h,\env)) \kcons k', \cstack) & \ostep
 												& \configa{e}{\env[r \mapsto k''][x \mapsto v]}{\ostacka{k'}{\cstack}}
 												& \text{if } \{\caseeff{l}{x}{r}{e}\} \in h \\
@@ -209,18 +220,18 @@
 												& \configa{v}{\env'}{\ostacka{(\ffun{\effval{l}{k''}}::\fl',\hc') \kcons k'}{\cstack}}
 												& \text{if } \{\caseeff{l}{\_}{\_}{\_}\} \notin h \\
 								  & & & & \text{and } k'' = k ~@~ [(\fl,(h,\env))] \\
-			\textsc{ExUnHn}  & (v, \env, [\ffun{\exnval{l}}::\_,(h,\_)], \cstacka{\fl'}{\ostack}) & \ostep
+			\textsc{ExFwdC}   & (v, \env, [\ffun{\exnval{l}}::\_,(h,\_)], \cstacka{\fl'}{\ostack}) & \ostep
 												& \configa{v}{\env}{\cstacka{\ffun{\exnval{l}}::\fl'}{\ostack}}
 												& \text{if } \{\caseexn{l}{\_}{\_}\} \notin h \\
 			\textsc{ExHn}     & (v, \_, (\ffun{\exnval{l}}::\_,(h,\env)) \kcons k', \cstack) & \ostep
 												& \configa{e}{\envext{\env}{x}{v}}{\ostacka{k'}{\cstack}}
 												& \text{if } \{\caseexn{l}{x}{e}\} \in h \\
-			\textsc{ExFwd}    & (v, \env, (\ffun{\exnval{l}}::\_,(h,\_)) \kcons (\fl',\hc') \kcons k', \cstack) & \ostep
+			\textsc{ExFwdFib} & (v, \env, (\ffun{\exnval{l}}::\_,(h,\_)) \kcons (\fl',\hc') \kcons k', \cstack) & \ostep
 												& \configa{v}{\env}{\ostacka{(\ffun{\exnval{l}}::\fl',\hc') \kcons k'}{\cstack}}
 												& \text{if } \{\caseexn{l}{\_}{\_}\} \notin h \\
 		\end{array}
 	\end{smathpar}
-	\caption{OCaml Reductions -- $(\term, \env, k, \cstack) \xrightarrow{o} \config$.}
+	\caption{OCaml Reductions -- $(\term, \env, k, \cstack) \ostep \config$.}
 	\label{sem:ostep}
 \end{figure*}
 
@@ -232,12 +243,37 @@
 												& \text{if } (\term,\env,\fl) \rightsquigarrow (\term',\env',\fl') \\
 			\textsc{RetToO}   & (v,\env,[],\ostacka{k}{\cstack}) & \cstep
 			                  & \configa{v}{\env}{\ostacka{k}{\cstack}} \\
-			\textsc{CallC}    & (v, \_, \cclos{x}{e}{\env}::\fl, \ostack) & \ostep
+			\textsc{CallC}    & (v, \_, \cclos{x}{e}{\env}::\fl, \ostack) & \cstep
 												& \configa{e}{\envext{\env}{x}{v}}{\cstacka{\fl}{\ostack}} \\
-			\textsc{Callback} & (v, \_, \oclos{x}{e}{\env}::\fl, \ostack) & \ostep
+			\textsc{Callback} & (v, \_, \oclos{x}{e}{\env}::\fl, \ostack) & \cstep
+												& \configa{e}{\envext{\env}{x}{v}}{\ostacka{k}{\cstacka{\fl}{\ostack}}}
+												& \text{if } k = [[],(\{\caseval{x}{x}\},\emptyset)] \\
+			\textsc{ExnFwdO}  & (v, \env, \ffun{\exnval{l}}::\_, \ostacka{(\fl,\hc) \kcons k}{\cstack}) & \cstep
+												& \configa{v}{\env}{\ostacka{(\ffun{\exnval{l}}::\fl,\hc) \kcons k}{\cstack}}
 		\end{array}
 	\end{smathpar}
 	\caption{C Reductions -- $(\term, \env, \fl, \ostack) \cstep \config$.}
 	\label{sem:cstep}
 \end{figure*}
+
+\begin{figure*}
+	\begin{mathpar}
+		\begin{array}{rc}
+
+			\textsc{StepC} & \inferrule
+			                    {(\term, \env, \fl, \ostack) \cstep \config}
+													{\configa{\term}{\env}{\cstacka{\fl}{\ostack}} \step \config} \\ \\
+			\textsc{StepO} & \inferrule
+													{(\term, \env, k, \cstack) \ostep \config}
+													{\configa{\term}{\env}{\ostacka{k}{\cstack}} \step \config}
+		\end{array}
+	\end{mathpar}
+	\caption{Top-level Reductions -- $\config \step \config$.}
+	\label{sem:top}
+\end{figure*}
+
+\bibliographystyle{ACM-Reference-Format}
+\bibliography{sample-base}
+
+
 \end{document}
