@@ -1,4 +1,4 @@
-retro-parallel.pdf
+retro-concurrency.pdf
 *.bbl
 *.blg
 *.log
@@ -6,3 +6,4 @@ retro-parallel.pdf
 *~
 *.aux
 retro-parallel-sources
+.*.swp
