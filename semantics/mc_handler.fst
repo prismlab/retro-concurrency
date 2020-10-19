@@ -60,7 +60,7 @@ let empty_env = fun _ -> None
 val extend_env : env -> string -> value -> Tot env
 let extend_env g x t = fun x' -> if x = x' then Some t else g x'
 
-let rec get_return_case h = 
+let rec get_return_case h =
   match h with
   | HEffect _ _ _ _ h -> get_return_case h
   | HExn _ _ _ h -> get_return_case h
@@ -70,8 +70,8 @@ let rec get_effect_case h l =
   match h with
   | HValue _ _ -> None
   | HExn _ _ _ h -> get_effect_case h l
-  | HEffect l' x kv e h' -> 
-      if l = l' then Some(x,kv,e) 
+  | HEffect l' x kv e h' ->
+      if l = l' then Some(x,kv,e)
       else get_effect_case h' l
 
 let rec get_exn_case h l =
@@ -178,7 +178,7 @@ let ostep t (k:continuation) cs =
       | None -> raise Stuck (* No further reduction *)
       end
 
-val cstep : term -> list frame -> option ostack -> ML (option state) 
+val cstep : term -> list frame -> option ostack -> ML (option state)
 let cstep t fs osopt =
   match t, fs with
   (* Return value from C to OCaml *)
@@ -266,7 +266,7 @@ let continue k e = app [var k; olam "x" (var "x"); e]
 
 let discontinue k l e = app [var k; olam "x" (raise_ l (var "x")); e]
 
-let int_state_to_string s = 
+let int_state_to_string s =
   match s with
   | V (VInt n), _ -> string_of_int n
   | _ -> "unexpected state"
