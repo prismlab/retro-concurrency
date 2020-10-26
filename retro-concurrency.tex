@@ -39,14 +39,63 @@
 \begin{nop}\small\begin{mathpar}}{
 \end{mathpar}\end{nop}\ignorespacesafterend}
 
+\newcommand{\kc}[1]{{\color{red} {\it [KC says: #1]}}}
+\newcommand{\am}[1]{{\color{blue} {\it [AM says: #1]}}}
+
+\definecolor{Bittersweet}{rgb}{1.0, 0.44, 0.37}
+\definecolor{MidnightBlue}{rgb}{0.0, 0.2, 0.4}
+\definecolor{BrightBlue}{rgb}{0.0, 0.2, 0.7}
+\definecolor{byzantine}{rgb}{0.74, 0.2, 0.64}
+\definecolor{caribbeangreen}{rgb}{0.0, 0.8, 0.6}
+
+\lstset{
+			language=[Objective]caml,
+      basicstyle=\ttfamily\small,
+      flexiblecolumns=false,
+			tabsize=2,
+      escapechar=',
+      %basewidth={0.5em,0.45em},
+      %aboveskip={3pt},
+      %belowskip={3pt},
+			breaklines = true,
+      breakatwhitespace = true,
+      keywordstyle=\color{Bittersweet}\bfseries,
+      commentstyle=\color{blue}\itshape,
+      stringstyle=\color{MidnightBlue},
+			keywords=[1]{effect,perform,continue,discontinue},
+			keywordstyle=[1]\color{Bittersweet}\bfseries,
+			keywords=[2]{},
+			keywordstyle=[2]\color{byzantine}\bfseries,
+			keywords=[3]{int,string}, %types%
+			keywordstyle=[3]\color{caribbeangreen},
+			classoffset=1,
+			upquote=true,
+			keywordstyle=\color{byzantine}\bfseries,
+			classoffset=0,
+			mathescape=true,
+			numberstyle=\tiny\color{gray},
+			numbersep=2pt
+}
+
+\lstnewenvironment{code}[1][]
+    { % \centering
+      \lstset{
+				basicstyle=\ttfamily\footnotesize,
+				#1}%
+      \csname lst@setfirstlabel\endcsname}
+    { %\centering
+      \csname lst@savefirstlabel\endcsname}
+
+\lstMakeShortInline[columns=fullflexible]|
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Semantics definitions
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
-\newcommand{\olam}[2]{\lambda #1. #2}
+\newcommand{\olam}[2]{\lambda^o #1. #2}
 \newcommand{\llambda}{\lambda\!\!\lambda}
-\newcommand{\clam}[2]{\llambda #1. #2}
+\newcommand{\clam}[2]{\lambda^c #1. #2}
 \newcommand{\lam}[2]{\Lambda #1. #2}
 
 \newcommand{\env}{\epsilon}
@@ -59,13 +108,13 @@
 \newcommand{\effval}[2]{\textsf{do} ~#1 ~#2}
 \newcommand{\exnval}[1]{\textsf{exn} ~#1}
 
-\newcommand{\handle}[2]{\kw{handle} ~#1 ~\kw{with} ~#2}
+\newcommand{\handle}[2]{\kw{match} ~#1 ~\kw{with} ~#2}
 \newcommand{\throw}[2]{\kw{raise} ~#1 ~#2}
 \newcommand{\perform}[2]{\kw{perform} ~#1 ~#2}
 
 \newcommand{\caseval}[2]{\kw{return}~#1 \mapsto #2}
-\newcommand{\caseexn}[3]{#1 ~#2 \mapsto #3}
-\newcommand{\caseeff}[4]{#1 ~#2 ~#3 \mapsto #4}
+\newcommand{\caseexn}[3]{\kw{exception} ~#1 ~#2 \mapsto #3}
+\newcommand{\caseeff}[4]{\kw{effect} ~#1 ~#2 ~#3 \mapsto #4}
 
 \newcommand{\farg}[2]{\langle #1 ~#2 \rangle_a}
 \newcommand{\ffun}[1]{\langle #1 \rangle_f}
@@ -94,20 +143,76 @@
 
 \begin{document}
 
-\title{Retrofitting Concurrency onto OCaml}
+\title{Retrofitting Effect Handlers onto OCaml}
 
 \begin{abstract}
-  A clear and well-documented \LaTeX\ document is presented as an
-  article formatted for publication by ACM in a conference proceedings
-  or journal publication. Based on the ``acmart'' document class, this
-  article presents and explains many of the common variations, as well
-  as many of the formatting elements an author may use in the
-  preparation of the documentation of their work.
+	Effect handlers have gained immense interest in the recent years as a means
+	for modular programming with user-defined effects. The runtime semantics of
+	effect handlers is particularly attractive as they allow advanced control
+	flow mechanisms such as first-class continuations, generators, async/await,
+	coroutines to be composably expressed. In this paper, we present the design,
+	a full-fledged implementation and evaluation of effect handlers for OCaml, an
+	industrial-strength, multi-paradigm programming language. OCaml tends to be
+	widely used for systems programming, and is compatible with program analysis
+	tools that inspect the stack such as debuggers and profilers. Retrofitting
+	effect handlers onto OCaml is challenging since OCaml does not have any
+	non-local control flow mechanisms other than exceptions. Our implementation
+	of effect handlers for OCaml imposes negligible overhead on code that does
+	not use effect handlers, and remains compatible with program analysis tools
+	that inspect the stack.
 \end{abstract}
 
 \maketitle
 
 \section{Introduction}
+
+Effect Handlers~\cite{Plotkin09} provide a modular foundation for user-defined
+effects. The key idea is to separate the definition of the effectful
+\emph{operations} from their interpretations, which are defined by
+\emph{handlers} of the effects. For example, |effect Read : in_channel -> string|
+declares an effect |Read|, which is parametrised with an input channel of type
+|in_channel|, which when \emph{performed} returns a |string| value. A
+computation can perform the |Read| effect without knowing how the |Read| effect
+is implemented. This computation may be enclosed by different handlers that
+interpret |Read| differently. For example, |Read| may be implemented by
+performing a blocking read on the input channel or performing the read
+asynchronously by offloading it to an event loop such as |libuv|. Thanks to the
+separation of effectful operations from their interpretations, effect handlers
+enable new approaches to modular programming. A computation may perform many
+different effects, which are interpreted by one or more enclosing handlers.
+
+What makes effect handlers quite powerful is that they provide a structured
+form of delimited continuations, which enables advanced non-local control-flow
+mechanisms such as resumable exceptions, coroutines, generators and
+asynchronous I/O to be composably expressed. As an example, consider the task
+of handling division-by-zero case in a calculator application. Different
+calculators handle division-by-zero differently. In the iOS 13 Calculator App,
+division-by-zero returns |Error|. In the Google Search Calculator App |0/0|
+returns to |Error|, and for any other |n| not equal to |0|, |n/0| returns
+|Infinity| with the same sign as |n|. In the OCaml top-level, division-by-zero
+raises |Division_by_zero| exception. How can we capture these different
+behaviours without changing the evaluator?
+
+Common Lisp Conditions~\cite{Conditions} are an elegant way to solve this
+problem. Unlike exceptions where the library decides whether an error is fatal
+or not, conditions allow the client of the library to make that decision.
+Common Lisp Conditions provide a restart mechanism to resume execution from the
+point where the condition was signalled. On division-by-zero, the calculator
+signals the handler and lets the handler decide the course of action based on
+the desired semantics. We can implement this mechanism using effect handlers as
+shown in Figure~\ref{fig:}.
+
+The search for an expressive effect system which guarantees that all the
+effects performed in the program are handled (\emph{effect safety}) in the
+presence of advanced features such as polymorphism, modularity and generativity
+is an active area of research~\cite{Leijen14, Biernacki19, Biernacki20,
+Hillerstrom20}. We do not focus on this question in this paper, and the
+implementation of effect handlers in Multicore OCaml does not guarantee effect
+safety.
+
+\section{Background: OCaml Stacks}
+
+\section{Handlers by example}
 
 \section{Semantics}
 
@@ -126,8 +231,8 @@ $\configa{e}{\emptyset}{\cstacka{[]}{\bullet}}$. We define {\sf continue} and
 	\begin{minipage}[t]{0.49\linewidth}
 	\begin{smathpar}
 	\begin{array}{rrcl}
-		\text{Constants} & n & \coloneqq & ℕ \\
-		\text{Abstractions} & \Lambda & \coloneqq & \lambda \mid \llambda \\
+		\text{Constants} & n & \coloneqq & ℤ \\
+		\text{Abstractions} & \Lambda & \coloneqq & \lambda^o \mid \lambda^c \\
 		\text{Expressions} & e & \coloneqq & n \mid x \mid e ~e \mid  \lam{x}{e} \mid e \odot e \mid \throw{l}{e} \\
 											 &   & \mid      & \handle{e}{h} \mid \perform{l}{e} \\
 		\text{Handlers} & h & \coloneqq & \{\caseval{x}{e}\} \mid \{\caseexn{l}{x}{e}\} \uplus h \\
@@ -271,6 +376,14 @@ $\configa{e}{\emptyset}{\cstacka{[]}{\bullet}}$. We define {\sf continue} and
 	\caption{Top-level Reductions -- $\config \step \config$.}
 	\label{sem:top}
 \end{figure*}
+
+\section{Implementation}
+
+\section{Evaluation}
+
+\section{Related Work}
+
+\section{Conclusions and Future Work}
 
 \bibliographystyle{ACM-Reference-Format}
 \bibliography{sample-base}

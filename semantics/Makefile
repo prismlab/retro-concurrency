@@ -10,4 +10,4 @@ all: utlc.exe
 	ocamlfind ocamlopt -package fstarlib fstarlib.cmxa -o $@ $<
 
 clean:
-	rm -f *.ml *.cm* *.o *.exe
+	rm -f *.cm* *.o *.exe
