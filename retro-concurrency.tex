@@ -196,8 +196,7 @@ task of handling division-by-zero case in a calculator application. Different
 calculators handle division-by-zero differently. In the iOS 13 Calculator App
 (|iOS|), division-by-zero returns |Error|. In the Google search calculator App
 (|gsearch|) |0/0| returns to |Error|, and for any other |n| not equal to |0|,
-|n/0| returns |Infinity| with the same sign as |n|. In the OCaml top-level,
-division-by-zero raises |Division_by_zero| exception. How can we capture these
+|n/0| returns |Infinity| with the same sign as |n|. How can we capture these
 different behaviours without changing the evaluator?
 
 Common Lisp Conditions~\cite{Conditions} are an elegant way to solve this
@@ -250,7 +249,7 @@ If the evaluator returns a value, we simply return that. In case the evaluator
 performs the |DivBy0| effect, we catch the effect in the effect case along with
 the continuation |k| of the corresponding |perform| \emph{delimited} by this
 handler. In the case of |iOS|, we |continue| the suspended computation with
-|Error| value. Hence, the computation |ios((1/0)/2) | returns |Error|. On the
+|Error| value. Hence, the computation |ios(1/0)| returns |Error|. On the
 other hand, we can get |gsearch| semantics by enclosing the evaluator in the
 following handler:
 
@@ -263,7 +262,7 @@ let gsearch e = match eval e with
 	else continue k (Inf N)
 \end{lstlisting}
 
-The computation |gsearch((1/0)/2)| returns positive infinity (|Inf P|). We can
+The computation |gsearch(1/0)| returns positive infinity (|Inf P|). We can
 extend the calculator modularly with the ability to read user input using the
 |Read| effect defined earlier as follows:
 
@@ -293,6 +292,7 @@ user-interface continuation so that the application remains responsive. Observe
 that neither of the handlers needs to be aware of the other.
 
 \subsection{Retrofitting effect handlers}
+\label{sec:req}
 
 There are many research languages and libraries built around effect
 handlers~\cite{Koka,Links,Pyro,Frank,Eff}. Unlike these efforts, our goal is to
@@ -353,14 +353,20 @@ OCaml functions, irrespective of whether they use effect handlers, need to
 perform stack overflow checks and external C functions, which do not have stack
 overflow checks, must be performed on a separate stack. Additionally, we must
 generate DWARF stack unwind tables for stacks that may be non-contiguous and
-contain frames from different languages. In this work, we develop a series of
-techniques to implement efficient effect handlers for OCaml with the help of
-compiler and runtime support that satisfy the requirements above.
+contain frames from different languages. In this work, we develop the compiler
+and runtime support for implementing efficient effect handlers for OCaml.
 
-The search for an expressive effect system which guarantees that all the
-effects performed in the program are handled (\emph{effect safety}) in the
-presence of advanced features such as polymorphism, modularity and generativity
-is an active area of research~\cite{Leijen14, Biernacki19, Biernacki20,
+Our work is also timely. WebAssembly~\ref{} community group is actively
+considering effect handlers as one of the mechanism for supporting concurrency,
+asynchronous I/O and generators~\ref{WasmPropoal}. Project Loom~\cite{} is an
+OpenJDK project which adds virtual threads and delimited continuations to Java.
+We believe that our design choices will inform similar choices to be made in
+the other languages.
+
+The search for an expressive effect system that guarantees that all the effects
+performed in the program are handled (\emph{effect safety}) in the presence of
+advanced features such as polymorphism, modularity and generativity is an
+active area of research~\cite{Leijen14, Biernacki19, Biernacki20,
 Hillerstrom20}. We do not focus on this question in this paper, and our
 implementation of effect handlers in OCaml does not guarantee effect safety.
 For example, running |perform (Read stdin)| without an enclosing handler raises
@@ -370,16 +376,43 @@ exception |Unhandled|. We leave the question of effect safety for future work.
 
 Our contributions are to present:
 
-%\begin{itemize}
-%	\item the design and implementation of affine effect handlers for OCaml with
-%		negligible performance impact on code that does not use effect handlers.
-%	\item
+\begin{itemize}
+	\item the design and implementation of affine effect handlers for OCaml with
+		negligible performance impact on code that does not use effect handlers.
+		Our design lets us retain OCaml's compatibility with program analysis tools
+		that inspect the stack.
+	\item a formal operation semantics for the effect handler implementation in
+		OCaml.
+	\item extensive evaluation which shows that our implementation has negligible
+		impact on code that does not use effect handlers, and serves as an
+		efficient foundation for scalable concurrent and parallel programming.
+\end{itemize}
+
+We have implemented effect handlers in a multicore extension of the OCaml
+programming language. We call our implementation ``Multicoe OCaml'' to
+distinguish it from stock OCaml. Multicore OCaml uses effect handlers as the
+mechanism to express user-level concurrency.
+
+The rest of the paper is organized as follows. We describe the details of the
+OCaml program stack in the next section, and highlight the features that the
+effect handler implementation must retain in order to provide backwards
+compatibility. In \S\ref{sec:handlers}, we motivate the design choice that we
+have made for effect handlers in Multicore OCaml with the help of examples.
+\S\ref{sec:semantics} presents the formal operational semantics for Multicore
+OCaml effect handlers. \S\ref{sec:impl} discusses the compiler and the runtime
+system support for implementing effect handlers. \S\ref{sec:eval} presents
+extensive performance evaluation of effect handlers against the goals set in
+\S\ref{sec:req}. \S\ref{sec:related} and \S\ref{sec:conc} present the related
+work and the conclusions.
 
 \section{Background: OCaml Stacks}
+\label{sec:stack}
 
 \section{Handlers by example}
+\label{sec:handlers}
 
 \section{Semantics}
+\label{sec:semantics}
 
 The initial configuration for an expression $e$ is
 $\configa{e}{\emptyset}{\cstacka{[]}{\bullet}}$. We define {\sf continue} and
@@ -543,12 +576,16 @@ $\configa{e}{\emptyset}{\cstacka{[]}{\bullet}}$. We define {\sf continue} and
 \end{figure*}
 
 \section{Implementation}
+\label{sec:impl}
 
 \section{Evaluation}
+\label{sec:eval}
 
 \section{Related Work}
+\label{sec:related}
 
 \section{Conclusions and Future Work}
+\label{sec:conc}
 
 \bibliographystyle{ACM-Reference-Format}
 \bibliography{sample-base}

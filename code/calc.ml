@@ -16,6 +16,8 @@ let rec eval e = match e with
     | _, Error -> Error
     | _, Infinity s -> Infinity s
 
+let (/) n d = Div (Val (Z n), Val (Z d))
+
 let ocaml e =
   match eval e with
   | v -> v
@@ -34,4 +36,4 @@ let gsearch e =
       else if v1 > 0 then continue k (Infinity P)
       else continue k (Infinity N)
 
-let _ = ocaml (Div (Div (Val (Z 1), Val (Z 0)), Val (Z 2)))
+let _ = ocaml ((1/0))
