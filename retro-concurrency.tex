@@ -49,11 +49,11 @@
 \definecolor{caribbeangreen}{rgb}{0.0, 0.8, 0.6}
 
 \lstset{
-			language=[Objective]caml,
-      basicstyle=\ttfamily\small,
+			language=caml,
+      basicstyle=\ttfamily\footnotesize,
       flexiblecolumns=false,
 			tabsize=2,
-      escapechar=',
+			escapechar={<@}{@>},
       %basewidth={0.5em,0.45em},
       %aboveskip={3pt},
       %belowskip={3pt},
@@ -62,19 +62,19 @@
       keywordstyle=\color{Bittersweet}\bfseries,
       commentstyle=\color{blue}\itshape,
       stringstyle=\color{MidnightBlue},
-			keywords=[1]{effect,perform,continue,discontinue},
-			keywordstyle=[1]\color{Bittersweet}\bfseries,
 			keywords=[2]{},
 			keywordstyle=[2]\color{byzantine}\bfseries,
-			keywords=[3]{int,string}, %types%
-			keywordstyle=[3]\color{caribbeangreen},
+			%keywords=[3]{int,string}, %types%
+			%keywordstyle=[3]\color{caribbeangreen},
+			keywords=[4]{effect,perform,continue,discontinue},
+			keywordstyle=[4]\color{Bittersweet}\bfseries,
 			classoffset=1,
 			upquote=true,
 			keywordstyle=\color{byzantine}\bfseries,
 			classoffset=0,
 			mathescape=true,
 			numberstyle=\tiny\color{gray},
-			numbersep=2pt
+			numbersep=5pt
 }
 
 \lstnewenvironment{code}[1][]
@@ -169,8 +169,13 @@
 Effect Handlers~\cite{Plotkin09} provide a modular foundation for user-defined
 effects. The key idea is to separate the definition of the effectful
 \emph{operations} from their interpretations, which are defined by
-\emph{handlers} of the effects. For example, |effect Read : in_channel -> string|
-declares an effect |Read|, which is parametrised with an input channel of type
+\emph{handlers} of the effects. For example,
+%
+\begin{lstlisting}
+effect Read : in_channel -> string
+\end{lstlisting}
+%
+declares an effect |Read|, which is parameterised with an input channel of type
 |in_channel|, which when \emph{performed} returns a |string| value. A
 computation can perform the |Read| effect without knowing how the |Read| effect
 is implemented. This computation may be enclosed by different handlers that
@@ -181,34 +186,194 @@ separation of effectful operations from their interpretations, effect handlers
 enable new approaches to modular programming. A computation may perform many
 different effects, which are interpreted by one or more enclosing handlers.
 
+\subsection{An effectful calculator}
+
 What makes effect handlers quite powerful is that they provide a structured
-form of delimited continuations, which enables advanced non-local control-flow
-mechanisms such as resumable exceptions, coroutines, generators and
-asynchronous I/O to be composably expressed. As an example, consider the task
-of handling division-by-zero case in a calculator application. Different
-calculators handle division-by-zero differently. In the iOS 13 Calculator App,
-division-by-zero returns |Error|. In the Google Search Calculator App |0/0|
-returns to |Error|, and for any other |n| not equal to |0|, |n/0| returns
-|Infinity| with the same sign as |n|. In the OCaml top-level, division-by-zero
-raises |Division_by_zero| exception. How can we capture these different
-behaviours without changing the evaluator?
+form of delimited continuations~\cite{}, which enables advanced non-local
+control-flow mechanisms such as resumable exceptions, coroutines, generators
+and asynchronous I/O to be composably expressed. As an example, consider the
+task of handling division-by-zero case in a calculator application. Different
+calculators handle division-by-zero differently. In the iOS 13 Calculator App
+(|iOS|), division-by-zero returns |Error|. In the Google search calculator App
+(|gsearch|) |0/0| returns to |Error|, and for any other |n| not equal to |0|,
+|n/0| returns |Infinity| with the same sign as |n|. In the OCaml top-level,
+division-by-zero raises |Division_by_zero| exception. How can we capture these
+different behaviours without changing the evaluator?
 
 Common Lisp Conditions~\cite{Conditions} are an elegant way to solve this
 problem. Unlike exceptions where the library decides whether an error is fatal
-or not, conditions allow the client of the library to make that decision.
-Common Lisp Conditions provide a restart mechanism to resume execution from the
-point where the condition was signalled. On division-by-zero, the calculator
-signals the handler and lets the handler decide the course of action based on
-the desired semantics. We can implement this mechanism using effect handlers as
-shown in Figure~\ref{fig:}.
+or not, conditions allow the client of the library to make that decision. If
+the error is non-fatal, Conditions provide a restart mechanism to
+resume execution from the point where the condition was signalled. On
+division-by-zero, the calculator signals the handler and lets the handler
+decide the course of action based on the desired semantics. We can implement
+this mechanism using effect handlers as shown below:
+
+\begin{lstlisting}[numbers=left]
+type sign = P | N
+type val = Z of int | Error | Inf of sign
+type exp = Val of val | ... | Div of exp*exp
+effect DivBy0 : int -> val
+
+let rec eval e =
+	match e with
+  | Val v -> v
+	| ...
+  | Div (e1,e2) ->
+    match eval e1, eval e2 with
+    | Z v1, Z v2 ->
+        if v2 = 0 then perform (DivBy0 v1)
+        else Z (v1/v2)
+	  | Error, _ -> Error
+		| Inf s, _ -> Inf s
+  	| ...
+
+let (/) n d = Div (Val (Z n), Val (Z d))
+\end{lstlisting}
+
+On line 4, we declare an effect |DivBy0| which is parameterised by an integer,
+which when performed returns a value. While interpreting the division
+expression, if the denominator is 0, then we perform |DivBy0| effect with the
+numerator value (line 13) so that the context may decide whether the error is
+fatal or not, and resume with an appropriate value if the error is not fatal.
+We can get the |iOS| semantics by wrapping the evaluator computation with the
+following handler:
+
+\begin{lstlisting}
+let ios e = match eval e with
+| v -> v (* value case *)
+| effect (DivBy0 _) k -> (* effect case *)
+    continue k Error
+\end{lstlisting}
+
+If the evaluator returns a value, we simply return that. In case the evaluator
+performs the |DivBy0| effect, we catch the effect in the effect case along with
+the continuation |k| of the corresponding |perform| \emph{delimited} by this
+handler. In the case of |iOS|, we |continue| the suspended computation with
+|Error| value. Hence, the computation |ios((1/0)/2) | returns |Error|. On the
+other hand, we can get |gsearch| semantics by enclosing the evaluator in the
+following handler:
+
+\begin{lstlisting}
+let gsearch e = match eval e with
+| v -> v
+| effect (DivBy0 v) k ->
+  if v = 0 then continue k Error
+	else if v > 0 then continue k (Inf P)
+	else continue k (Inf N)
+\end{lstlisting}
+
+The computation |gsearch((1/0)/2)| returns positive infinity (|Inf P|). We can
+extend the calculator modularly with the ability to read user input using the
+|Read| effect defined earlier as follows:
+
+\begin{lstlisting}
+type exp = ... | Inp
+effect Read : in_channel -> string
+
+let rec eval e = match e with
+| ...
+| Inp -> int_of_string(perform(Read stdin))
+\end{lstlisting}
+
+The |Read| effect can then be handled by another handler:
+
+\begin{lstlisting}
+let run e = match gsearch e with
+| v -> v
+| effect (Read chan) k ->
+	register_async_input_line (chan, k);
+	let ui = get_ui_k () in
+	continue ui ()
+\end{lstlisting}
+
+\noindent which registers the read operation to be performed asynchronously
+with the continuation as the callback. Subsequently, it resumes the
+user-interface continuation so that the application remains responsive. Observe
+that neither of the handlers needs to be aware of the other.
+
+\subsection{Retrofitting effect handlers}
+
+There are many research languages and libraries built around effect
+handlers~\cite{Koka,Links,Pyro,Frank,Eff}. Unlike these efforts, our goal is to
+retrofit effect handlers onto the OCaml programming language, which has been in
+continuous use for the past 25 years in large codebases including verification
+tools~\cite{FStar,Coq}, mission critical software systems~\cite{astree} and
+latency sensitive networked applications~\cite{JS,Docker,MirageOS}. OCaml is
+particularly favoured for its competitive yet predictable performance, with
+fast foreign-function interface (FFI) and excellent compatibility with program
+analysis such as debuggers and profilers that utilise DWARF stack unwind tables
+to obtain a backtrace. Our primary motivation for adding effect handlers to
+OCaml is to support (1) highly concurrent applications such as web servers to
+be expressed naturally in \emph{direct-style} as opposed to using callbacks and
+(2) efficient data and task parallel programs in the vein of OpenMP~\cite{} and
+Intel TBB~\cite{}.
+
+OCaml, however, does not support any non-local control flow mechanisms other
+than exceptions. This makes it particularly challenging for implement delimited
+continuations necessary for effect handlers without sacrificing the desirable
+properties of OCaml. One standard way of implementing continuations is to use
+continuation-passing style (CPS) in the compiler's intermediate representation
+(IR)~\cite{Koka}. If the compiler were to use CPS, then reifying continuations
+in the source language is relatively straight-forward. But OCaml does not use
+CPS IR, and changing the OCaml compiler to utilise CPS IR would be an enormous
+undertaking. CPS IR would also affect the performance profile of OCaml
+applications due to increased memory allocations as continuation closures get
+allocated on the heap~\cite{Folklore}. Moreover, with CPS, stack unwinding in
+meaningless and hence, we would lose compatibility with tools that inspect the
+program stack. Hence, we choose not to CPS translation.
+
+The alternative is to use the call stack for implementing continuation.
+Farvardin et al~\cite{Folklore} show that there is a spectrum of implementation
+strategies for continuation with different trade-offs. We motivate our
+implementation strategy based on the following ideal requirements:
+
+\begin{enumerate}[label=R\arabic*]
+	\item \textbf{Backwards compatibility} A well behaved OCaml program does not
+		break under OCaml extended with effect handlers. OCaml code that does not
+		use effect handlers will pay negligible performance cost.
+	\item \textbf{Tool compatibility} OCaml with effect handlers produce
+		well-formed backtraces, and remains compatible with program analysis tools
+		such as debuggers and profilers that inspect the stack using DWARF unwind
+		tables.
+	\item \textbf{Effect handler efficiency} In order to support
+		highly-concurrent applications, the program must accommodate millions of
+		continuations in the heap. Installing effect handlers, capturing and
+		resuming continuations must be fast.
+	\item \textbf{Effect handler expressivity} While making continuations
+		resumable at-most once (\emph{affine}) is a standard way to make
+		continuation capture fast, we must still support use cases where the
+		continuations are resumed more than once.
+\end{enumerate}
+
+The need to host millions of active continuations in the heap rules out the use
+of large contiguous stack space for continuations as in C. Instead, we resort
+to using small initial stacks and growing the stacks on demand. As a result,
+OCaml functions, irrespective of whether they use effect handlers, need to
+perform stack overflow checks and external C functions, which do not have stack
+overflow checks, must be performed on a separate stack. Additionally, we must
+generate DWARF stack unwind tables for stacks that may be non-contiguous and
+contain frames from different languages. In this work, we develop a series of
+techniques to implement efficient effect handlers for OCaml with the help of
+compiler and runtime support that satisfy the requirements above.
 
 The search for an expressive effect system which guarantees that all the
 effects performed in the program are handled (\emph{effect safety}) in the
 presence of advanced features such as polymorphism, modularity and generativity
 is an active area of research~\cite{Leijen14, Biernacki19, Biernacki20,
-Hillerstrom20}. We do not focus on this question in this paper, and the
-implementation of effect handlers in Multicore OCaml does not guarantee effect
-safety.
+Hillerstrom20}. We do not focus on this question in this paper, and our
+implementation of effect handlers in OCaml does not guarantee effect safety.
+For example, running |perform (Read stdin)| without an enclosing handler raises
+exception |Unhandled|. We leave the question of effect safety for future work.
+
+\subsection{Contributions}
+
+Our contributions are to present:
+
+%\begin{itemize}
+%	\item the design and implementation of affine effect handlers for OCaml with
+%		negligible performance impact on code that does not use effect handlers.
+%	\item
 
 \section{Background: OCaml Stacks}
 

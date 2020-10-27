@@ -4,10 +4,6 @@ type exp = Val of value | Div of exp * exp
 
 effect DivBy0 : int -> value
 
-let is_not_int v = match v with
-| Z _ -> false
-| _ -> true
-
 let rec eval e = match e with
 | Val v -> v
 | Div (e1, e2) ->
@@ -38,4 +34,4 @@ let gsearch e =
       else if v1 > 0 then continue k (Infinity P)
       else continue k (Infinity N)
 
-let _ = ocaml (Div (Val (Z 1), Val (Z 0)))
+let _ = ocaml (Div (Div (Val (Z 1), Val (Z 0)), Val (Z 2)))
