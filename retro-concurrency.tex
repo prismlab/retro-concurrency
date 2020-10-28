@@ -300,28 +300,28 @@ retrofit effect handlers onto the OCaml programming language, which has been in
 continuous use for the past 25 years in large codebases including verification
 tools~\cite{FStar,Coq}, mission critical software systems~\cite{astree} and
 latency sensitive networked applications~\cite{JS,Docker,MirageOS}. OCaml is
-particularly favoured for its competitive yet predictable performance, with
-fast foreign-function interface (FFI) and excellent compatibility with program
-analysis such as debuggers and profilers that utilise DWARF stack unwind tables
-to obtain a backtrace. Our primary motivation for adding effect handlers to
-OCaml is to support (1) highly concurrent applications such as web servers to
+particularly favoured for its competitive yet predictable performance, with fast
+foreign-function interface (FFI) and excellent compatibility with program
+analysis tools such as debuggers and profilers that utilise DWARF stack unwind
+tables to obtain a backtrace. Our primary motivation for adding effect handlers
+to OCaml is to support (1) highly concurrent applications such as web servers to
 be expressed naturally in \emph{direct-style} as opposed to using callbacks and
 (2) efficient data and task parallel programs in the vein of OpenMP~\cite{} and
 Intel TBB~\cite{}.
 
 OCaml, however, does not support any non-local control flow mechanisms other
-than exceptions. This makes it particularly challenging for implement delimited
-continuations necessary for effect handlers without sacrificing the desirable
-properties of OCaml. One standard way of implementing continuations is to use
-continuation-passing style (CPS) in the compiler's intermediate representation
-(IR)~\cite{Koka}. If the compiler were to use CPS, then reifying continuations
-in the source language is relatively straight-forward. But OCaml does not use
-CPS IR, and changing the OCaml compiler to utilise CPS IR would be an enormous
-undertaking. CPS IR would also affect the performance profile of OCaml
-applications due to increased memory allocations as continuation closures get
-allocated on the heap~\cite{Folklore}. Moreover, with CPS, stack unwinding in
-meaningless and hence, we would lose compatibility with tools that inspect the
-program stack. Hence, we choose not to CPS translation.
+than exceptions. This makes it particularly challenging to implement the
+delimited continuations necessary for effect handlers without sacrificing the
+desirable properties of OCaml. One standard way of implementing continuations is
+to use continuation-passing style (CPS) in the compiler's intermediate
+representation (IR)~\cite{Koka}. If the compiler were to use CPS, then reifying
+continuations in the source language is relatively straight-forward. But OCaml
+does not use CPS IR, and changing the OCaml compiler to utilise CPS IR would be
+an enormous undertaking. CPS IR would also affect the performance profile of
+OCaml applications due to increased memory allocations as continuation closures
+get allocated on the heap~\cite{Folklore}. Moreover, with CPS, stack unwinding
+is meaningless and hence, we would lose compatibility with tools that inspect
+the program stack. Hence, we choose not to CPS translation.
 
 The alternative is to use the call stack for implementing continuation.
 Farvardin et al~\cite{Folklore} show that there is a spectrum of implementation
@@ -389,7 +389,7 @@ Our contributions are to present:
 \end{itemize}
 
 We have implemented effect handlers in a multicore extension of the OCaml
-programming language. We call our implementation ``Multicoe OCaml'' to
+programming language. We call our implementation ``Multicore OCaml'' to
 distinguish it from stock OCaml. Multicore OCaml uses effect handlers as the
 mechanism to express user-level concurrency.
 
