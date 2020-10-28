@@ -64,9 +64,9 @@
       stringstyle=\color{MidnightBlue},
 			keywords=[2]{},
 			keywordstyle=[2]\color{byzantine}\bfseries,
-			%keywords=[3]{int,string}, %types%
-			%keywordstyle=[3]\color{caribbeangreen},
-			keywords=[4]{effect,perform,continue,discontinue},
+			keywords=[3]{effect,perform,continue,discontinue},
+			keywordstyle=[3]\color{caribbeangreen}\bfseries,
+			keywords=[4]{call,return,external},
 			keywordstyle=[4]\color{Bittersweet}\bfseries,
 			classoffset=1,
 			upquote=true,
@@ -300,14 +300,14 @@ retrofit effect handlers onto the OCaml programming language, which has been in
 continuous use for the past 25 years in large codebases including verification
 tools~\cite{FStar,Coq}, mission critical software systems~\cite{astree} and
 latency sensitive networked applications~\cite{JS,Docker,MirageOS}. OCaml is
-particularly favoured for its competitive yet predictable performance, with fast
-foreign-function interface (FFI) and excellent compatibility with program
+particularly favoured for its competitive yet predictable performance, with
+fast foreign-function interface (FFI) and excellent compatibility with program
 analysis tools such as debuggers and profilers that utilise DWARF stack unwind
 tables to obtain a backtrace. Our primary motivation for adding effect handlers
-to OCaml is to support (1) highly concurrent applications such as web servers to
-be expressed naturally in \emph{direct-style} as opposed to using callbacks and
-(2) efficient data and task parallel programs in the vein of OpenMP~\cite{} and
-Intel TBB~\cite{}.
+to OCaml is to support (1) highly concurrent applications such as web servers
+to be expressed naturally in \emph{direct-style} as opposed to using callbacks
+and (2) efficient data and task parallel programs in the vein of Cilk~\cite{},
+OpenMP~\cite{} and Intel TBB~\cite{}.
 
 OCaml, however, does not support any non-local control flow mechanisms other
 than exceptions. This makes it particularly challenging to implement the
@@ -407,6 +407,106 @@ work and the conclusions.
 
 \section{Background: OCaml Stacks}
 \label{sec:stack}
+
+\begin{figure*}
+\begin{minipage}{0.59\linewidth}
+	\begin{minipage}{\linewidth}
+		\begin{lstlisting}
+external ocaml_to_c : unit -> int = "ocaml_to_c"
+exception E1
+exception E2
+
+let c_to_ocaml () = raise E1
+let _ = Callback.register "c_to_ocaml" c_to_ocaml
+
+let omain () =
+  try (* h1 *)
+    try (* h2 *) ocaml_to_c () with E2 -> 0
+  with E1 -> 42;;
+
+let _ = assert (omain () = 42)
+		\end{lstlisting}
+    \subcaption{\texttt{meander.ml}}
+    \label{code:meander_ml}
+	\end{minipage}
+	\begin{minipage}{\linewidth}
+		\begin{lstlisting}[language=c]
+#include <caml/mlvalues.h>
+#include <caml/callback.h>
+
+value ocaml_to_c (value unit) {
+  caml_callback(*caml_named_value("c_to_ocaml"), Val_unit);
+  return Val_int(0);
+}
+		\end{lstlisting}
+    \subcaption{\texttt{meander.c}}
+    \label{code:meander_c}
+	\end{minipage}
+\end{minipage}
+  \begin{minipage}{0.39\linewidth}
+    \centering
+    \includegraphics[scale=0.5]{figures/stock_stack}
+    \subcaption{Stack layout before raising exception.}
+    \label{fig:stock_stack}
+  \end{minipage}
+\end{figure*}
+
+The main challenge in implementing effect handlers in Multicore OCaml is
+managing the program stack. To this end, in this section, we provide an
+overview of the program stack and related mechanisms for stock OCaml.
+
+In order to illustrate the layout of the stock OCaml stack, consider the
+program in Figures~\ref{code:meander_ml} and~\ref{code:meander_c}. The OCaml
+main function |omain| installs two exception handlers |h1| and |h2| to handle
+exceptions |E1| and |E2|. |omain| calls the external C function |ocaml_to_c|,
+which in turn calls back into OCaml function |c_to_ocaml|, which raises the
+exception |E1|. OCaml supports raising exceptions in C as well as throwing
+exceptions across external calls. Hence, the exception |E1| gets caught in the
+handler |h1|, and |omain| returns |42|. The layout of the stack in native code
+backend just before raising the exception in |c_to_ocaml| is illustrated in
+Figure~\ref{fig:stock_stack}. The stack grows downwards.
+
+OCaml uses the hardware stack as C, and hence the program stack has alternating
+sequences of C and OCaml frames. Unlike C, OCaml does not create pointers into
+OCaml frames. OCaml uses the hardware support for |call| and |return|
+instructions for function calls and returns. OCaml does not perform explicit
+stack overflow checks in code, and, just like C, relies on the guard page at
+the end of the stack region to detect stack overflow. Stack overflow is
+detected by a memory fault, and |Stack_overflow| exception is raised to unwind
+the stack.
+
+OCaml does not use the C calling convention. In particular, there are no
+callee-saved registers in OCaml. On the |amd64| backend, a register each is
+pinned for the \emph{allocation pointer} into the minor heap used for bump
+pointer allocation, and the |Caml_state|, a table of global variables used by
+the runtime. These registers are chosen to be C callee saved registers. This
+makes external calls extremely fast in OCaml. If the external function does not
+touch the OCaml heap, then the external functions can be called directly, and
+no bookkeeping is necessary. For external functions that touch the OCaml heap,
+the cached allocation pointer is saved to a field in the |Caml_state|, and
+loaded back on return. Similarly, callbacks into OCaml are also cheap.
+Callbacks into OCaml involves loading the arguments in the right registers and
+calling the OCaml function. OCaml callbacks are relatively common as
+finalisation functions are executed as OCaml callbacks.
+
+The lack of callee-saved registers also makes exception handling fast as there
+are no callee-saved registers to be restored when the exception handler runs.
+Hence, installing an exception handler simply pushes the program counter (pc)
+of the handler and the current exception pointer (a field in |Caml_state|). The
+exception pointer is also updated to be the current stack pointer (sp). This
+creates a linked-list of exception handler frames on the stack as shown in
+Figure~\ref{fig:stock_stack}. The saved exception pointer is restored when an
+exception is handled or the handled computation returns normally with a value.
+
+In order to forward exceptions across C frames, the C stub function
+|caml_start_program|, which is the entry point for both the main OCaml code and
+callbacks into OCaml, pushes an exception handler frame that forwards the
+exception the innermost OCaml exception handler (|raised_exn_c| in
+Figure~\ref{fig:stock_stack}), or prints a fatal error (|fatal_error|) if there
+are no enclosing handlers. Exceptions are so cheap in OCaml that it is very
+common to use them for \emph{local} control flow.
+
+\kc{gdb backtrace}
 
 \section{Handlers by example}
 \label{sec:handlers}
