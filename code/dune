@@ -1,0 +1,7 @@
+(executable
+  (name calc)
+	(modules calc))
+
+(executable
+  (name array_init)
+	(modules array_init))
