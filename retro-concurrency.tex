@@ -443,12 +443,13 @@ value ocaml_to_c (value unit) {
     \label{code:meander_c}
 	\end{minipage}
 \end{minipage}
-  \begin{minipage}{0.39\linewidth}
+	\begin{minipage}{0.39\linewidth}
     \centering
-    \includegraphics[scale=0.5]{figures/stock_stack}
+    \includegraphics[scale=0.46]{figures/stock_stack}
     \subcaption{Stack layout before raising exception.}
     \label{fig:stock_stack}
   \end{minipage}
+	\caption{Program stack on stock OCaml.}
 \end{figure*}
 
 The main challenge in implementing effect handlers in Multicore OCaml is
@@ -475,6 +476,8 @@ the end of the stack region to detect stack overflow. Stack overflow is
 detected by a memory fault, and |Stack_overflow| exception is raised to unwind
 the stack.
 
+\subsection{External calls and callbacks}
+
 OCaml does not use the C calling convention. In particular, there are no
 callee-saved registers in OCaml. On the |amd64| backend, a register each is
 pinned for the \emph{allocation pointer} into the minor heap used for bump
@@ -489,6 +492,8 @@ Callbacks into OCaml involves loading the arguments in the right registers and
 calling the OCaml function. OCaml callbacks are relatively common as
 finalisation functions are executed as OCaml callbacks.
 
+\subsection{Exception handlers}
+
 The lack of callee-saved registers also makes exception handling fast as there
 are no callee-saved registers to be restored when the exception handler runs.
 Hence, installing an exception handler simply pushes the program counter (pc)
@@ -502,7 +507,7 @@ In order to forward exceptions across C frames, the C stub function
 |caml_start_program|, which is the entry point for both the main OCaml code and
 callbacks into OCaml, pushes an exception handler frame that forwards the
 exception the innermost OCaml exception handler (|raised_exn_c| in
-Figure~\ref{fig:stock_stack}), or prints a fatal error (|fatal_error|) if there
+Figure~\ref{fig:stock_stack}), or prints a fatal error (|fatal_uncaught|) if there
 are no enclosing handlers. Exceptions are so cheap in OCaml that it is very
 common to use them for \emph{local} control flow.
 
