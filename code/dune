@@ -1,3 +1,7 @@
 (executable
   (name calc)
 	(modules calc))
+
+(executable
+  (name copyfile)
+	(modules copyfile))
