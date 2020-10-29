@@ -279,7 +279,8 @@ let rec eval e = match e with
 | Inp -> int_of_string(perform(Read stdin))
 \end{lstlisting}
 
-The |Read| effect can then be handled by another handler:
+The |Read| effect can then be handled by another handler enclosing the
+division-by-zero handler:
 
 \begin{lstlisting}
 let run e = match gsearch e with
@@ -358,10 +359,12 @@ requirements:
 		highly-concurrent applications, the program must accommodate millions of
 		continuations in the heap. Installing effect handlers, capturing and
 		resuming continuations must be fast.
+\if{0}
 	\item \textbf{Effect handler expressivity} While making continuations
 		resumable at-most once (\emph{affine}) is a standard way to make
 		continuation capture fast, we must still support use cases where the
 		continuations are resumed more than once.
+\fi
 	\item \textbf{Forwards compatibility} While this work does not present an
 		effect system, the design must be compatible with a future effect system
 		for OCaml. As a cornerstone of modularity, we also want blocking I/O code
@@ -386,16 +389,15 @@ OpenJDK project which adds virtual threads and delimited continuations to Java.
 We believe that our design choices will inform similar choices to be made in
 the other languages.
 
-
 \subsection{Contributions}
 
 Our contributions are to present:
 
 \begin{itemize}
-	\item the design and implementation of affine effect handlers for OCaml with
-		negligible performance impact on code that does not use effect handlers.
-		Our design lets us retain OCaml's compatibility with program analysis tools
-		that inspect the stack.
+	\item the design and implementation of affine effect handlers for OCaml. Our
+		design retains OCaml's compatibility with program analysis tools that
+		inspect the stack using DWARF unwind tables. We have validated our DWARF
+		unwind tables using an automated validator tool~\cite{}.
 	\item a formal operation semantics for the effect handler implementation in
 		OCaml.
 	\item extensive evaluation which shows that our implementation has negligible
@@ -595,10 +597,8 @@ complex endeavour~\cite{Daan17Aplas}, and we find that the complexity budget
 outweighs the relatively fewer mechanisms enabled by this addition in our
 setting.
 
-\subsection{Discontinuing a continuation}
-
 The interaction of non-local control flow with systems programming is quite
-subtle~\cite{}. Consider the following function that uses blocking I/O
+subtle~\cite{TFP17}. Consider the following function that uses blocking I/O
 functions from the OCaml standard library to copy data from the input channel
 |ic| to the output channel |oc|:
 
@@ -649,6 +649,7 @@ remedy this, when such an effect bubbles up to the top-level, we discontinue
 the continuation with |Unhandled| exception so that the exception handlers may
 run and clean up the resources.
 
+\if{0}
 \subsection{Multi-shot continuations}
 
 Though our primary goal is to enable non-local control flow mechanisms, effect
@@ -677,6 +678,7 @@ let _ = match bar () with
 The function |bar| expects |foo| to return exactly once, ignoring any exceptions. However,
 due to continuation cloning, the function returns twice, leading to double-free
 error.
+\fi
 
 \section{Semantics}
 \label{sec:semantics}
