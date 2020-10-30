@@ -797,16 +797,32 @@ environment $\env$.
 
 \subsubsection{Top-level reductions}
 
+\if{0}
 \begin{figure}
 	\begin{mathpar}
 		\begin{array}{rc}
-
 			\textsc{StepC} & \inferrule
 			                    {(\term, \env, \fl, \ostack) \cstep \config}
 													{\configa{\term}{\env}{\cstacka{\fl}{\ostack}} \step \config} \\ \\
 			\textsc{StepO} & \inferrule
 													{(\term, \env, k, \cstack) \ostep \config}
 													{\configa{\term}{\env}{\ostacka{k}{\cstack}} \step \config}
+		\end{array}
+	\end{mathpar}
+	\caption{Top-level Reductions -- $\config \step \config$.}
+	\label{sem:top}
+\end{figure}
+\fi
+
+\begin{figure}
+	\begin{mathpar}
+		\begin{array}{cc}
+			\textsc{StepC} ~
+			\inferrule{(\term, \env, \fl, \ostack) \cstep \config}
+								{\configa{\term}{\env}{\cstacka{\fl}{\ostack}} \step \config} &
+			\textsc{StepO} ~
+			\inferrule{(\term, \env, k, \cstack) \ostep \config}
+								{\configa{\term}{\env}{\ostacka{k}{\cstack}} \step \config}
 		\end{array}
 	\end{mathpar}
 	\caption{Top-level Reductions -- $\config \step \config$.}
@@ -861,8 +877,8 @@ Intuitively, this splits the world into executing C code and OCaml code.
 			                 & (e_1, \env_1, \ffun{k}::\farg{e_2}{\env_2}::\fl) \\
 			\textsc{Resume2} & (\clos{x}{e_1}{\env_1}, \_, \ffun{k}::\farg{e_2}{\env_2}::\fl) & \rightsquigarrow
 			                 & (e_2, \env_2, \ffun{k}::\ffun{\clos{x}{e_1}{\env_1}}::\fl) \\
-			\textsc{Perform} & (\perform{l}{e}, \env, \fl) & \rightsquigarrow
-			                 & (e, \env, \ffun{\effval{l}{[[],(\{\caseval{x}{x}\},\emptyset)]}}::\fl) \\
+%			\textsc{Perform} & (\perform{l}{e}, \env, \fl) & \rightsquigarrow
+%			                 & (e, \env, \ffun{\effval{l}{[[],(\{\caseval{x}{x}\},\emptyset)]}}::\fl) \\
 			\textsc{Raise}   & (\throw{l}{e}, \env, \fl) & \rightsquigarrow
 											 & (e, \env, \ffun{\exnval{l}}::\fl)
 		\end{array}
