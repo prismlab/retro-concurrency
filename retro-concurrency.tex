@@ -49,40 +49,40 @@
 \definecolor{caribbeangreen}{rgb}{0.0, 0.8, 0.6}
 
 \lstset{
-			language=caml,
+      language=caml,
       basicstyle=\ttfamily\footnotesize,
       flexiblecolumns=false,
-			tabsize=2,
-			escapechar={<@}{@>},
+      tabsize=2,
+      escapechar={<@}{@>},
       %basewidth={0.5em,0.45em},
       %aboveskip={3pt},
       %belowskip={3pt},
-			breaklines = true,
+      breaklines = true,
       breakatwhitespace = true,
       keywordstyle=\color{Bittersweet}\bfseries,
       commentstyle=\color{blue}\itshape,
       stringstyle=\color{MidnightBlue},
-			keywords=[2]{},
-			keywordstyle=[2]\color{byzantine}\bfseries,
-			keywords=[3]{eff,effect,perform,continue,discontinue,continuation,
-			             clone_continuation},
-			keywordstyle=[3]\color{caribbeangreen}\bfseries,
-			keywords=[4]{call,return,external},
-			keywordstyle=[4]\color{Bittersweet}\bfseries,
-			classoffset=1,
-			upquote=true,
-			keywordstyle=\color{byzantine}\bfseries,
-			classoffset=0,
-			mathescape=true,
-			numberstyle=\tiny\color{gray},
-			numbersep=5pt
+      keywords=[2]{},
+      keywordstyle=[2]\color{byzantine}\bfseries,
+      keywords=[3]{eff,effect,perform,continue,discontinue,continuation,
+                   clone_continuation},
+      keywordstyle=[3]\color{caribbeangreen}\bfseries,
+      keywords=[4]{call,return,external},
+      keywordstyle=[4]\color{Bittersweet}\bfseries,
+      classoffset=1,
+      upquote=true,
+      keywordstyle=\color{byzantine}\bfseries,
+      classoffset=0,
+      mathescape=true,
+      numberstyle=\tiny\color{gray},
+      numbersep=5pt
 }
 
 \lstnewenvironment{code}[1][]
     { % \centering
       \lstset{
-				basicstyle=\ttfamily\footnotesize,
-				#1}%
+        basicstyle=\ttfamily\footnotesize,
+        #1}%
       \csname lst@setfirstlabel\endcsname}
     { %\centering
       \csname lst@savefirstlabel\endcsname}
@@ -147,20 +147,20 @@
 \title{Retrofitting Effect Handlers onto OCaml}
 
 \begin{abstract}
-	Effect handlers have gained immense interest in the recent years as a means
-	for modular programming with user-defined effects. The runtime semantics of
-	effect handlers is particularly attractive as they allow advanced control
-	flow mechanisms such as first-class continuations, generators, async/await,
-	coroutines to be composably expressed. In this paper, we present the design,
-	a full-fledged implementation and evaluation of effect handlers for OCaml, an
-	industrial-strength, multi-paradigm programming language. OCaml tends to be
-	widely used for systems programming, and is compatible with program analysis
-	tools that inspect the stack such as debuggers and profilers. Retrofitting
-	effect handlers onto OCaml is challenging since OCaml does not have any
-	non-local control flow mechanisms other than exceptions. Our implementation
-	of effect handlers for OCaml imposes negligible overhead on code that does
-	not use effect handlers, and remains compatible with program analysis tools
-	that inspect the stack.
+  Effect handlers have gained immense interest in the recent years as a means
+  for modular programming with user-defined effects. The runtime semantics of
+  effect handlers is particularly attractive as they allow advanced control
+  flow mechanisms such as first-class continuations, generators, async/await,
+  coroutines to be composably expressed. In this paper, we present the design,
+  a full-fledged implementation and evaluation of effect handlers for OCaml, an
+  industrial-strength, multi-paradigm programming language. OCaml tends to be
+  widely used for systems programming, and is compatible with program analysis
+  tools that inspect the stack such as debuggers and profilers. Retrofitting
+  effect handlers onto OCaml is challenging since OCaml does not have any
+  non-local control flow mechanisms other than exceptions. Our implementation
+  of effect handlers for OCaml imposes negligible overhead on code that does
+  not use effect handlers, and remains compatible with program analysis tools
+  that inspect the stack.
 \end{abstract}
 
 \maketitle
@@ -216,17 +216,17 @@ type exp = Val of val | ... | Div of exp*exp
 effect DivBy0 : int -> val
 
 let rec eval e =
-	match e with
+  match e with
   | Val v -> v
-	| ...
+  | ...
   | Div (e1,e2) ->
     match eval e1, eval e2 with
     | Z v1, Z v2 ->
         if v2 = 0 then perform (DivBy0 v1)
         else Z (v1/v2)
-	  | Error, _ -> Error
-		| Inf s, _ -> Inf s
-  	| ...
+    | Error, _ -> Error
+    | Inf s, _ -> Inf s
+    | ...
 
 let (/) n d = Div (Val (Z n), Val (Z d))
 \end{lstlisting}
@@ -259,8 +259,8 @@ let gsearch e = match eval e with
 | v -> v
 | effect (DivBy0 v) k ->
   if v = 0 then continue k Error
-	else if v > 0 then continue k (Inf P)
-	else continue k (Inf N)
+  else if v > 0 then continue k (Inf P)
+  else continue k (Inf N)
 \end{lstlisting}
 
 The computation |gsearch(1/0)| returns positive infinity (|Inf P|).
@@ -287,9 +287,9 @@ division-by-zero handler:
 let run e = match gsearch e with
 | v -> v
 | effect (Read chan) k ->
-	register_async_input_line (chan, k);
-	let ui = get_ui_k () in
-	continue ui ()
+  register_async_input_line (chan, k);
+  let ui = get_ui_k () in
+  continue ui ()
 \end{lstlisting}
 
 \noindent which registers the read operation to be performed asynchronously
@@ -349,22 +349,22 @@ We motivate our implementation strategy based on the following ideal
 requirements:
 
 \begin{enumerate}[label=R\arabic*]
-	\item \textbf{Backwards compatibility} A well behaved OCaml program does not
-		break under OCaml extended with effect handlers. OCaml code that does not
-		use effect handlers will pay negligible performance cost.
-	\item \textbf{Tool compatibility} OCaml with effect handlers produce
-		well-formed backtraces, and remains compatible with program analysis tools
-		such as debuggers and profilers that inspect the stack using DWARF unwind
-		tables.
-	\item \textbf{Effect handler efficiency} In order to support
-		highly-concurrent applications, the program must accommodate millions of
-		continuations in the heap. Installing effect handlers, capturing and
-		resuming continuations must be fast.
-	\item \textbf{Forwards compatibility} While this work does not present an
-		effect system, the design must be compatible with a future effect system
-		for OCaml. As a cornerstone of modularity, we also want blocking I/O code
-		to \emph{transparently} be made asynchronous with the help of effect
-		handlers.
+  \item \textbf{Backwards compatibility} A well behaved OCaml program does not
+    break under OCaml extended with effect handlers. OCaml code that does not
+    use effect handlers will pay negligible performance cost.
+  \item \textbf{Tool compatibility} OCaml with effect handlers produce
+    well-formed backtraces, and remains compatible with program analysis tools
+    such as debuggers and profilers that inspect the stack using DWARF unwind
+    tables.
+  \item \textbf{Effect handler efficiency} In order to support
+    highly-concurrent applications, the program must accommodate millions of
+    continuations in the heap. Installing effect handlers, capturing and
+    resuming continuations must be fast.
+  \item \textbf{Forwards compatibility} While this work does not present an
+    effect system, the design must be compatible with a future effect system
+    for OCaml. As a cornerstone of modularity, we also want blocking I/O code
+    to \emph{transparently} be made asynchronous with the help of effect
+    handlers.
 \end{enumerate}
 
 The need to host millions of active continuations in the heap rules out the use
@@ -389,15 +389,15 @@ the other languages.
 Our contributions are to present:
 
 \begin{itemize}
-	\item the design and implementation of affine effect handlers for OCaml. Our
-		design retains OCaml's compatibility with program analysis tools that
-		inspect the stack using DWARF unwind tables. We have validated our DWARF
-		unwind tables using an automated validator tool~\cite{}.
-	\item a formal operation semantics for the effect handler implementation in
-		OCaml.
-	\item extensive evaluation which shows that our implementation has negligible
-		impact on code that does not use effect handlers, and serves as an
-		efficient foundation for scalable concurrent and parallel programming.
+  \item the design and implementation of affine effect handlers for OCaml. Our
+    design retains OCaml's compatibility with program analysis tools that
+    inspect the stack using DWARF unwind tables. We have validated our DWARF
+    unwind tables using an automated validator tool~\cite{}.
+  \item a formal operation semantics for the effect handler implementation in
+    OCaml.
+  \item extensive evaluation which shows that our implementation has negligible
+    impact on code that does not use effect handlers, and serves as an
+    efficient foundation for scalable concurrent and parallel programming.
 \end{itemize}
 
 We have implemented effect handlers in a multicore extension of the OCaml
@@ -422,8 +422,8 @@ against the goals set in \S\ref{sec:req}. \S\ref{sec:related} and
 
 \begin{figure*}
 \begin{minipage}{0.59\linewidth}
-	\begin{minipage}{\linewidth}
-		\begin{lstlisting}[numbers=left]
+  \begin{minipage}{\linewidth}
+    \begin{lstlisting}[numbers=left]
 external ocaml_to_c : unit -> int = "ocaml_to_c"
 exception E1
 exception E2
@@ -437,12 +437,12 @@ let omain () =
   with E1 -> 42;;
 
 let _ = assert (omain () = 42)
-		\end{lstlisting}
+    \end{lstlisting}
     \subcaption{\texttt{meander.ml}}
     \label{code:meander_ml}
-	\end{minipage}
-	\begin{minipage}{\linewidth}
-		\begin{lstlisting}[language=c,numbers=left]
+  \end{minipage}
+  \begin{minipage}{\linewidth}
+    \begin{lstlisting}[language=c,numbers=left]
 #include <caml/mlvalues.h>
 #include <caml/callback.h>
 
@@ -450,18 +450,18 @@ value ocaml_to_c (value unit) {
   caml_callback(*caml_named_value("c_to_ocaml"), Val_unit);
   return Val_int(0);
 }
-		\end{lstlisting}
+    \end{lstlisting}
     \subcaption{\texttt{meander.c}}
     \label{code:meander_c}
-	\end{minipage}
+  \end{minipage}
 \end{minipage}
-	\begin{minipage}{0.39\linewidth}
+  \begin{minipage}{0.39\linewidth}
     \centering
     \includegraphics[scale=0.46]{figures/stock_stack}
     \subcaption{Stack layout before raising exception.}
     \label{fig:stock_stack}
   \end{minipage}
-	\caption{Program stack on stock OCaml.}
+  \caption{Program stack on stock OCaml.}
 \end{figure*}
 
 The main challenge in implementing effect handlers in Multicore OCaml is
@@ -711,38 +711,38 @@ let r = match perform (E "42") with
 \subsection{Dynamic semantics}
 
 \begin{figure*}
-	\begin{minipage}[t]{0.49\linewidth}
-	\begin{smathpar}
-	\begin{array}{rrcl}
-		\text{Constants} & n & \coloneqq & ℤ \\
-		\text{Abstractions} & \Lambda & \coloneqq & \lambda^o \mid \lambda^c \\
-		\text{Expressions} & e & \coloneqq & n \mid x \mid e ~e \mid  \lam{x}{e} \mid e \odot e \mid \throw{l}{e} \\
-											 &   & \mid      & \handle{e}{h} \mid \perform{l}{e} \\
-		\text{Handlers} & h & \coloneqq & \{\caseval{x}{e}\} \mid \{\caseexn{l}{x}{e}\} \uplus h \\
-		               &   & \mid & \{\caseeff{l}{x}{k}{e}\} \uplus h \\
-		\text{Values} & v & \coloneqq & n \mid k \mid \clos{x}{e}{\env} \mid \effval{l}{k} \mid \exnval{l} \\
-		\text{Frames} & r & \coloneqq & \farg{e}{\env} \mid \ffun{v} \mid \faritha{\odot}{e}{\env} \mid \farithb{\odot}{ℕ} \\
-		\text{Environments} & \env & \coloneqq & \emptyset \mid \envext{\env}{x}{v} \\
-	\end{array}
-	\end{smathpar}
-	\end{minipage}
-	\begin{minipage}[t]{0.49\linewidth}
-	\begin{smathpar}
-	\begin{array}{rrcl}
-		\text{Handler Closures} & \hc & \coloneqq & (h,\env) \\
-		\text{Frame List} & \fl & \coloneqq & [] \mid r :: \fl \\
-		\text{Fibers} & \fiber & \coloneqq & (\fl, \hc) \\
-		\text{Continuations} & k & \coloneqq & [] \mid \fiber \kcons k \\
-		\text{C stacks} & \cstack & \coloneqq & \cstacka{\fl}{\ostack}\\
-		\text{OCaml stacks} & \ostack & \coloneqq & \ostacka{k}{\cstack} \mid \ostackemp \\
-		\text{Stacks} & \stack & \coloneqq & \cstack \mid \ostack \\
-		\text{Terms} & \term & \coloneqq & e \mid v \\
-		\text{Configurations} & \config & \coloneqq & \configa{\tau}{\env}{\stack}
-	\end{array}
-	\end{smathpar}
-	\end{minipage}
-	\caption{Syntax of expressions and configurations}
-	\label{sem:syntax}
+  \begin{minipage}[t]{0.49\linewidth}
+  \begin{smathpar}
+  \begin{array}{rrcl}
+    \text{Constants} & n & \coloneqq & ℤ \\
+    \text{Abstractions} & \Lambda & \coloneqq & \lambda^o \mid \lambda^c \\
+    \text{Expressions} & e & \coloneqq & n \mid x \mid e ~e \mid  \lam{x}{e} \mid e \odot e \mid \throw{l}{e} \\
+                       &   & \mid      & \handle{e}{h} \mid \perform{l}{e} \\
+    \text{Handlers} & h & \coloneqq & \{\caseval{x}{e}\} \mid \{\caseexn{l}{x}{e}\} \uplus h \\
+                   &   & \mid & \{\caseeff{l}{x}{k}{e}\} \uplus h \\
+    \text{Values} & v & \coloneqq & n \mid k \mid \clos{x}{e}{\env} \mid \effval{l}{k} \mid \exnval{l} \\
+    \text{Frames} & r & \coloneqq & \farg{e}{\env} \mid \ffun{v} \mid \faritha{\odot}{e}{\env} \mid \farithb{\odot}{ℕ} \\
+    \text{Environments} & \env & \coloneqq & \emptyset \mid \envext{\env}{x}{v} \\
+  \end{array}
+  \end{smathpar}
+  \end{minipage}
+  \begin{minipage}[t]{0.49\linewidth}
+  \begin{smathpar}
+  \begin{array}{rrcl}
+    \text{Handler Closures} & \hc & \coloneqq & (h,\env) \\
+    \text{Frame List} & \fl & \coloneqq & [] \mid r :: \fl \\
+    \text{Fibers} & \fiber & \coloneqq & (\fl, \hc) \\
+    \text{Continuations} & k & \coloneqq & [] \mid \fiber \kcons k \\
+    \text{C stacks} & \cstack & \coloneqq & \cstacka{\fl}{\ostack}\\
+    \text{OCaml stacks} & \ostack & \coloneqq & \ostacka{k}{\cstack} \mid \ostackemp \\
+    \text{Stacks} & \stack & \coloneqq & \cstack \mid \ostack \\
+    \text{Terms} & \term & \coloneqq & e \mid v \\
+    \text{Configurations} & \config & \coloneqq & \configa{\tau}{\env}{\stack}
+  \end{array}
+  \end{smathpar}
+  \end{minipage}
+  \caption{Syntax of expressions and configurations}
+  \label{sem:syntax}
 \end{figure*}
 
 We present the operational semantics for a core language of effect handlers in
@@ -799,34 +799,34 @@ environment $\env$.
 
 \if{0}
 \begin{figure}
-	\begin{mathpar}
-		\begin{array}{rc}
-			\textsc{StepC} & \inferrule
-			                    {(\term, \env, \fl, \ostack) \cstep \config}
-													{\configa{\term}{\env}{\cstacka{\fl}{\ostack}} \step \config} \\ \\
-			\textsc{StepO} & \inferrule
-													{(\term, \env, k, \cstack) \ostep \config}
-													{\configa{\term}{\env}{\ostacka{k}{\cstack}} \step \config}
-		\end{array}
-	\end{mathpar}
-	\caption{Top-level Reductions -- $\config \step \config$.}
-	\label{sem:top}
+  \begin{mathpar}
+    \begin{array}{rc}
+      \textsc{StepC} & \inferrule
+                          {(\term, \env, \fl, \ostack) \cstep \config}
+                          {\configa{\term}{\env}{\cstacka{\fl}{\ostack}} \step \config} \\ \\
+      \textsc{StepO} & \inferrule
+                          {(\term, \env, k, \cstack) \ostep \config}
+                          {\configa{\term}{\env}{\ostacka{k}{\cstack}} \step \config}
+    \end{array}
+  \end{mathpar}
+  \caption{Top-level Reductions -- $\config \step \config$.}
+  \label{sem:top}
 \end{figure}
 \fi
 
 \begin{figure}
-	\begin{mathpar}
-		\begin{array}{cc}
-			\textsc{StepC} ~
-			\inferrule{(\term, \env, \fl, \ostack) \cstep \config}
-								{\configa{\term}{\env}{\cstacka{\fl}{\ostack}} \step \config} &
-			\textsc{StepO} ~
-			\inferrule{(\term, \env, k, \cstack) \ostep \config}
-								{\configa{\term}{\env}{\ostacka{k}{\cstack}} \step \config}
-		\end{array}
-	\end{mathpar}
-	\caption{Top-level Reductions -- $\config \step \config$.}
-	\label{sem:top}
+  \begin{mathpar}
+    \begin{array}{cc}
+      \textsc{StepC} ~
+      \inferrule{(\term, \env, \fl, \ostack) \cstep \config}
+                {\configa{\term}{\env}{\cstacka{\fl}{\ostack}} \step \config} &
+      \textsc{StepO} ~
+      \inferrule{(\term, \env, k, \cstack) \ostep \config}
+                {\configa{\term}{\env}{\ostacka{k}{\cstack}} \step \config}
+    \end{array}
+  \end{mathpar}
+  \caption{Top-level Reductions -- $\config \step \config$.}
+  \label{sem:top}
 \end{figure}
 
 The initial configuration for an expression $e$ is
@@ -836,54 +836,54 @@ performed by either by taking a C step $\cstep$ or an OCaml step $\ostep$.
 Intuitively, this splits the world into executing C code and OCaml code.
 
 \begin{figure*}
-	\begin{smathpar}
-		\begin{array}{rrcl}
-			\textsc{Var}     & (x,\env, \fl) & \rightsquigarrow
-			                 & (\env(x), \env, \fl) \\
-			\textsc{Arith1}  & (e_1 \odot e_2, \env, \fl) & \rightsquigarrow
-			                 & (e_1,\env, \faritha{\odot}{e_2}{\env}::\fl) \\
-			\textsc{Arith2}  & (n_1, \_, \faritha{\odot}{e_2}{\env}::\fl) & \rightsquigarrow
-			                 & (e_2, \env, \farithb{\odot}{n_1}::\fl) \\
-			\textsc{Arith3}  & (n_2, \env, \farithb{\odot}{n_1}::\fl) & \rightsquigarrow
-			                 & (\llbracket n_1 \odot n_2 \rrbracket, \env, \fl) \\
-			\textsc{App1}    & (e_1 ~e_2, \env, \fl) & \rightsquigarrow
-			                 & (e_1, \env, \farg{e_2}{\env}::\fl) \\
-			\textsc{App2}    & (\lam{x}{e}, \env, \fl) & \rightsquigarrow
-			                 & (\clos{x}{e}{\env}, \env, \fl) \\
-			\textsc{App3}    & (\clos{x}{e_1}{\env_1}, \_, \farg{e_2}{\env_2}::\fl) & \rightsquigarrow
-			                 & (e_2, \env_2, \ffun{\clos{x}{e_1}{\env_1}}::\fl) \\
-			\textsc{Resume1} & (k,\_,\farg{e_1}{\env_1}::\farg{e_2}{\env_2}::\fl) & \rightsquigarrow
-			                 & (e_1, \env_1, \ffun{k}::\farg{e_2}{\env_2}::\fl) \\
-			\textsc{Resume2} & (\clos{x}{e_1}{\env_1}, \_, \ffun{k}::\farg{e_2}{\env_2}::\fl) & \rightsquigarrow
-			                 & (e_2, \env_2, \ffun{k}::\ffun{\clos{x}{e_1}{\env_1}}::\fl) \\
-			\textsc{Perform} & (\perform{l}{e}, \env, \fl) & \rightsquigarrow
-			                 & (e, \env, \ffun{\effval{l}{[[],(\{\caseval{x}{x}\},\emptyset)]}}::\fl) \\
-			\textsc{Raise}   & (\throw{l}{e}, \env, \fl) & \rightsquigarrow
-											 & (e, \env, \ffun{\exnval{l}}::\fl)
-		\end{array}
-	\end{smathpar}
-	\caption{Administrative Reductions -- $(\term, \env, \fl) \rightsquigarrow (\tau, \env, \fl)$.}
-	\label{sem:step}
+  \begin{smathpar}
+    \begin{array}{rrcl}
+      \textsc{Var}     & (x,\env, \fl) & \rightsquigarrow
+                       & (\env(x), \env, \fl) \\
+      \textsc{Arith1}  & (e_1 \odot e_2, \env, \fl) & \rightsquigarrow
+                       & (e_1,\env, \faritha{\odot}{e_2}{\env}::\fl) \\
+      \textsc{Arith2}  & (n_1, \_, \faritha{\odot}{e_2}{\env}::\fl) & \rightsquigarrow
+                       & (e_2, \env, \farithb{\odot}{n_1}::\fl) \\
+      \textsc{Arith3}  & (n_2, \env, \farithb{\odot}{n_1}::\fl) & \rightsquigarrow
+                       & (\llbracket n_1 \odot n_2 \rrbracket, \env, \fl) \\
+      \textsc{App1}    & (e_1 ~e_2, \env, \fl) & \rightsquigarrow
+                       & (e_1, \env, \farg{e_2}{\env}::\fl) \\
+      \textsc{App2}    & (\lam{x}{e}, \env, \fl) & \rightsquigarrow
+                       & (\clos{x}{e}{\env}, \env, \fl) \\
+      \textsc{App3}    & (\clos{x}{e_1}{\env_1}, \_, \farg{e_2}{\env_2}::\fl) & \rightsquigarrow
+                       & (e_2, \env_2, \ffun{\clos{x}{e_1}{\env_1}}::\fl) \\
+      \textsc{Resume1} & (k,\_,\farg{e_1}{\env_1}::\farg{e_2}{\env_2}::\fl) & \rightsquigarrow
+                       & (e_1, \env_1, \ffun{k}::\farg{e_2}{\env_2}::\fl) \\
+      \textsc{Resume2} & (\clos{x}{e_1}{\env_1}, \_, \ffun{k}::\farg{e_2}{\env_2}::\fl) & \rightsquigarrow
+                       & (e_2, \env_2, \ffun{k}::\ffun{\clos{x}{e_1}{\env_1}}::\fl) \\
+      \textsc{Perform} & (\perform{l}{e}, \env, \fl) & \rightsquigarrow
+                       & (e, \env, \ffun{\effval{l}{[[],(\{\caseval{x}{x}\},\emptyset)]}}::\fl) \\
+      \textsc{Raise}   & (\throw{l}{e}, \env, \fl) & \rightsquigarrow
+                       & (e, \env, \ffun{\exnval{l}}::\fl)
+    \end{array}
+  \end{smathpar}
+  \caption{Administrative Reductions -- $(\term, \env, \fl) \rightsquigarrow (\tau, \env, \fl)$.}
+  \label{sem:step}
 \end{figure*}
 \begin{figure*}
-	\begin{smathpar}
-		\begin{array}{rrcll}
-			\textsc{AdminC}   & (\term,\env,\fl,\ostack) & \cstep
-												& \configa{\term'}{\env'}{\cstacka{\fl'}{\ostack}}
-												& \text{if } (\term,\env,\fl) \rightsquigarrow (\term',\env',\fl') \\
-			\textsc{RetToO}   & (v,\env,[],\ostacka{k}{\cstack}) & \cstep
-			                  & \configa{v}{\env}{\ostacka{k}{\cstack}} \\
-			\textsc{CallC}    & (v, \_, \cclos{x}{e}{\env}::\fl, \ostack) & \cstep
-												& \configa{e}{\envext{\env}{x}{v}}{\cstacka{\fl}{\ostack}} \\
-			\textsc{Callback} & (v, \_, \oclos{x}{e}{\env}::\fl, \ostack) & \cstep
-												& \configa{e}{\envext{\env}{x}{v}}{\ostacka{k}{\cstacka{\fl}{\ostack}}}
-												& \text{if } k = [[],(\{\caseval{x}{x}\},\emptyset)] \\
-			\textsc{ExnFwdO}  & (v, \env, \ffun{\exnval{l}}::\_, \ostacka{(\fl,\hc) \kcons k}{\cstack}) & \cstep
-												& \configa{v}{\env}{\ostacka{(\ffun{\exnval{l}}::\fl,\hc) \kcons k}{\cstack}}
-		\end{array}
-	\end{smathpar}
-	\caption{C Reductions -- $(\term, \env, \fl, \ostack) \cstep \config$.}
-	\label{sem:cstep}
+  \begin{smathpar}
+    \begin{array}{rrcll}
+      \textsc{AdminC}   & (\term,\env,\fl,\ostack) & \cstep
+                        & \configa{\term'}{\env'}{\cstacka{\fl'}{\ostack}}
+                        & \text{if } (\term,\env,\fl) \rightsquigarrow (\term',\env',\fl') \\
+      \textsc{RetToO}   & (v,\env,[],\ostacka{k}{\cstack}) & \cstep
+                        & \configa{v}{\env}{\ostacka{k}{\cstack}} \\
+      \textsc{CallC}    & (v, \_, \cclos{x}{e}{\env}::\fl, \ostack) & \cstep
+                        & \configa{e}{\envext{\env}{x}{v}}{\cstacka{\fl}{\ostack}} \\
+      \textsc{Callback} & (v, \_, \oclos{x}{e}{\env}::\fl, \ostack) & \cstep
+                        & \configa{e}{\envext{\env}{x}{v}}{\ostacka{k}{\cstacka{\fl}{\ostack}}}
+                        & \text{if } k = [[],(\{\caseval{x}{x}\},\emptyset)] \\
+      \textsc{ExnFwdO}  & (v, \env, \ffun{\exnval{l}}::\_, \ostacka{(\fl,\hc) \kcons k}{\cstack}) & \cstep
+                        & \configa{v}{\env}{\ostacka{(\ffun{\exnval{l}}::\fl,\hc) \kcons k}{\cstack}}
+    \end{array}
+  \end{smathpar}
+  \caption{C Reductions -- $(\term, \env, \fl, \ostack) \cstep \config$.}
+  \label{sem:cstep}
 \end{figure*}
 
 
@@ -917,50 +917,50 @@ captures the semantics of raising OCaml exceptions from C.
 \subsubsection{OCaml Reductions}
 
 \begin{figure*}
-	\begin{smathpar}
-		\begin{array}{rrcll}
-			\textsc{AdminO}   & (\term,\env,(\fl,\hc) \kcons k,\cstack) & \ostep
-												& \configa{\term'}{\env'}{\ostacka{(\fl',\hc) \kcons k}{\cstack}}
-												& \text{if } (\term,\env,\fl) \rightsquigarrow (\term',\env',\fl') \\
-			\textsc{RetToC}   & (v, \_, [([],(h,\emptyset))], \cstack) & \ostep
-												& \configa{v}{\env}{\cstack}
-												& \text{if } h = \{\caseval{x}{x}\} \\
-			\textsc{RetFib} & (v, \_, ([],(h,\env)) \kcons k, \cstack) & \ostep
-												& \configa{e}{\envext{\env}{x}{v}}{\ostacka{k}{\cstack}}
-												& \text{if } \{\caseval{x}{e}\} \in h \\
-			\textsc{CallO}    & (v, \_, (\oclos{x}{e}{\env}::\fl,\hc) \kcons k, \cstack) & \ostep
-												& \configa{e}{\envext{\env}{x}{v}}{\ostacka{(\fl,\hc) \kcons k}{\cstack}} \\
-			\textsc{ExtCall}  & (v, \_, (\cclos{x}{e}{\env}::\fl,\hc) \kcons k, \cstack) & \ostep
-												& \configa{e}{\envext{\env}{x}{v}}{\cstacka{[]}{\ostacka{(\fl,\hc) \kcons k}{\cstack}}} \\
-			\textsc{Resume}   & (v, \_, (\ffun{k}::\ffun{\oclos{x}{e}{\env}}::\fl,\hc) \kcons k, \cstack) & \ostep
-												& \configa{e}{\envext{\env}{x}{v}}{\ostacka{k ~@~ ((\fl,\hc) \kcons k')}{\cstack}} \\
-			\textsc{Handle}   & (\handle{e}{h}, \env, k, \cstack) & \ostep
-												& \configa{e}{\env}{\ostacka{([],(h,\env)) \kcons k}{\cstack}} \\
-			\textsc{EffUnHn}  & (v, \_, [\ffun{\effval{l}{k}}::\fl,(h,\env)], \cstack) & \ostep
-												& \configa{e}{\emptyset}{\ostacka{k ~@~ [(\fl,(h,\env))]}{\cstack}}
-												& \text{if } \{\caseeff{l}{\_}{\_}{\_}\} \notin h \\
-									& & & & \text{and } {e = \throw{\textsf{unhandled}}{0}} \\
-			\textsc{EffHn}    & (v, \_, (\ffun{\effval{l}{k}}::\fl,(h,\env)) \kcons k', \cstack) & \ostep
-												& \configa{e}{\env[r \mapsto k''][x \mapsto v]}{\ostacka{k'}{\cstack}}
-												& \text{if } \{\caseeff{l}{x}{r}{e}\} \in h \\
-									& & & & \text{and } k'' = k ~@~ [(\fl,(h,\env))] \\
-			\textsc{EffFwd}   & (v, \env', (\ffun{\effval{l}{k}}::\fl,(h,\env)) \kcons (\fl',\hc') \kcons k', \cstack) & \ostep
-												& \configa{v}{\env'}{\ostacka{(\ffun{\effval{l}{k''}}::\fl',\hc') \kcons k'}{\cstack}}
-												& \text{if } \{\caseeff{l}{\_}{\_}{\_}\} \notin h \\
-								  & & & & \text{and } k'' = k ~@~ [(\fl,(h,\env))] \\
-			\textsc{ExFwdC}   & (v, \env, [\ffun{\exnval{l}}::\_,(h,\_)], \cstacka{\fl'}{\ostack}) & \ostep
-												& \configa{v}{\env}{\cstacka{\ffun{\exnval{l}}::\fl'}{\ostack}}
-												& \text{if } \{\caseexn{l}{\_}{\_}\} \notin h \\
-			\textsc{ExHn}     & (v, \_, (\ffun{\exnval{l}}::\_,(h,\env)) \kcons k', \cstack) & \ostep
-												& \configa{e}{\envext{\env}{x}{v}}{\ostacka{k'}{\cstack}}
-												& \text{if } \{\caseexn{l}{x}{e}\} \in h \\
-			\textsc{ExFwdFib} & (v, \env, (\ffun{\exnval{l}}::\_,(h,\_)) \kcons (\fl',\hc') \kcons k', \cstack) & \ostep
-												& \configa{v}{\env}{\ostacka{(\ffun{\exnval{l}}::\fl',\hc') \kcons k'}{\cstack}}
-												& \text{if } \{\caseexn{l}{\_}{\_}\} \notin h \\
-		\end{array}
-	\end{smathpar}
-	\caption{OCaml Reductions -- $(\term, \env, k, \cstack) \ostep \config$.}
-	\label{sem:ostep}
+  \begin{smathpar}
+    \begin{array}{rrcll}
+      \textsc{AdminO}   & (\term,\env,(\fl,\hc) \kcons k,\cstack) & \ostep
+                        & \configa{\term'}{\env'}{\ostacka{(\fl',\hc) \kcons k}{\cstack}}
+                        & \text{if } (\term,\env,\fl) \rightsquigarrow (\term',\env',\fl') \\
+      \textsc{RetToC}   & (v, \_, [([],(h,\emptyset))], \cstack) & \ostep
+                        & \configa{v}{\env}{\cstack}
+                        & \text{if } h = \{\caseval{x}{x}\} \\
+      \textsc{RetFib} & (v, \_, ([],(h,\env)) \kcons k, \cstack) & \ostep
+                        & \configa{e}{\envext{\env}{x}{v}}{\ostacka{k}{\cstack}}
+                        & \text{if } \{\caseval{x}{e}\} \in h \\
+      \textsc{CallO}    & (v, \_, (\oclos{x}{e}{\env}::\fl,\hc) \kcons k, \cstack) & \ostep
+                        & \configa{e}{\envext{\env}{x}{v}}{\ostacka{(\fl,\hc) \kcons k}{\cstack}} \\
+      \textsc{ExtCall}  & (v, \_, (\cclos{x}{e}{\env}::\fl,\hc) \kcons k, \cstack) & \ostep
+                        & \configa{e}{\envext{\env}{x}{v}}{\cstacka{[]}{\ostacka{(\fl,\hc) \kcons k}{\cstack}}} \\
+      \textsc{Resume}   & (v, \_, (\ffun{k}::\ffun{\oclos{x}{e}{\env}}::\fl,\hc) \kcons k, \cstack) & \ostep
+                        & \configa{e}{\envext{\env}{x}{v}}{\ostacka{k ~@~ ((\fl,\hc) \kcons k')}{\cstack}} \\
+      \textsc{Handle}   & (\handle{e}{h}, \env, k, \cstack) & \ostep
+                        & \configa{e}{\env}{\ostacka{([],(h,\env)) \kcons k}{\cstack}} \\
+      \textsc{EffUnHn}  & (v, \_, [\ffun{\effval{l}{k}}::\fl,(h,\env)], \cstack) & \ostep
+                        & \configa{e}{\emptyset}{\ostacka{k ~@~ [(\fl,(h,\env))]}{\cstack}}
+                        & \text{if } \{\caseeff{l}{\_}{\_}{\_}\} \notin h \\
+                  & & & & \text{and } {e = \throw{\textsf{unhandled}}{0}} \\
+      \textsc{EffHn}    & (v, \_, (\ffun{\effval{l}{k}}::\fl,(h,\env)) \kcons k', \cstack) & \ostep
+                        & \configa{e}{\env[r \mapsto k''][x \mapsto v]}{\ostacka{k'}{\cstack}}
+                        & \text{if } \{\caseeff{l}{x}{r}{e}\} \in h \\
+                  & & & & \text{and } k'' = k ~@~ [(\fl,(h,\env))] \\
+      \textsc{EffFwd}   & (v, \env', (\ffun{\effval{l}{k}}::\fl,(h,\env)) \kcons (\fl',\hc') \kcons k', \cstack) & \ostep
+                        & \configa{v}{\env'}{\ostacka{(\ffun{\effval{l}{k''}}::\fl',\hc') \kcons k'}{\cstack}}
+                        & \text{if } \{\caseeff{l}{\_}{\_}{\_}\} \notin h \\
+                  & & & & \text{and } k'' = k ~@~ [(\fl,(h,\env))] \\
+      \textsc{ExFwdC}   & (v, \env, [\ffun{\exnval{l}}::\_,(h,\_)], \cstacka{\fl'}{\ostack}) & \ostep
+                        & \configa{v}{\env}{\cstacka{\ffun{\exnval{l}}::\fl'}{\ostack}}
+                        & \text{if } \{\caseexn{l}{\_}{\_}\} \notin h \\
+      \textsc{ExHn}     & (v, \_, (\ffun{\exnval{l}}::\_,(h,\env)) \kcons k', \cstack) & \ostep
+                        & \configa{e}{\envext{\env}{x}{v}}{\ostacka{k'}{\cstack}}
+                        & \text{if } \{\caseexn{l}{x}{e}\} \in h \\
+      \textsc{ExFwdFib} & (v, \env, (\ffun{\exnval{l}}::\_,(h,\_)) \kcons (\fl',\hc') \kcons k', \cstack) & \ostep
+                        & \configa{v}{\env}{\ostacka{(\ffun{\exnval{l}}::\fl',\hc') \kcons k'}{\cstack}}
+                        & \text{if } \{\caseexn{l}{\_}{\_}\} \notin h \\
+    \end{array}
+  \end{smathpar}
+  \caption{OCaml Reductions -- $(\term, \env, k, \cstack) \ostep \config$.}
+  \label{sem:ostep}
 \end{figure*}
 
 OCaml reductions are given in Figure~\ref{sem:ostep}. In OCaml, reductions
@@ -1001,10 +1001,10 @@ to the front of the current continuation.
 Observe that |continue| and |discontinue| are not part of the expressions. They
 are encoded as follows:
 \begin{smathpar}
-	\begin{array}{rcl}
-		\textsf{continue} ~k ~e & = & k ~(\olam{x}{x}) ~e \\
-		\textsf{discontinue} ~k ~l ~e & = & k ~(\olam{x}{\throw{l}{x}}) ~e
-	\end{array}
+  \begin{array}{rcl}
+    \textsf{continue} ~k ~e & = & k ~(\olam{x}{x}) ~e \\
+    \textsf{discontinue} ~k ~l ~e & = & k ~(\olam{x}{\throw{l}{x}}) ~e
+  \end{array}
 \end{smathpar}
 
 Intuitively, resuming a continuation in both the cases involves evaluating the
