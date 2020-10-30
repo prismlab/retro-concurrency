@@ -64,7 +64,8 @@
       stringstyle=\color{MidnightBlue},
 			keywords=[2]{},
 			keywordstyle=[2]\color{byzantine}\bfseries,
-			keywords=[3]{effect,perform,continue,discontinue,clone_continuation},
+			keywords=[3]{eff,effect,perform,continue,discontinue,continuation,
+			             clone_continuation},
 			keywordstyle=[3]\color{caribbeangreen}\bfseries,
 			keywords=[4]{call,return,external},
 			keywordstyle=[4]\color{Bittersweet}\bfseries,
@@ -86,7 +87,7 @@
     { %\centering
       \csname lst@savefirstlabel\endcsname}
 
-\lstMakeShortInline[columns=fullflexible]|
+\lstMakeShortInline[columns=fullflexible,keepspaces]|
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Semantics definitions
@@ -359,12 +360,6 @@ requirements:
 		highly-concurrent applications, the program must accommodate millions of
 		continuations in the heap. Installing effect handlers, capturing and
 		resuming continuations must be fast.
-\if{0}
-	\item \textbf{Effect handler expressivity} While making continuations
-		resumable at-most once (\emph{affine}) is a standard way to make
-		continuation capture fast, we must still support use cases where the
-		continuations are resumed more than once.
-\fi
 	\item \textbf{Forwards compatibility} While this work does not present an
 		effect system, the design must be compatible with a future effect system
 		for OCaml. As a cornerstone of modularity, we also want blocking I/O code
@@ -649,39 +644,73 @@ remedy this, when such an effect bubbles up to the top-level, we discontinue
 the continuation with |Unhandled| exception so that the exception handlers may
 run and clean up the resources.
 
-\if{0}
-\subsection{Multi-shot continuations}
-
-Though our primary goal is to enable non-local control flow mechanisms, effect
-handlers have been gaining increasing attention for Bayesian machine learning
-and probabilisitic programming~\cite{PyroJMLR,MooreEdward2Google}, which resume
-the continuations more than once for performing inference over the
-probabilistic program. To enable these use cases, we provide a
-|clone_continuation| primitive that makes a copy of the given continuation.
-Care must be taken when using multi-shot continuations as they do not mix well
-with code that uses resources. With multi-shot continuations, a function
-\emph{may return more than once}. Consider the code below:
-
-\begin{lstlisting}
-let foo m = ...;perform E; ...
-let bar () =
-  let m = malloc 64 in
-	begin try foo m with _ -> () end;
-	free m
-let _ = match bar () with
-| () -> ()
-| effect E k ->
-    let k' = clone_continuation k in
-		continue k (); continue k' ()
-\end{lstlisting}
-
-The function |bar| expects |foo| to return exactly once, ignoring any exceptions. However,
-due to continuation cloning, the function returns twice, leading to double-free
-error.
-\fi
-
 \section{Semantics}
 \label{sec:semantics}
+
+In this section, we formalise the effect handler design in Multicore OCaml.
+
+\subsection{Static semantics}
+
+As mentioned earlier, effect handlers in Multicore OCaml do not guarantee
+effect safety, but only guarantee type safety. Programs without matching effect
+handlers are well-typed Multicore OCaml programs. As a result, our static
+semantics is simpler than languages that ensure effect
+safety~\cite{Links,Koka,Effekt,Frank,HeliumBiernacki}. This is important for
+backwards compatibility as our goal is to retrofit effect handlers to a
+language with large legacy codebases. Programs that do not use effects remain
+well-typed, and those that do compose well with those that don't.
+
+The static semantics of effect handlers in OCaml is captured succinctly by its
+API:
+\begin{lstlisting}
+type 'a eff
+type ('a,'b) continuation
+val perform: 'a eff -> 'a
+val continue: ('a,'b) continuation -> 'a -> 'b
+val discontinue: ('a,'b) continuation -> exn -> 'b
+
+type 'a computation = unit -> 'a
+type ('a,'b) handler =
+{ret: 'a -> 'b;
+ eff_1: 'c1.'c1 eff -> ('c1,'b)continuation -> 'b;
+ ...
+ eff_n: 'cn.'cn eff -> ('cn,'b)continuation -> 'b}
+val match_with: 'a computation -> ('a,'b) handler
+                               -> 'b
+\end{lstlisting}
+
+We introduce the type |'a eff| of effect values which when performed using the
+|perform| primitive returns a |'a| value. Constructors for the value of type
+|'a eff| are declared using the effect declarations. For example, with the
+declaration |effect E : string -> int|, the effect value |E "42"| has the type
+|int eff|. We introduce the type |('a,'b) continuation| of delimited
+continuations which expect a |'a| value for resumption and return |'b| value.
+The continuations may be |continue|d with a suitably typed value or
+|discontinue|d with an exception.
+
+For handling the effects, our implementation extends OCaml's |match ... with|
+syntax with effect patterns. For the sake of exposition, we introduce a
+|('a,'b) handler| type. This handler handles a |'a computation| that returns a
+|'a| value, and itself returns a |'b| value. The handler has a single return
+case of type |'a -> 'b|, and one or more effect cases. Each effect case,
+handles a effect of type |'c eff|, whose continuation is of type
+|('c,'b) continuation|, and returns a value of type |'b|. For example, in the
+following code:
+\begin{lstlisting}
+effect E : string -> int
+effect F : float -> int
+let r = match perform (E "42") with
+| v -> v == 0
+| effect (E s) k ->
+    not (continue k (int_of_string s))
+| effect (F f) k ->
+    not (continue k (int_of_float f))
+\end{lstlisting}
+\noindent |r| has type |bool|.
+
+\subsection{Dynamic semantics}
+
+
 
 The initial configuration for an expression $e$ is
 $\configa{e}{\emptyset}{\cstacka{[]}{\bullet}}$. We define {\sf continue} and
