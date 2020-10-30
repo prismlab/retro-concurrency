@@ -106,7 +106,7 @@
 \newcommand{\cclos}[3]{\llparenthesis \clam{#1}{#2}, #3 \rrparenthesis}
 \newcommand{\clos}[3]{\llparenthesis \lam{#1}{#2}, #3 \rrparenthesis}
 \newcommand{\kw}[1]{\text{\bf #1}}
-\newcommand{\effval}[2]{\textsf{do} ~#1 ~#2}
+\newcommand{\effval}[2]{\textsf{eff} ~#1 ~#2}
 \newcommand{\exnval}[1]{\textsf{exn} ~#1}
 
 \newcommand{\handle}[2]{\kw{match} ~#1 ~\kw{with} ~#2}
@@ -710,19 +710,6 @@ let r = match perform (E "42") with
 
 \subsection{Dynamic semantics}
 
-
-
-The initial configuration for an expression $e$ is
-$\configa{e}{\emptyset}{\cstacka{[]}{\bullet}}$. We define {\sf continue} and
-{\sf discontinue} as follows:
-
-\begin{smathpar}
-	\begin{array}{rcl}
-		\textsf{continue} ~k ~e & = & k ~(\olam{x}{x}) ~e \\
-		\textsf{discontinue} ~k ~l ~e & = & k ~(\olam{x}{\throw{l}{x}}) ~e
-	\end{array}
-\end{smathpar}
-
 \begin{figure*}
 	\begin{minipage}[t]{0.49\linewidth}
 	\begin{smathpar}
@@ -745,7 +732,7 @@ $\configa{e}{\emptyset}{\cstacka{[]}{\bullet}}$. We define {\sf continue} and
 		\text{Handler Closures} & \hc & \coloneqq & (h,\env) \\
 		\text{Frame List} & \fl & \coloneqq & [] \mid r :: \fl \\
 		\text{Fibers} & \fiber & \coloneqq & (\fl, \hc) \\
-		\text{Continuations} & k & \coloneqq & [] \mid \fiber \lhd k \\
+		\text{Continuations} & k & \coloneqq & [] \mid \fiber \kcons k \\
 		\text{C stacks} & \cstack & \coloneqq & \cstacka{\fl}{\ostack}\\
 		\text{OCaml stacks} & \ostack & \coloneqq & \ostacka{k}{\cstack} \mid \ostackemp \\
 		\text{Stacks} & \stack & \coloneqq & \cstack \mid \ostack \\
@@ -754,8 +741,103 @@ $\configa{e}{\emptyset}{\cstacka{[]}{\bullet}}$. We define {\sf continue} and
 	\end{array}
 	\end{smathpar}
 	\end{minipage}
-	\caption{Term Syntax}
+	\caption{Syntax of expressions and configurations}
 	\label{sem:syntax}
+\end{figure*}
+
+We present the operational semantics for a core language of effect handlers in
+Multicore OCaml. The operational semantics intends to faithfully capture the
+semantics of Multicore OCaml effect handlers, and to inform an implementation.
+We will highlight the differences whenever we differ from the semantics of the
+implementation. We have included an executable version of the dynamic semantics
+as an OCaml program in the supplementary material \kc{include hl-semantics.ml}.
+
+\subsubsection{Syntax}
+
+Figure~\ref{sem:syntax} presents the syntax of expressions and configurations.
+Our expressions consists of integer constants ($n$), variables ($x$),
+abstraction ($\lam{x}{x}$), application ($e~e$), arithmetic expressions ($e
+\odot e$) where $\odot$ ranges over $\{+,-,*,/\}$, raising exceptions
+($\throw{l}{e}$), performing effects ($\perform{l}{e}$), and handling effects
+($\handle{e}{h}$). Abstractions come in two forms: OCaml abstractions
+($\lambda^o$) and C abstractions ($\lambda^c$). The handler consists of a
+return case ($\caseval{x}{e}$), zero or more exception cases
+($\caseexn{l}{x}{e}$) with label $l$, parameter $x$ and body $e$, and zero or
+more effect cases ($\caseeff{l}{x}{k}{e}$) with label $l$, parameter $x$,
+continuation $k$ and body $e$.
+
+The operational semantics is an extension of a CEK machine
+semantics~\cite{Felleisen} for effect handlers, following the abstract machine
+semantics of Hillerstrom et al.~\cite{Hillerstrom2020}. The crucial difference
+from Hillerstrom et al. is that our stacks are composed of alternating sequence
+of OCaml and C stack segments. The program state is captured as configuration
+$\config \coloneqq \configa{\tau}{\env}{\stack}$ with the current term $\tau$
+under evaluation, its environment $\env$ and the current stack $\stack$. The
+term is either an expression $e$ or a value $v$. The value are integer
+constants $n$, continuations $k$, closure $\clos{x}{e}{\env}$, effect begin
+performed $\effval{l}{k}$ and exception being raised $\exnval{l}$. The
+environment is a map from variables to values.
+
+The stack $\stack$ is either a C stack ($\cstack$) or an OCaml stack
+($\ostack$). Every C stack $\cstacka{\fl}{\ostack}$ consists of a list of
+frames $\fl$, and, importantly, the OCaml stack $\ostack$ under it. Every OCaml
+stack is either an empty stack $\ostackemp$ or non-empty $\ostacka{k}{\cstack}$
+with the C stack $\cstack$ under it. Thus the stack is an alternating sequence
+of C and OCaml stacks terminating with an empty OCaml stack $\ostackemp$. The
+frame list $\fl$ is composed of individual frames $r$, which is one of an
+argument frame $\farg{e}{\env}$ with the expression $e$ at the argument
+position of an application with its environment $\env$, a function frame
+$\ffun{v}$ with the value at the function position of an application, and
+frames for evaluating the arguments of an arithmetic expression.
+
+Continuations $k$ are either empty $[]$ or non-empty sequence of \emph{fibers}.
+A fiber $\fiber \coloneqq (\fl,\hc)$ is a list of frames $\fl$ and a handler
+closure $\hc \coloneqq (h,\env)$, which is a pair of handler $h$ and its
+environment $\env$.
+
+\subsubsection{Top-level reductions}
+
+\begin{figure}
+	\begin{mathpar}
+		\begin{array}{rc}
+
+			\textsc{StepC} & \inferrule
+			                    {(\term, \env, \fl, \ostack) \cstep \config}
+													{\configa{\term}{\env}{\cstacka{\fl}{\ostack}} \step \config} \\ \\
+			\textsc{StepO} & \inferrule
+													{(\term, \env, k, \cstack) \ostep \config}
+													{\configa{\term}{\env}{\ostacka{k}{\cstack}} \step \config}
+		\end{array}
+	\end{mathpar}
+	\caption{Top-level Reductions -- $\config \step \config$.}
+	\label{sem:top}
+\end{figure}
+
+The initial configuration for an expression $e$ is
+$\configa{e}{\emptyset}{\cstacka{[]}{\bullet}}$, where the environment and the
+stack are empty. The top-level reductions (Figure~\ref{sem:top}) can be
+performed by either by taking a C step $\cstep$ or an OCaml step $\ostep$.
+Intuitively, this splits the world into executing C code and OCaml code.
+
+\begin{figure*}
+	\begin{smathpar}
+		\begin{array}{rrcll}
+			\textsc{AdminC}   & (\term,\env,\fl,\ostack) & \cstep
+												& \configa{\term'}{\env'}{\cstacka{\fl'}{\ostack}}
+												& \text{if } (\term,\env,\fl) \rightsquigarrow (\term',\env',\fl') \\
+			\textsc{RetToO}   & (v,\env,[],\ostacka{k}{\cstack}) & \cstep
+			                  & \configa{v}{\env}{\ostacka{k}{\cstack}} \\
+			\textsc{CallC}    & (v, \_, \cclos{x}{e}{\env}::\fl, \ostack) & \cstep
+												& \configa{e}{\envext{\env}{x}{v}}{\cstacka{\fl}{\ostack}} \\
+			\textsc{Callback} & (v, \_, \oclos{x}{e}{\env}::\fl, \ostack) & \cstep
+												& \configa{e}{\envext{\env}{x}{v}}{\ostacka{k}{\cstacka{\fl}{\ostack}}}
+												& \text{if } k = [[],(\{\caseval{x}{x}\},\emptyset)] \\
+			\textsc{ExnFwdO}  & (v, \env, \ffun{\exnval{l}}::\_, \ostacka{(\fl,\hc) \kcons k}{\cstack}) & \cstep
+												& \configa{v}{\env}{\ostacka{(\ffun{\exnval{l}}::\fl,\hc) \kcons k}{\cstack}}
+		\end{array}
+	\end{smathpar}
+	\caption{C Reductions -- $(\term, \env, \fl, \ostack) \cstep \config$.}
+	\label{sem:cstep}
 \end{figure*}
 
 \begin{figure*}
@@ -785,19 +867,48 @@ $\configa{e}{\emptyset}{\cstacka{[]}{\bullet}}$. We define {\sf continue} and
 											 & (e, \env, \ffun{\exnval{l}}::\fl)
 		\end{array}
 	\end{smathpar}
-	\caption{Local Reductions -- $(\term, \env, \fl) \rightsquigarrow (\tau, \env, \fl)$.}
+	\caption{Administrative Reductions -- $(\term, \env, \fl) \rightsquigarrow (\tau, \env, \fl)$.}
 	\label{sem:step}
 \end{figure*}
+
+\subsubsection{C reductions}
+
+The C reduction steps are given in Figure~\ref{sem:cstep}. We can take a C step
+by taking an administrative reduction step $\rightsquigarrow$. The
+administrative reductions are common to both C and OCaml. The rules
+\textsc{Var}, \textsc{Arith1}, \textsc{Arith2}, \textsc{App1}, \textsc{App2}
+and \textsc{App3} are standard. \textsc{Arith3} performs the arithmetic
+operation on the integers ($\llbracket n_1 \odot n_2 \rrbracket$).
+\textsc{Raise} pushes an function frame with exception value to indicate that
+an exception is being raised. Similarly, \textsc{Perform} pushes a function
+frame with an effect value with an empty continuation
+$[[],(\{\caseval{x}{x}\},\emptyset)]$ with no captured frames and an empty
+handler with an identity return case alone. \textsc{Resume1} and
+\textsc{Resume2} are used for resuming continuations, and we shall defer their
+explanation till later.
+
+Continuing with the rest of the C reduction steps, \textsc{CallC} captures the
+behaviour of calling a C function. Since the program is currently executing C,
+indicated by the current stack being a C stack $\cstacka{\fl}{\ostack}$, we can
+perform the call on the current stack. In case the abstraction is an OCaml
+abstraction (\textsc{Callback}), we create an OCaml stack with the C stack as
+its tail, with the current continuation being empty. This captures the
+behaviour of calling back into OCaml from C. \textsc{RetToO} returns a value to
+the enclosing OCaml stack. \textsc{ExnFwdO} forwards a raised exception to the
+enclosing OCaml stack, ignoring the unwinding the rest of the frames. This
+captures the semantics of raising OCaml exceptions from C.
+
+\subsubsection{OCaml Reductions}
 
 \begin{figure*}
 	\begin{smathpar}
 		\begin{array}{rrcll}
-			\textsc{LocalO}   & (\term,\env,(\fl,\hc) \kcons k,\cstack) & \ostep
+			\textsc{AdminO}   & (\term,\env,(\fl,\hc) \kcons k,\cstack) & \ostep
 												& \configa{\term'}{\env'}{\ostacka{(\fl',\hc) \kcons k}{\cstack}}
 												& \text{if } (\term,\env,\fl) \rightsquigarrow (\term',\env',\fl') \\
-			\textsc{RetC}   & (v, \_, [([],(h,\env))], \cstack) & \ostep
-												& \configa{e}{\envext{\env}{x}{v}}{\cstack}
-												& \text{if } \{\caseval{x}{e}\} \in h \\
+			\textsc{RetToC}   & (v, \_, [([],(h,\emptyset))], \cstack) & \ostep
+												& \configa{v}{\env}{\cstack}
+												& \text{if } h = \{\caseval{x}{x}\} \\
 			\textsc{RetFib} & (v, \_, ([],(h,\env)) \kcons k, \cstack) & \ostep
 												& \configa{e}{\envext{\env}{x}{v}}{\ostacka{k}{\cstack}}
 												& \text{if } \{\caseval{x}{e}\} \in h \\
@@ -806,7 +917,7 @@ $\configa{e}{\emptyset}{\cstacka{[]}{\bullet}}$. We define {\sf continue} and
 			\textsc{ExtCall}  & (v, \_, (\cclos{x}{e}{\env}::\fl,\hc) \kcons k, \cstack) & \ostep
 												& \configa{e}{\envext{\env}{x}{v}}{\cstacka{[]}{\ostacka{(\fl,\hc) \kcons k}{\cstack}}} \\
 			\textsc{Resume}   & (v, \_, (\ffun{k}::\ffun{\oclos{x}{e}{\env}}::\fl,\hc) \kcons k, \cstack) & \ostep
-												& \configa{e}{\envext{\env}{x}{v}}{\ostacka{k ~@~ (\fl,\hc) \kcons k'}{\cstack}} \\
+												& \configa{e}{\envext{\env}{x}{v}}{\ostacka{k ~@~ ((\fl,\hc) \kcons k')}{\cstack}} \\
 			\textsc{Handle}   & (\handle{e}{h}, \env, k, \cstack) & \ostep
 												& \configa{e}{\env}{\ostacka{([],(h,\env)) \kcons k}{\cstack}} \\
 			\textsc{EffUnHn}  & (v, \_, [\ffun{\effval{l}{k}}::\fl,(h,\env)], \cstack) & \ostep
@@ -836,42 +947,56 @@ $\configa{e}{\emptyset}{\cstacka{[]}{\bullet}}$. We define {\sf continue} and
 	\label{sem:ostep}
 \end{figure*}
 
-\begin{figure*}
-	\begin{smathpar}
-		\begin{array}{rrcll}
-			\textsc{LocalC}   & (\term,\env,\fl,\ostack) & \cstep
-												& \configa{\term'}{\env'}{\cstacka{\fl'}{\ostack}}
-												& \text{if } (\term,\env,\fl) \rightsquigarrow (\term',\env',\fl') \\
-			\textsc{RetToO}   & (v,\env,[],\ostacka{k}{\cstack}) & \cstep
-			                  & \configa{v}{\env}{\ostacka{k}{\cstack}} \\
-			\textsc{CallC}    & (v, \_, \cclos{x}{e}{\env}::\fl, \ostack) & \cstep
-												& \configa{e}{\envext{\env}{x}{v}}{\cstacka{\fl}{\ostack}} \\
-			\textsc{Callback} & (v, \_, \oclos{x}{e}{\env}::\fl, \ostack) & \cstep
-												& \configa{e}{\envext{\env}{x}{v}}{\ostacka{k}{\cstacka{\fl}{\ostack}}}
-												& \text{if } k = [[],(\{\caseval{x}{x}\},\emptyset)] \\
-			\textsc{ExnFwdO}  & (v, \env, \ffun{\exnval{l}}::\_, \ostacka{(\fl,\hc) \kcons k}{\cstack}) & \cstep
-												& \configa{v}{\env}{\ostacka{(\ffun{\exnval{l}}::\fl,\hc) \kcons k}{\cstack}}
-		\end{array}
-	\end{smathpar}
-	\caption{C Reductions -- $(\term, \env, \fl, \ostack) \cstep \config$.}
-	\label{sem:cstep}
-\end{figure*}
+OCaml reductions are given in Figure~\ref{sem:ostep}. In OCaml, reductions
+always occur on the top-most fiber in the current stack. \textsc{AdminO}
+performs administrative reductions. \textsc{CallO} evaluates an OCaml function
+on the current stack. \textsc{ExtCall} captures the behaviour of external
+calls. On an external call, we create a C stack with no frames, whose tail is
+the current OCaml stack, and evaluate the C functions body in the new stack.
+\textsc{RetToC} returns a value to the enclosing C stack. We have exactly one
+fiber on the stack, and this was created in the rule \textsc{Callback}, whose
+handler has identity return case alone and the environment is empty.
+\textsc{RetFib} returns value from a fiber to the previous one, evaluating the
+body of the return case.
 
-\begin{figure*}
-	\begin{mathpar}
-		\begin{array}{rc}
+The rule \textsc{Handle} installs a handler by pushing a fiber with no frames
+and the given handler. The rule \textsc{ExHn} handles an exception, if the
+current handler has a matching exception case. Observe that fiber on which the
+exception was raise has been unwound. The rule \textsc{ExFwdC} forwards the
+exception to C. Here, there is exactly one fiber on the current stack, and the
+handler does not have a matching exception case. The rule \textsc{ExFwdFib}
+forwards the exception to the next fiber if the current handler does not handle
+it.
 
-			\textsc{StepC} & \inferrule
-			                    {(\term, \env, \fl, \ostack) \cstep \config}
-													{\configa{\term}{\env}{\cstacka{\fl}{\ostack}} \step \config} \\ \\
-			\textsc{StepO} & \inferrule
-													{(\term, \env, k, \cstack) \ostep \config}
-													{\configa{\term}{\env}{\ostacka{k}{\cstack}} \step \config}
-		\end{array}
-	\end{mathpar}
-	\caption{Top-level Reductions -- $\config \step \config$.}
-	\label{sem:top}
-\end{figure*}
+The rule \textsc{EffHn} captures the handling of effects when the current
+handler has a matching effect case. We evaluate the body of the matching case,
+and bind the continuation parameter |r| to the captured continuation. Observe
+that the captured continuation |k''| includes the current handler. Intuitively,
+the handler wraps around captured continuation. This gives Multicore OCaml
+effect handlers deep handler semantics~\cite{}. \textsc{EffFwd} forwards the
+effect to the outer fiber, and extends the captured continuation |k''| in the
+process. Recall that we do not capture C frames as part of a continuation.
+\textsc{EffUnHn} models unhandled effect. If the effect bubbles up to the top
+fiber, which we know does not have an effect case (see \textsc{Callback} rule),
+we raise \textsc{unhandled} exception at the point where the corresponding
+effect was performed. This is achieved by appending the captured continuation
+to the front of the current continuation.
+
+Observe that |continue| and |discontinue| are not part of the expressions. They
+are encoded as follows:
+\begin{smathpar}
+	\begin{array}{rcl}
+		\textsf{continue} ~k ~e & = & k ~(\olam{x}{x}) ~e \\
+		\textsf{discontinue} ~k ~l ~e & = & k ~(\olam{x}{\throw{l}{x}}) ~e
+	\end{array}
+\end{smathpar}
+
+Intuitively, resuming a continuation in both the cases involves evaluating the
+appropriate abstraction on top of the continuation. We perform the
+administrative reductions \textsc{Resume1} and \textsc{Resume2} to evaluate the
+arguments to |continue| and |discontinue|. The rule \textsc{Resume} appends the
+given continuation to the front of the current continuation, and evaluates the
+body of the closure.
 
 \section{Implementation}
 \label{sec:impl}
