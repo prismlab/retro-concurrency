@@ -837,27 +837,6 @@ Intuitively, this splits the world into executing C code and OCaml code.
 
 \begin{figure*}
 	\begin{smathpar}
-		\begin{array}{rrcll}
-			\textsc{AdminC}   & (\term,\env,\fl,\ostack) & \cstep
-												& \configa{\term'}{\env'}{\cstacka{\fl'}{\ostack}}
-												& \text{if } (\term,\env,\fl) \rightsquigarrow (\term',\env',\fl') \\
-			\textsc{RetToO}   & (v,\env,[],\ostacka{k}{\cstack}) & \cstep
-			                  & \configa{v}{\env}{\ostacka{k}{\cstack}} \\
-			\textsc{CallC}    & (v, \_, \cclos{x}{e}{\env}::\fl, \ostack) & \cstep
-												& \configa{e}{\envext{\env}{x}{v}}{\cstacka{\fl}{\ostack}} \\
-			\textsc{Callback} & (v, \_, \oclos{x}{e}{\env}::\fl, \ostack) & \cstep
-												& \configa{e}{\envext{\env}{x}{v}}{\ostacka{k}{\cstacka{\fl}{\ostack}}}
-												& \text{if } k = [[],(\{\caseval{x}{x}\},\emptyset)] \\
-			\textsc{ExnFwdO}  & (v, \env, \ffun{\exnval{l}}::\_, \ostacka{(\fl,\hc) \kcons k}{\cstack}) & \cstep
-												& \configa{v}{\env}{\ostacka{(\ffun{\exnval{l}}::\fl,\hc) \kcons k}{\cstack}}
-		\end{array}
-	\end{smathpar}
-	\caption{C Reductions -- $(\term, \env, \fl, \ostack) \cstep \config$.}
-	\label{sem:cstep}
-\end{figure*}
-
-\begin{figure*}
-	\begin{smathpar}
 		\begin{array}{rrcl}
 			\textsc{Var}     & (x,\env, \fl) & \rightsquigarrow
 			                 & (\env(x), \env, \fl) \\
@@ -877,8 +856,8 @@ Intuitively, this splits the world into executing C code and OCaml code.
 			                 & (e_1, \env_1, \ffun{k}::\farg{e_2}{\env_2}::\fl) \\
 			\textsc{Resume2} & (\clos{x}{e_1}{\env_1}, \_, \ffun{k}::\farg{e_2}{\env_2}::\fl) & \rightsquigarrow
 			                 & (e_2, \env_2, \ffun{k}::\ffun{\clos{x}{e_1}{\env_1}}::\fl) \\
-%			\textsc{Perform} & (\perform{l}{e}, \env, \fl) & \rightsquigarrow
-%			                 & (e, \env, \ffun{\effval{l}{[[],(\{\caseval{x}{x}\},\emptyset)]}}::\fl) \\
+			\textsc{Perform} & (\perform{l}{e}, \env, \fl) & \rightsquigarrow
+			                 & (e, \env, \ffun{\effval{l}{[[],(\{\caseval{x}{x}\},\emptyset)]}}::\fl) \\
 			\textsc{Raise}   & (\throw{l}{e}, \env, \fl) & \rightsquigarrow
 											 & (e, \env, \ffun{\exnval{l}}::\fl)
 		\end{array}
@@ -886,6 +865,27 @@ Intuitively, this splits the world into executing C code and OCaml code.
 	\caption{Administrative Reductions -- $(\term, \env, \fl) \rightsquigarrow (\tau, \env, \fl)$.}
 	\label{sem:step}
 \end{figure*}
+\begin{figure*}
+	\begin{smathpar}
+		\begin{array}{rrcll}
+			\textsc{AdminC}   & (\term,\env,\fl,\ostack) & \cstep
+												& \configa{\term'}{\env'}{\cstacka{\fl'}{\ostack}}
+												& \text{if } (\term,\env,\fl) \rightsquigarrow (\term',\env',\fl') \\
+			\textsc{RetToO}   & (v,\env,[],\ostacka{k}{\cstack}) & \cstep
+			                  & \configa{v}{\env}{\ostacka{k}{\cstack}} \\
+			\textsc{CallC}    & (v, \_, \cclos{x}{e}{\env}::\fl, \ostack) & \cstep
+												& \configa{e}{\envext{\env}{x}{v}}{\cstacka{\fl}{\ostack}} \\
+			\textsc{Callback} & (v, \_, \oclos{x}{e}{\env}::\fl, \ostack) & \cstep
+												& \configa{e}{\envext{\env}{x}{v}}{\ostacka{k}{\cstacka{\fl}{\ostack}}}
+												& \text{if } k = [[],(\{\caseval{x}{x}\},\emptyset)] \\
+			\textsc{ExnFwdO}  & (v, \env, \ffun{\exnval{l}}::\_, \ostacka{(\fl,\hc) \kcons k}{\cstack}) & \cstep
+												& \configa{v}{\env}{\ostacka{(\ffun{\exnval{l}}::\fl,\hc) \kcons k}{\cstack}}
+		\end{array}
+	\end{smathpar}
+	\caption{C Reductions -- $(\term, \env, \fl, \ostack) \cstep \config$.}
+	\label{sem:cstep}
+\end{figure*}
+
 
 \subsubsection{C reductions}
 
