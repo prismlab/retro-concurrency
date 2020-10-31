@@ -710,7 +710,7 @@ For the sake of exposition, we introduce a |('a,'b) handler| type. This handler
 handles a |'a comp| that returns a |'a| value, and itself returns a |'b| value.
 The handler has a return case of type |'a -> 'b|. The effect case |effc|
 handles effects of type |'c eff| with |('c,'b) continuation| and returns a
-value of type |'b|. The last pattern in |effc| forwards any unhandled effect to
+value of type |'b|. The last pattern in |effc| forwards any unmatched effect to
 the outer handler and returns the value and exceptions back.
 
 \subsection{Dynamic semantics}
@@ -753,9 +753,8 @@ the outer handler and returns the value and exceptions back.
 We present the operational semantics for a core language of effect handlers in
 Multicore OCaml. The operational semantics intends to faithfully capture the
 semantics of Multicore OCaml effect handlers, and to inform an implementation.
-We will highlight the differences whenever we differ from the semantics of the
-implementation. We have included an executable version of the dynamic semantics
-as an OCaml program in the supplementary material \kc{include hl-semantics.ml}.
+We have included an executable version of the dynamic semantics as an OCaml
+program in the supplementary material \kc{include hl-semantics.ml}.
 
 \subsubsection{Syntax}
 
@@ -779,15 +778,15 @@ of OCaml and C stack segments. The program state is captured as configuration
 $\config \coloneqq \configa{\tau}{\env}{\stack}$ with the current term $\tau$
 under evaluation, its environment $\env$ and the current stack $\stack$. The
 term is either an expression $e$ or a value $v$. The value are integer
-constants $n$, continuations $k$, closure $\clos{x}{e}{\env}$, effect begin
+constants $n$, continuations $k$, closure $\clos{x}{e}{\env}$, effect being
 performed $\effval{l}{k}$ and exception being raised $\exnval{l}$. The
 environment is a map from variables to values.
 
 The stack $\stack$ is either a C stack ($\cstack$) or an OCaml stack
 ($\ostack$). Every C stack $\cstacka{\fl}{\ostack}$ consists of a list of
-frames $\fl$, and, importantly, the OCaml stack $\ostack$ under it. Every OCaml
-stack is either an empty stack $\ostackemp$ or non-empty $\ostacka{k}{\cstack}$
-with the C stack $\cstack$ under it. Thus the stack is an alternating sequence
+frames $\fl$, and the OCaml stack $\ostack$ under it. Every OCaml stack is
+either an empty stack $\ostackemp$ or non-empty $\ostacka{k}{\cstack}$ with the
+C stack $\cstack$ under it. Thus, the program stack is an alternating sequence
 of C and OCaml stacks terminating with an empty OCaml stack $\ostackemp$. The
 frame list $\fl$ is composed of individual frames $r$, which is one of an
 argument frame $\farg{e}{\env}$ with the expression $e$ at the argument

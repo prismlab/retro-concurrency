@@ -31,12 +31,15 @@ module Handler : Handler = struct
   let run f = match f () with
   | A -> true
   | B -> false
-  | effect (E 42) k -> continue k 43; true
-  | effect (F "42") k -> continue k "43"; false
+  | effect (E 42) k -> ignore (continue k 43); true
+  | effect (F "42") k -> ignore (continue k "43"); false
 
   let eff_case : type c. c eff -> (c, 'b) continuation -> 'b =
     function | E 42 -> (fun k1 -> continue k1 43)
              | F "42" -> (fun k2 -> continue k2 "43")
+             | e -> (fun k -> match perform e with
+                              | v -> continue k v
+                              | exception e -> discontinue k e)
 
   let h1 =
     { ret_case = (function A -> true
