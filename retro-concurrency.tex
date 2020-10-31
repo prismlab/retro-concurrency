@@ -381,8 +381,9 @@ Our work is also timely. WebAssembly~\ref{} community group is actively
 considering effect handlers as one of the mechanism for supporting concurrency,
 asynchronous I/O and generators~\ref{WasmPropoal}. Project Loom~\cite{} is an
 OpenJDK project which adds virtual threads and delimited continuations to Java.
-We believe that our design choices will inform similar choices to be made in
-the other languages.
+Swift concurrency roadmap~\cite{} includes direct-style asynchronous
+programming and structured concurrency. We believe that our design choices will
+inform similar choices to be made in the other languages.
 
 \subsection{Contributions}
 
@@ -663,50 +664,54 @@ well-typed, and those that do compose well with those that don't.
 The static semantics of effect handlers in OCaml is captured succinctly by its
 API:
 \begin{lstlisting}
-type 'a eff
+type 'a eff = ..
 type ('a,'b) continuation
 val perform: 'a eff -> 'a
 val continue: ('a,'b) continuation -> 'a -> 'b
 val discontinue: ('a,'b) continuation -> exn -> 'b
 
-type 'a computation = unit -> 'a
+(* Internal API *)
+type 'a comp = unit -> 'a
 type ('a,'b) handler =
-{ret: 'a -> 'b;
- eff_1: 'c1.'c1 eff -> ('c1,'b)continuation -> 'b;
- ...
- eff_n: 'cn.'cn eff -> ('cn,'b)continuation -> 'b}
-val match_with: 'a computation -> ('a,'b) handler
-                               -> 'b
+{retc: 'a -> 'b;
+ effc: 'c.'c eff -> ('c,'b)continuation -> 'b; }
+val match_with: 'a comp -> ('a,'b) handler -> 'b
 \end{lstlisting}
 
-We introduce the type |'a eff| of effect values which when performed using the
-|perform| primitive returns a |'a| value. Constructors for the value of type
-|'a eff| are declared using the effect declarations. For example, with the
-declaration |effect E : string -> int|, the effect value |E "42"| has the type
-|int eff|. We introduce the type |('a,'b) continuation| of delimited
-continuations which expect a |'a| value for resumption and return |'b| value.
-The continuations may be |continue|d with a suitably typed value or
-|discontinue|d with an exception.
+We introduce an extensible variant type~\cite{} |'a eff| of effect values,
+which when performed using the |perform| primitive returns a |'a| value.
+Constructors for the value of type |'a eff| are declared using the effect
+declarations. For example, the declaration |effect E : string -> int| is
+syntactic sugar for adding a new constructor to the variant type
+|type _ eff += E : string -> int eff|. We introduce the type
+|('a,'b) continuation| of delimited continuations which expect a |'a| value for
+resumption and return |'b| value. The continuations may be |continue|d with a
+suitably typed value or |discontinue|d with an exception.
 
 For handling the effects, our implementation extends OCaml's |match ... with|
-syntax with effect patterns. For the sake of exposition, we introduce a
-|('a,'b) handler| type. This handler handles a |'a computation| that returns a
-|'a| value, and itself returns a |'b| value. The handler has a single return
-case of type |'a -> 'b|, and one or more effect cases. Each effect case,
-handles a effect of type |'c eff|, whose continuation is of type
-|('c,'b) continuation|, and returns a value of type |'b|. For example, in the
-following code:
+syntax with effect patterns. The expression
 \begin{lstlisting}
-effect E : string -> int
-effect F : float -> int
-let r = match perform (E "42") with
-| v -> v == 0
-| effect (E s) k ->
-    not (continue k (int_of_string s))
-| effect (F f) k ->
-    not (continue k (int_of_float f))
+match e with
+| None -> false | Some b -> b
+| effect (E s) k1 -> e1 | effect (F f) k2 -> e2
 \end{lstlisting}
-\noindent |r| has type |bool|.
+\noindent is translated to the equivalent of
+\begin{lstlisting}
+match_with (fun () -> e)
+{ retc = (function None -> false | Some b -> b);
+  effc = (function
+    | (E s) -> (fun k1 -> e1)
+    | (F f) -> (fun k2 -> e2)
+    | e -> (fun k -> match perform e with
+            | v -> continue k v
+            | exception e -> discontinue k e)); }
+\end{lstlisting}
+For the sake of exposition, we introduce a |('a,'b) handler| type. This handler
+handles a |'a comp| that returns a |'a| value, and itself returns a |'b| value.
+The handler has a return case of type |'a -> 'b|. The effect case |effc|
+handles effects of type |'c eff| with |('c,'b) continuation| and returns a
+value of type |'b|. The last pattern in |effc| forwards any unhandled effect to
+the outer handler and returns the value and exceptions back.
 
 \subsection{Dynamic semantics}
 
