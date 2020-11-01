@@ -214,7 +214,6 @@ type sign = P | N
 type val = Z of int | Error | Inf of sign
 type exp = Val of val | ... | Div of exp*exp
 effect DivBy0 : int -> val
-
 let rec eval e =
   match e with
   | Val v -> v
@@ -224,10 +223,8 @@ let rec eval e =
     | Z v1, Z v2 ->
         if v2 = 0 then perform (DivBy0 v1)
         else Z (v1/v2)
-    | Error, _ -> Error
-    | Inf s, _ -> Inf s
+    | Error, _ -> Error | Inf s, _ -> Inf s
     | ...
-
 let (/) n d = Div (Val (Z n), Val (Z d))
 \end{lstlisting}
 
@@ -241,9 +238,8 @@ following handler:
 
 \begin{lstlisting}
 let ios e = match eval e with
-| v -> v (* value case *)
-| effect (DivBy0 _) k -> (* effect case *)
-    continue k Error
+| v -> v
+| effect (DivBy0 _) k -> continue k Error
 \end{lstlisting}
 
 If the evaluator returns a value, we simply return that. In case the evaluator
@@ -274,7 +270,6 @@ using the |Read| effect defined earlier as follows:
 \begin{lstlisting}
 type exp = ... | Inp
 effect Read : in_channel -> string
-
 let rec eval e = match e with
 | ...
 | Inp -> int_of_string(perform(Read stdin))
@@ -288,8 +283,7 @@ let run e = match gsearch e with
 | v -> v
 | effect (Read chan) k ->
   register_async_input_line (chan, k);
-  let ui = get_ui_k () in
-  continue ui ()
+	continue (get_ui_k ()) ()
 \end{lstlisting}
 
 \noindent which registers the read operation to be performed asynchronously
@@ -544,13 +538,6 @@ out-of-the-box. For example, for the program in Figures~\ref{code:meander_ml}
 and~\ref{code:meander_c}, one could set a break point in |gdb| at
 |caml_raise_exn| to get the following backtrace.
 \begin{lstlisting}[language=c,basicstyle=\ttfamily\footnotesize]
-% gdb ./meander.exe
-(gdb) break caml_raise_exn
-Breakpoint 1 at 0x3e5dc
-(gdb) r
-Starting program: meander.exe
-Breakpoint 1, 0x925dc in caml_raise_exn ()
-(gdb) bt
 #0  0x925dc in caml_raise_exn ()
 #1  0x6fd3e in camlMeander__c_to_ocaml_83 () at meander.ml:5
 #2  0x925a4 in caml_call_ocaml ()
@@ -558,7 +545,7 @@ Breakpoint 1, 0x925dc in caml_raise_exn ()
 #4  caml_callback (...) at callback.c:199
 #5  0x76e0a in ocaml_to_c (unit=1) at meander_.c:5
 #6  0x6fd77 in camlMeander__omain_88 () at meander.ml:10
-#7  0x6fe92 in camlMeander__entry () at meander.ml:14
+#7  0x6fe92 in camlMeander__entry () at meander.ml:13
 #8  0x6f719 in caml_program ()
 #9  0x925a4 in caml_call_ocaml ()
 #10 0x92e4c in caml_startup_common (...) at startup_nat.c:162
@@ -607,16 +594,12 @@ The interaction of non-local control flow with systems programming is quite
 subtle~\cite{TFP17}. Consider the following function that uses blocking I/O
 functions from the OCaml standard library to copy data from the input channel
 |ic| to the output channel |oc|:
-
 \begin{lstlisting}
 let rec copy ic oc =
-  try
-    let l = input_line ic in
-    output_string oc (l ^ "\n");
-    copy ic oc
+  try output_string oc ((input_line ic) ^ "\n");
+      copy ic oc
   with _ -> (close_in ic; close_out oc)
 \end{lstlisting}
-
 |input_line| raises |End_of_file| exception on reaching the end of input.
 Although not apparent, the code is written in a defensive style to handle other
 exceptional cases such as the channels being closed externally. Both
@@ -625,14 +608,12 @@ closed. This function cleanly closes the channels on exceptional cases;
 |close_*| functions do nothing if the channel is already closed.
 
 One of our goals(\S\ref{sec:requirements}) is to make this code transparently
-asynchronous. We can define effects for performing the I/O operations:
+asynchronous. We can define effects for performing the I/O operations  and wrap
+them up in functions with the same signature as the one from the standard
+library:
 \begin{lstlisting}
 effect In_line : in_channel -> string
 effect Out_str : out_channel -> string -> unit
-\end{lstlisting}
-\noindent and wrap them up in functions with the same signature as the one from
-the standard library.
-\begin{lstlisting}
 let input_line ic = perform (In_line ic)
 let output_string oc = perform (Out_str oc)
 \end{lstlisting}
@@ -721,7 +702,7 @@ For the sake of exposition, we introduce a |('a,'b) handler| type. This handler
 handles a |'a comp| that returns a |'a| value, and itself returns a |'b| value.
 The handler has a return case of type |'a -> 'b|. The effect case |effc|
 handles effects of type |'c eff| with |('c,'b) continuation| and returns a
-value of type |'b|. The last pattern in |effc| forwards any unmatched effect to
+value of type |'b|. The last case in |effc| forwards any unmatched effect to
 the outer handler and returns the value and exceptions back to the original
 performer.
 
@@ -1072,11 +1053,13 @@ functions whose frame size is less than the size of the red zone.
 Finally, we have the saved exception pointer, which points to the top-most
 exception frame, and the saved stack pointer, which points to the top of the
 stack. Switching between fiber only involves saving the exception and the stack
-pointer of the current stack and loading the same on the target stack. We
-allocate the space for the fiber using |malloc| and |free| it when no longer
-required. We do not use a \emph{stack cache} of recently freed stacks for
-speeding up fiber allocation. In our experiments, we observed that directly
-using |mimalloc| outperforms having the stack cache.
+pointer of the current stack and loading the same on the target stack. Since
+OCaml does not generate pointers into the stack, the two |fiber_info| fields
+are the only ones that need to be updated when fibers are moved. We allocate
+the space for the fiber using |malloc| and |free| it when no longer required.
+We do not use a \emph{stack cache} of recently freed stacks for speeding up
+fiber allocation. In our experiments, we observed that directly using
+|mimalloc| outperforms having the stack cache.
 
 \subsection{External calls and callbacks}
 
@@ -1104,9 +1087,50 @@ we run the callbacks on the same fiber as the current one. For example, the
 layout of the Multicore OCaml stack at |caml_raise_exn| in the |meander|
 example from \S\ref{sec:stack} is shown in Figure~\ref{fig:mcstack}. The
 functions |caml_call_c| and |caml_call_ocaml| switch the stacks, and hence are
-show in both the system stack and the fiber. The details of the exception
+shown in both the system stack and the fiber. The details of the exception
 frames have been elided in the figure. Thanks to the fiber representation,
 external calls and callbacks remain fast.
+
+\subsection{Effect handlers}
+
+\begin{figure}
+	\includegraphics[width=0.6\linewidth]{figures/fiber_handler}
+	\caption{Layout of stack with effect handlers}
+	\label{fig:fiber_handler}
+\end{figure}
+
+In order to illustrate the implementation of handling effects, consider the
+example presented below:
+\begin{lstlisting}
+effect E : unit
+effect F : unit;;
+match (* comp_e *)
+  match (* comp_f *) (*p1*) perform E (*p3*)
+  with v -> v | effect F kf -> continue kf ()
+with v -> v | effect E ke -> (*p2*) continue ke ()
+\end{lstlisting}
+The code performs |E| which is handled in the outer-most handler, and is
+immediately resumed. The layout of the stack as the program executes is
+captured in Figure~\ref{fig:fiber_handler}. At position |p1|, |rsp| is at the
+top of the fiber |f|.
+
+When an effect is performed, we invoke the effect closure |clos_heff| in the
+fiber |f| with the current fiber pointer as the continuation. Since the first
+handler does not handle effect |E|, the effect is forwarded to outer handler by
+performing the effect closure of fiber |e|. This handles |E|. We allocate a one
+word continuation object |ke| on the heap that holds the pointer to fiber |e|
+which points to the fiber |f| (position |p2|). Thus, continuations are captured
+without copying frames. Since each handler closure is evaluated until a machine
+one is found, the take to handle an effect is linear in the number of handlers.
+
+When the continuation is resumed, we overwrite the value of |ke| to |NULL| to
+enforce at-most once semantics. Resuming a continuation involves traversing the
+linked-list of fibers and making the last fiber point to the current fiber.
+Just as in the operational semantics, the implementation invokes the
+appropriate closure to either |continue| or |discontinue| the continuation
+(position |p3|).
+
+\subsection{Stack unwinding}
 
 \section{Evaluation}
 \label{sec:eval}
