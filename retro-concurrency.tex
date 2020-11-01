@@ -490,6 +490,7 @@ detected by a memory fault, and |Stack_overflow| exception is raised to unwind
 the stack.
 
 \subsection{External calls and callbacks}
+\label{sec:external}
 
 OCaml does not use the C calling convention. In particular, there are no
 callee-saved registers in OCaml. On the |x86-64| backend, a register each is
@@ -507,6 +508,7 @@ callbacks are relatively common as the garbage collector (GC) finalisation
 functions are executed as OCaml callbacks.
 
 \subsection{Exception handlers}
+\label{sec:exn_handlers}
 
 The lack of callee-saved registers also makes exception handling fast as there
 are no callee-saved registers to be restored when the exception handler runs.
@@ -518,22 +520,29 @@ stack as shown in Figure~\ref{fig:stock_stack}. Raising an exception simply
 sets |sp| to |exn_ptr|, loads the saved |exn_ptr|, and jumps to the |pc| of the
 handler.
 
+% Note |caml_call_ocaml| is |caml_start_program| in ocaml-multicore source
+
 In order to forward exceptions across C frames, the C stub function
-|caml_start_program|, which is the entry point for both the main OCaml code and
+|caml_call_ocaml|, which is the entry point for both the main OCaml code and
 callbacks into OCaml, pushes an exception handler frame that forwards the
 exception the innermost OCaml exception handler (|raised_exn_c| in
 Figure~\ref{fig:stock_stack}), or prints a fatal error (|fatal_uncaught|) if
 there are no enclosing handlers. Exceptions are so cheap in OCaml that it is
 very common to use them for \emph{local} control flow.
 
-\subsection{DWARF unwind tables}
+\subsection{Stack unwinding}
+
+OCaml generates \emph{stack maps} in order to accurately identify roots on the
+stack for assisting GC. For every call point in the program, OCaml compiler
+emits the size of the frame and the set of all live registers in the frame
+containing pointers into the heap. During a GC, the OCaml stack is walked and
+the roots are marked.
 
 OCaml also generates precise DWARF unwind information for OCaml, thanks to
 which debuggers such as |gdb| and |lldb|, and profilers such as |perf| work
 out-of-the-box. For example, for the program in Figures~\ref{code:meander_ml}
 and~\ref{code:meander_c}, one could set a break point in |gdb| at
 |caml_raise_exn| to get the following backtrace.
-
 \begin{lstlisting}[language=c,basicstyle=\ttfamily\footnotesize]
 % gdb ./meander.exe
 (gdb) break caml_raise_exn
@@ -544,20 +553,19 @@ Breakpoint 1, 0x925dc in caml_raise_exn ()
 (gdb) bt
 #0  0x925dc in caml_raise_exn ()
 #1  0x6fd3e in camlMeander__c_to_ocaml_83 () at meander.ml:5
-#2  0x925a4 in caml_start_program ()
+#2  0x925a4 in caml_call_ocaml ()
 #3  0x8a84a in caml_callback_exn (...) at callback.c:145
 #4  caml_callback (...) at callback.c:199
 #5  0x76e0a in ocaml_to_c (unit=1) at meander_.c:5
 #6  0x6fd77 in camlMeander__omain_88 () at meander.ml:10
 #7  0x6fe92 in camlMeander__entry () at meander.ml:14
 #8  0x6f719 in caml_program ()
-#9  0x925a4 in caml_start_program ()
+#9  0x925a4 in caml_call_ocaml ()
 #10 0x92e4c in caml_startup_common (...) at startup_nat.c:162
 #11 0x92eab in caml_startup_exn (...) at startup_nat.c:167
 #12 caml_startup (...) at startup_nat.c:172
 #13 0x6f55c in main (...) at main.c:44
 \end{lstlisting}
-
 \noindent which corresponds to the stack layout in
 Figure~\ref{fig:stock_stack}.
 
@@ -570,6 +578,8 @@ increase the size of the
 stack~\footnote{https://github.com/ocaml/ocaml/issues/5721\#issuecomment-472965549}.
 Moreover, not using frame pointers saves two instructions in the function
 prologue and epilogue, and makes an extra register (|rbp| on x86) available.
+Note that the DWARF unwind information is complementary to the information used
+by OCaml to walk the stack for GC.
 
 In summary, the design of effect handlers in OCaml must accommodate these
 desirable properties of OCaml with respect to the program stack.
@@ -651,6 +661,7 @@ run and clean up the resources.
 In this section, we formalise the effect handler design in Multicore OCaml.
 
 \subsection{Static semantics}
+\label{sec:static_semantics}
 
 As mentioned earlier, effect handlers in Multicore OCaml do not guarantee
 effect safety, but only guarantee type safety. Programs without matching effect
@@ -700,18 +711,19 @@ match e with
 match_with (fun () -> e)
 { retc = (function None -> false | Some b -> b);
   effc = (function
-    | (E s) -> (fun k1 -> e1)
-    | (F f) -> (fun k2 -> e2)
-    | e -> (fun k -> match perform e with
-            | v -> continue k v
-            | exception e -> discontinue k e)); }
+  | (E s) -> (fun k1 -> e1)
+  | (F f) -> (fun k2 -> e2)
+  | e -> (fun k -> match perform e with
+          | v -> continue k v
+          | exception e -> discontinue k e)); }
 \end{lstlisting}
 For the sake of exposition, we introduce a |('a,'b) handler| type. This handler
 handles a |'a comp| that returns a |'a| value, and itself returns a |'b| value.
 The handler has a return case of type |'a -> 'b|. The effect case |effc|
 handles effects of type |'c eff| with |('c,'b) continuation| and returns a
 value of type |'b|. The last pattern in |effc| forwards any unmatched effect to
-the outer handler and returns the value and exceptions back.
+the outer handler and returns the value and exceptions back to the original
+performer.
 
 \subsection{Dynamic semantics}
 
@@ -801,24 +813,9 @@ environment $\env$.
 
 \subsubsection{Top-level reductions}
 
-\if{0}
-\begin{figure}
-  \begin{mathpar}
-    \begin{array}{rc}
-      \textsc{StepC} & \inferrule
-                          {(\term, \env, \fl, \ostack) \cstep \config}
-                          {\configa{\term}{\env}{\cstacka{\fl}{\ostack}} \step \config} \\ \\
-      \textsc{StepO} & \inferrule
-                          {(\term, \env, k, \cstack) \ostep \config}
-                          {\configa{\term}{\env}{\ostacka{k}{\cstack}} \step \config}
-    \end{array}
-  \end{mathpar}
-  \caption{Top-level Reductions -- $\config \step \config$.}
-  \label{sem:top}
-\end{figure}
-\fi
-
-\begin{figure}
+The initial configuration for an expression $e$ is
+$\configa{e}{\emptyset}{\cstacka{[]}{\bullet}}$, where the environment and the
+stack are empty. The top-level reductions
   \begin{mathpar}
     \begin{array}{cc}
       \textsc{StepC} ~
@@ -829,15 +826,9 @@ environment $\env$.
                 {\configa{\term}{\env}{\ostacka{k}{\cstack}} \step \config}
     \end{array}
   \end{mathpar}
-  \caption{Top-level Reductions -- $\config \step \config$.}
-  \label{sem:top}
-\end{figure}
-
-The initial configuration for an expression $e$ is
-$\configa{e}{\emptyset}{\cstacka{[]}{\bullet}}$, where the environment and the
-stack are empty. The top-level reductions (Figure~\ref{sem:top}) can be
-performed by either by taking a C step $\cstep$ or an OCaml step $\ostep$.
-Intuitively, this splits the world into executing C code and OCaml code.
+can be performed by either by taking a C step $\cstep$ or an OCaml step
+$\ostep$. Intuitively, this splits the world into executing C code and OCaml
+code.
 
 \begin{figure*}
   \begin{smathpar}
@@ -973,7 +964,7 @@ performs administrative reductions. \textsc{CallO} evaluates an OCaml function
 on the current stack. \textsc{ExtCall} captures the behaviour of external
 calls. On an external call, we create a C stack with no frames, whose tail is
 the current OCaml stack, and evaluate the C functions body in the new stack.
-\textsc{RetToC} returns a value to the enclosing C stack. We have exactly one
+\textsc{RetToC} returns a value to the enclosing C stack. In this case, we have exactly one
 fiber on the stack, and this was created in the rule \textsc{Callback}, whose
 handler has identity return case alone and the environment is empty.
 \textsc{RetFib} returns value from a fiber to the previous one, evaluating the
@@ -981,12 +972,12 @@ body of the return case.
 
 The rule \textsc{Handle} installs a handler by pushing a fiber with no frames
 and the given handler. The rule \textsc{ExHn} handles an exception, if the
-current handler has a matching exception case. Observe that fiber on which the
-exception was raise has been unwound. The rule \textsc{ExFwdC} forwards the
-exception to C. Here, there is exactly one fiber on the current stack, and the
-handler does not have a matching exception case. The rule \textsc{ExFwdFib}
-forwards the exception to the next fiber if the current handler does not handle
-it.
+current handler has a matching exception case, unwinding the current fiber. The
+rule \textsc{ExFwdC} forwards the exception to C. Here, there is exactly one
+fiber on the current stack, and the handler does not have a matching exception
+case, which we know is the case (see \textsc{Callback} rule). The rule
+\textsc{ExFwdFib} forwards the exception to the next fiber if the current
+handler does not handle it.
 
 The rule \textsc{EffHn} captures the handling of effects when the current
 handler has a matching effect case. We evaluate the body of the matching case,
@@ -995,22 +986,21 @@ that the captured continuation |k''| includes the current handler. Intuitively,
 the handler wraps around captured continuation. This gives Multicore OCaml
 effect handlers deep handler semantics~\cite{}. \textsc{EffFwd} forwards the
 effect to the outer fiber, and extends the captured continuation |k''| in the
-process. Recall that we do not capture C frames as part of a continuation.
-\textsc{EffUnHn} models unhandled effect. If the effect bubbles up to the top
-fiber, which we know does not have an effect case (see \textsc{Callback} rule),
-we raise \textsc{unhandled} exception at the point where the corresponding
-effect was performed. This is achieved by appending the captured continuation
-to the front of the current continuation.
+process. Recall that we do not capture C frames as part of a continuation. To
+this end, \textsc{EffUnHn} models unhandled effect. If the effect bubbles up to
+the top fiber, which we know does not have an effect case (see
+\textsc{Callback} rule), we raise \textsc{unhandled} exception at the point
+where the corresponding effect was performed. This is achieved by appending the
+captured continuation to the front of the current continuation.
 
 Observe that |continue| and |discontinue| are not part of the expressions. They
 are encoded as follows:
 \begin{smathpar}
   \begin{array}{rcl}
-    \textsf{continue} ~k ~e & = & k ~(\olam{x}{x}) ~e \\
-    \textsf{discontinue} ~k ~l ~e & = & k ~(\olam{x}{\throw{l}{x}}) ~e
+    \textsf{continue} ~k ~e & = & (k ~(\olam{x}{x})) ~e \\
+    \textsf{discontinue} ~k ~l ~e & = & (k ~(\olam{x}{\throw{l}{x}})) ~e
   \end{array}
 \end{smathpar}
-
 Intuitively, resuming a continuation in both the cases involves evaluating the
 appropriate abstraction on top of the continuation. We perform the
 administrative reductions \textsc{Resume1} and \textsc{Resume2} to evaluate the
@@ -1018,8 +1008,105 @@ arguments to |continue| and |discontinue|. The rule \textsc{Resume} appends the
 given continuation to the front of the current continuation, and evaluates the
 body of the closure.
 
+\kc{Include example reductions from hl-semantics.ml in Appendix}
+
 \section{Implementation}
 \label{sec:impl}
+
+In this section, we present the implementation details of effect handlers in
+Multicore OCaml. The implementation follows the operational semantics, but has
+a few key representational differences. Multicore OCaml currently only supports
+the x86-64 backend on Linux, but our design preclude other backends. The
+description in the sequel assumes we are on an x86-64 architecture.
+
+Unlike the operational semantics, handlers with just exception patterns
+(exception handlers) are implemented differently from effect handlers. As
+mentioned in \S~\ref{sec:exn_handlers}, exceptions are pervasive in OCaml and
+are so cheap that they are used for local control flow. Hence, we retain the
+linked exception handler frame implementation of stock OCaml exception handlers
+in Multicore OCaml for performance backwards compatibility. This differs from
+other research languages with effect handlers~\cite{Links,Frank,Eff}, which
+implement exceptions using effects (by ignoring the continuation argument in
+the handler).
+
+\begin{figure}
+  \includegraphics[width=0.7\linewidth]{figures/fiber}
+  \caption{Layout of Multicore OCaml fiber}
+  \label{fig:fiber}
+\end{figure}
+
+\subsection{Heap-allocated fibers}
+
+In the operational semantics, the continuations may be resumed more than once.
+Captured continuations are copies of the original fibers and resuming the
+continuation copies the fibers and leaves the continuation as it is. In our use
+case, continuations will be resumed at-most once, and copying fibers is
+unnecessary and inefficient. Instead, Multicore OCaml allocates fibers on the
+heap. Figure~\ref{fig:fiber} shows the layout of a suspended fiber in Multicore
+OCaml. A fiber is said to be suspended if it is not the current (top-most)
+fiber during OCaml execution.
+
+At the bottom of the stack, we have the |handler_info|, which contains the
+pointer to parent fiber, and the closures for the value, exception and effect
+cases. The closures are created by the translation described in
+\S\ref{sec:static_semantics}; Multicore OCaml supports exception patterns in
+addition to effect patterns in the same handler. This is followed by a block to
+support DWARF unwinding, whose details we will return to later. Then, there is
+a top-level handler that invokes the exception handler closure |clos_hexn|
+after switching to the parent fiber. This is followed by the |pc| of the code
+that invokes value handler after switching to the parent stack. The stack is
+laid out such that when the computation in the handler returns, control goes to
+value handler.
+
+We have the variable-sized area for the OCaml frames next. Since we want the
+handlers to be as small as possible, this area is initially 16 words in length.
+When the stack pointer |rsp| goes less than stack threshold (a field in the
+|Caml_state| table), the stack is said to have overflown. On stack overflow, we
+copy the whole fiber to a new area with double the size. In Multicore OCaml, we
+introduce stack overflow checks in function prologue of OCaml functions. We
+observed that most function calls are to leaf functions with small frame size.
+In order to take advantage of this fact, we introduce a small red zone at the
+top of the stack. The compiler elides the stack overflow check for leaf
+functions whose frame size is less than the size of the red zone.
+
+Finally, we have the saved exception pointer, which points to the top-most
+exception frame, and the saved stack pointer, which points to the top of the
+stack. Switching between fiber only involves saving the exception and the stack
+pointer of the current stack and loading the same on the target stack. We
+allocate the space for the fiber using |malloc| and |free| it when no longer
+required. We do not use a \emph{stack cache} of recently freed stacks for
+speeding up fiber allocation. In our experiments, we observed that directly
+using |mimalloc| outperforms having the stack cache.
+
+\subsection{External calls and callbacks}
+
+Since C functions do not have stack overflow checks, we have to execute the
+external calls in the system stack. Calling a C function from OCaml involves
+saving the exception pointer and the stack pointer in the |fiber_info| of the
+current fiber, and the allocation pointer in the |Caml_state|, updating |rsp|
+to the top of system stack (maintained in |Caml_state|), and calling the C
+function. The actions are reversed when returning from the external call. One
+subtlety is that for C functions that take arguments on the stack, the
+arguments must be copied to the C stack from the OCaml stack where they are
+laid out. For vast majority of external calls, we perform only a few additional
+instructions stock OCaml in order to to set up the right stack.
+
+\begin{figure}
+  \includegraphics[width=0.69\linewidth]{figures/multicore_stack}
+	\caption{Layout of Multicore OCaml stack on \texttt{meander} example from
+	\S\ref{sec:stack}.}
+  \label{fig:mcstack}
+\end{figure}
+
+When we first enter OCaml from C, a new fiber is allocated for the main OCaml
+stack. Since callbacks may be frequent in OCaml programs that use finalisers,
+we run the callbacks on the same fiber as the current one. For example, the
+layout of the Multicore OCaml stack at |caml_raise_exn| in the |meander|
+example from \S\ref{sec:stack} is shown in Figure~\ref{fig:mcstack}. The
+functions |caml_call_c| and |caml_call_ocaml| switch the stacks, and hence are
+show in both the system stack and the fiber. The details of the exception
+frames have been elided in the figure. Thanks to the fiber representation,
+external calls and callbacks remain fast.
 
 \section{Evaluation}
 \label{sec:eval}
