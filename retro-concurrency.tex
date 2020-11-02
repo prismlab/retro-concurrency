@@ -1179,6 +1179,77 @@ changes, we get the same backtrace for the |meander.exe| program from
 \section{Evaluation}
 \label{sec:eval}
 
+\subsection{The impact on code not using effects}
+
+There are several changes to the runtime to support fibers and effect handlers
+that will be executed by code not using effects: OCaml stacks now have dynamic
+checks in the function prologue and the FFI interface tracks stack switching.
+
+TODO:
+\begin{itemize}
+\item Aim: |R1| not altered existing code performance too much
+\item sandmark macro benchmarks to show sequential performance: 4.10.0+stock, 4.10.0+multicore,
+4.10.0+multicore no red-zone/leaf-optimization, 4.10.0+multicore
+\item do we want to include some micro-benchmarks focusing on the FFI callstack overhead?
+\end{itemize}
+
+\subsection{Measurements of overheads in our effects implementation}
+
+We have implemented effects within OCaml, here we present timing measurements
+for the various stages of stack creation (|a| to |b|), performing and handling
+an effect (|b| to |c|), continuation resumption (|c| to |d|) and returning from
+a computation and freeing the stack (|d| to |e|).
+
+\begin{lstlisting}
+let foo () =
+ (* a *) match
+ (* b *)   perform E
+ (* d *) with effect E k ->
+ (* c *)   continue k ()
+ (* e *)
+\end{lstlisting}
+
+TODO:
+\begin{itemize}
+\item Aim: |R3| to provide some timing information as to the size of the overhead and where the overhead is.
+\item use KC's measurement stubs as presented in WASM
+\end{itemize}
+
+\subsection{Effects benchmarks}
+
+We now look at the impact of the overhead in a variety of benchmarks comparing
+the cost of using our effects abstraction versus alternative methods of
+implementation.
+
+TODO:
+\begin{itemize}
+\item Aim: |R3| Do we have an efficient implementation of effects and are effects competitive vs alternative implementation strategies.
+\item we can show the sequential vs stack benchmarks as used by 'Folklore to fact' \tk{slightly weak story as the sequential ones will be much faster for these very simple benchmarks and effects don't really add anything to their implementation}
+\item general generator examples (using examples from effects-example)
+\item chamenos vs chamenos effects vs lwt (using examples from effects-example)
+\end{itemize}
+
+\subsection{Webserver benchmarks}
+
+TODO:
+\begin{itemize}
+\item Aim: |R3| Do we have an efficient implementation of effects.
+\item effects are a very nice way to program non-blocking IO for webservers
+\item show that using effects doesn't impose undue overhead and that we are competitive with LWT, Async, Go with the wrk web benchmark
+\end{itemize}
+
+
+\subsection{Using fibers for task based parallelism}
+
+TODO:
+\begin{itemize}
+\item Aim: |R3| Do we have an efficient implementation of effects.
+\item minor alteration to domainslib to launch tasks in their own stack
+\item effects are the right way to do some task base parallelism. Use the nqueens example and show the scaling we can achieve in parallel
+\item show that using fibers doesn't have large detrimental impact to existing parallel applications: Take sandmark: minilight, nbody, LU decomposition
+\end{itemize}
+
+
 \section{Related Work}
 \label{sec:related}
 
