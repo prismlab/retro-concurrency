@@ -303,11 +303,11 @@ latency sensitive networked applications~\cite{JS,Docker,MirageOS}. OCaml is
 particularly favoured for its competitive yet predictable performance, with
 fast foreign-function interface (FFI) and excellent compatibility with program
 analysis tools such as debuggers and profilers that utilise DWARF stack unwind
-tables to obtain a backtrace. Our primary motivation for adding effect handlers
-to OCaml is to support (1) highly concurrent applications such as web servers
-to be expressed naturally in \emph{direct-style} as opposed to using callbacks
-and (2) efficient data and task parallel programs in the vein of Cilk~\cite{},
-OpenMP~\cite{} and Intel TBB~\cite{}.
+tables~\cite{DWARF} to obtain a backtrace. Our primary motivation for adding
+effect handlers to OCaml is to support (1) highly concurrent applications such
+as web servers to be expressed naturally in \emph{direct-style} as opposed to
+using callbacks and (2) efficient data and task parallel programs in the vein
+of Cilk~\cite{}, OpenMP~\cite{} and Intel TBB~\cite{}.
 
 OCaml, however, does not support any non-local control flow mechanisms other
 than exceptions. This makes it particularly challenging to implement the
@@ -453,7 +453,7 @@ value ocaml_to_c (value unit) {
   \begin{minipage}{0.39\linewidth}
     \centering
     \includegraphics[scale=0.46]{figures/stock_stack}
-    \subcaption{Stack layout before raising exception.}
+    \subcaption{Stack layout before raising exception \texttt{E1}.}
     \label{fig:stock_stack}
   \end{minipage}
   \caption{Program stack on stock OCaml.}
@@ -525,6 +525,7 @@ there are no enclosing handlers. Exceptions are so cheap in OCaml that it is
 very common to use them for \emph{local} control flow.
 
 \subsection{Stack unwinding}
+\ref{sec:unwind}
 
 OCaml generates \emph{stack maps} in order to accurately identify roots on the
 stack for assisting GC. For every call point in the program, OCaml compiler
@@ -1111,8 +1112,9 @@ with v -> v | effect E ke -> (*p2*) continue ke ()
 \end{lstlisting}
 The code performs |E| which is handled in the outer-most handler, and is
 immediately resumed. The layout of the stack as the program executes is
-captured in Figure~\ref{fig:fiber_handler}. At position |p1|, |rsp| is at the
-top of the fiber |f|.
+captured in Figure~\ref{fig:fiber_handler}. The arrows between rectangular
+fibers are parent pointers. At position |p1|, |rsp| is at the top of the fiber
+|f|.
 
 When an effect is performed, we invoke the effect closure |clos_heff| in the
 fiber |f| with the current fiber pointer as the continuation. Since the first
@@ -1128,9 +1130,46 @@ enforce at-most once semantics. Resuming a continuation involves traversing the
 linked-list of fibers and making the last fiber point to the current fiber.
 Just as in the operational semantics, the implementation invokes the
 appropriate closure to either |continue| or |discontinue| the continuation
-(position |p3|).
+(position |p3|). We perform standard tail-call optimization so that resumptions
+at tail positions do not build up stack.
 
 \subsection{Stack unwinding}
+
+For stack walking during GC, the only change necessary was to make the runtime
+aware of fibers layout and how to follow the parent pointers. The stack map
+generation and scanning each frame for roots remains the same. Due to the
+uniformity of fiber layout, suspended fibers are scanned the same way as the
+current active fiber. Previous work~\cite{RetroParallel} presents the
+challenges and solution for the interaction of fibers and the concurrent
+mark-and-sweep GC of Multicore OCaml.
+
+The challenge with DWARF stack unwinding is to make it aware of the
+non-contiguous stacks. While the complete details of DWARF stack unwinding is
+beyond the scope of the paper, it is beneficial to know how DWARF unwind tables
+are constructed in order to appreciate our solution. We refer the interested
+reader to Bastian et al.~\cite{} for a good overview of DWARF stack unwinding.
+
+Logically, DWARF maintains a large table which records for every machine
+instruction where the return address and callee-saved registers are stored. To
+avoid reifying this large table, DWARF represents the table using a compact,
+turing-complete, bytecode representation, which is interpreted on demand for
+building the unwind table. Within each function, DWARF maintains a
+\emph{canonical frame address} (CFA), which is invariant in the function body,
+and is traditionally the stack pointer before entering this function. Hence, on
+x86-64, where the return address is pushed on the stack on call, the return
+address is at |CFA - 8|.
+
+Our goal is to help DWARF identify the CFA when stacks are switched at external
+calls, callbacks and effect handlers. We have implemented short, hand-written
+DWARF bytecode at these three places, which has been validated with the DWARF
+unwind table validator tool~\cite{Bastian}. When starting to run on a new
+fiber, we insert DWARF bytecode to use the follow the |parent_fiber| pointer
+and dereference the |saved_sp| to get the CFA. During callback, we save the
+current system stack pointer in the DWARF block in Figure~\ref{fig:fiber} to
+identify the CFA in the C stack. DWARF unwinding for external calls is
+implemented similarly by saving the current OCaml stack pointer. With these
+changes, we get the same backtrace for the |meander.exe| program from
+\S\ref{sec:unwind}, modulo runtime system functions due to effect handlers.
 
 \section{Evaluation}
 \label{sec:eval}
