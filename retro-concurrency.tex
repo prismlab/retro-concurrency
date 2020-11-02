@@ -41,6 +41,7 @@
 
 \newcommand{\kc}[1]{{\color{red} {\it [KC says: #1]}}}
 \newcommand{\am}[1]{{\color{blue} {\it [AM says: #1]}}}
+\newcommand{\tk}[1]{{\color{blue} {\it [TK says: #1]}}}
 
 \definecolor{Bittersweet}{rgb}{1.0, 0.44, 0.37}
 \definecolor{MidnightBlue}{rgb}{0.0, 0.2, 0.4}
@@ -506,7 +507,7 @@ functions are executed as OCaml callbacks.
 
 The lack of callee-saved registers also makes exception handling fast as there
 are no callee-saved registers to be restored when the exception handler runs.
-Hence, installing an exception handler simply pushes the program counter (pc)
+Hence, installing an exception handler simply pushes the program counter (|pc|)
 of the handler and the current exception pointer (|exn_ptr| -- a field in
 |Caml_state|). The exception pointer is also updated to be the current stack
 pointer (|sp|). This creates a linked-list of exception handler frames on the
@@ -998,8 +999,8 @@ body of the closure.
 In this section, we present the implementation details of effect handlers in
 Multicore OCaml. The implementation follows the operational semantics, but has
 a few key representational differences. Multicore OCaml currently only supports
-the x86-64 backend on Linux, but our design preclude other backends. The
-description in the sequel assumes we are on an x86-64 architecture.
+the x86-64 backend on Linux, but our design doesn't preclude other backends.
+The description that follows assumes a x86-64 architecture.
 
 Unlike the operational semantics, handlers with just exception patterns
 (exception handlers) are implemented differently from effect handlers. As
@@ -1045,7 +1046,7 @@ handlers to be as small as possible, this area is initially 16 words in length.
 When the stack pointer |rsp| goes less than stack threshold (a field in the
 |Caml_state| table), the stack is said to have overflown. On stack overflow, we
 copy the whole fiber to a new area with double the size. In Multicore OCaml, we
-introduce stack overflow checks in function prologue of OCaml functions. We
+introduce stack overflow checks into the function prologue of OCaml functions. We
 observed that most function calls are to leaf functions with small frame size.
 In order to take advantage of this fact, we introduce a small red zone at the
 top of the stack. The compiler elides the stack overflow check for leaf
@@ -1053,7 +1054,7 @@ functions whose frame size is less than the size of the red zone.
 
 Finally, we have the saved exception pointer, which points to the top-most
 exception frame, and the saved stack pointer, which points to the top of the
-stack. Switching between fiber only involves saving the exception and the stack
+stack. Switching between fibers only involves saving the exception and the stack
 pointer of the current stack and loading the same on the target stack. Since
 OCaml does not generate pointers into the stack, the two |fiber_info| fields
 are the only ones that need to be updated when fibers are moved. We allocate
@@ -1073,7 +1074,7 @@ function. The actions are reversed when returning from the external call. One
 subtlety is that for C functions that take arguments on the stack, the
 arguments must be copied to the C stack from the OCaml stack where they are
 laid out. For vast majority of external calls, we perform only a few additional
-instructions stock OCaml in order to to set up the right stack.
+instructions over stock OCaml in order to to set up the right stack.
 
 \begin{figure}
   \includegraphics[width=0.69\linewidth]{figures/multicore_stack}
@@ -1125,6 +1126,10 @@ which points to the fiber |f| (position |p2|). Thus, continuations are captured
 without copying frames. Since each handler closure is evaluated until a machine
 one is found, the take to handle an effect is linear in the number of handlers.
 
+\tk{Something wasn't quite right with this: we allocate the continuation object
+at the point of the perform. Also should we describe how the first handler
+passes the effect on and adds the e onto the continuation that started with f?}
+
 When the continuation is resumed, we overwrite the value of |ke| to |NULL| to
 enforce at-most once semantics. Resuming a continuation involves traversing the
 linked-list of fibers and making the last fiber point to the current fiber.
@@ -1136,12 +1141,12 @@ at tail positions do not build up stack.
 \subsection{Stack unwinding}
 
 For stack walking during GC, the only change necessary was to make the runtime
-aware of fibers layout and how to follow the parent pointers. The stack map
-generation and scanning each frame for roots remains the same. Due to the
-uniformity of fiber layout, suspended fibers are scanned the same way as the
-current active fiber. Previous work~\cite{RetroParallel} presents the
-challenges and solution for the interaction of fibers and the concurrent
-mark-and-sweep GC of Multicore OCaml.
+aware of fibers layout, the closures for the handlers and how to follow the
+parent pointers. The stack map generation and scanning each frame for roots
+remains the same. Due to the uniformity of fiber layout, suspended fibers are
+scanned the same way as the current active fiber. Previous
+work~\cite{RetroParallel} presents the challenges and solution for the
+interaction of fibers and the concurrent mark-and-sweep GC of Multicore OCaml.
 
 The challenge with DWARF stack unwinding is to make it aware of the
 non-contiguous stacks. While the complete details of DWARF stack unwinding is
@@ -1161,9 +1166,9 @@ address is at |CFA - 8|.
 
 Our goal is to help DWARF identify the CFA when stacks are switched at external
 calls, callbacks and effect handlers. We have implemented short, hand-written
-DWARF bytecode at these three places, which has been validated with the DWARF
+DWARF bytecode at these three places, which we have validated with the DWARF
 unwind table validator tool~\cite{Bastian}. When starting to run on a new
-fiber, we insert DWARF bytecode to use the follow the |parent_fiber| pointer
+fiber, we insert DWARF bytecode to follow the |parent_fiber| pointer
 and dereference the |saved_sp| to get the CFA. During callback, we save the
 current system stack pointer in the DWARF block in Figure~\ref{fig:fiber} to
 identify the CFA in the C stack. DWARF unwinding for external calls is
