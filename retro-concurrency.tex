@@ -288,7 +288,6 @@ user-interface continuation so that the application remains responsive. Observe
 that neither of the handlers needs to be aware of the other.
 
 \subsection{Retrofitting effect handlers}
-\label{sec:req}
 
 There are many research languages and libraries built around effect
 handlers~\cite{Koka,Links,Pyro,Frank,Eff}. Unlike these efforts, our goal is to
@@ -331,7 +330,7 @@ For example, running |perform (Read stdin)| without an enclosing handler raises
 effect safety for future work.
 
 \subsection{Requirements}
-\label{sec:requirements}
+\label{sec:req}
 
 We motivate our effect handler design based on the following ideal
 requirements:
@@ -632,7 +631,7 @@ exceptional cases such as the channels being closed externally. Both
 closed. This function cleanly closes the channels on exceptional cases;
 |close_*| functions do nothing if the channel is already closed.
 
-One of our goals(\S\ref{sec:requirements}) is to make this code transparently
+One of our goals(\S\ref{sec:req}) is to make this code transparently
 asynchronous. We can define effects for performing the I/O operations  and wrap
 them up in functions with the same signature as the one from the standard
 library:
