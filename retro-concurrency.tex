@@ -1236,9 +1236,9 @@ checks in the function prologue and the FFI interface tracks stack switching.
 TODO:
 \begin{itemize}
 \item Aim: |R1| not altered existing code performance too much
+\item micro-benchmarks covering 1M external calls, 1M callbacks, 1M install handler return, 1M install handler + raise; 4.10.0+stock vs 4.10.0+multicore
 \item sandmark macro benchmarks to show sequential performance: 4.10.0+stock, 4.10.0+multicore,
 4.10.0+multicore no red-zone/leaf-optimization, 4.10.0+multicore
-\item do we want to include some micro-benchmarks focusing on the FFI callstack overhead?
 \end{itemize}
 
 \subsection{Measurements of overheads in our effects implementation}
