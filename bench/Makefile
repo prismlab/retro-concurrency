@@ -1,3 +1,8 @@
+# PREFIX argument is necessary
+#
+# In order to benchmark, do something like
+# 	taskset --cpu-list 2-10 hyperfine './mc+noredzone_extcall.exe 100_000_000'
+
 PREFIX ?=
 
 ifeq ($(PREFIX),stock)
@@ -10,10 +15,16 @@ else
 	OCAMLOPT :=
 endif
 
-all: $(PREFIX)_extcall.exe
+all: $(PREFIX)_extcall.exe $(PREFIX)_callback.exe
 
 $(PREFIX)_extcall.exe: extcall.ml extcall_.c
 	$(OCAMLOPT) -o $@ $^
 
+$(PREFIX)_callback.exe: callback.ml callback_.c
+	$(OCAMLOPT) -o $@ $^
+
+$(PREFIX)_exn_val.exe: exn_val.ml
+	$(OCAMLOPT) -o $@ $^
+
 clean:
-	rm -f *.cmo *.cmx *.cmi *.exe *.o *~
+	rm -f *.cmo *.cmx *.cmi *.exe *.o *~ a.out perf.* *.s
