@@ -15,7 +15,11 @@ else
 	OCAMLOPT :=
 endif
 
-all: $(PREFIX)_extcall.exe $(PREFIX)_callback.exe
+all: $(PREFIX)_extcall.exe $(PREFIX)_callback.exe \
+	$(PREFIX)_exn_val.exe $(PREFIX)_exn_raise.exe \
+	$(PREFIX)_rec_seq_tak.exe $(PREFIX)_rec_seq_fib.exe \
+	$(PREFIX)_rec_seq_motzkin.exe $(PREFIX)_rec_seq_ack.exe \
+	$(PREFIX)_rec_seq_sudan.exe $(PREFIX)_rec_seq_evenodd.exe
 
 $(PREFIX)_extcall.exe: extcall.ml extcall_.c
 	$(OCAMLOPT) -o $@ $^
@@ -23,7 +27,7 @@ $(PREFIX)_extcall.exe: extcall.ml extcall_.c
 $(PREFIX)_callback.exe: callback.ml callback_.c
 	$(OCAMLOPT) -o $@ $^
 
-$(PREFIX)_exn_val.exe: exn_val.ml
+$(PREFIX)_%.exe: %.ml
 	$(OCAMLOPT) -o $@ $^
 
 clean:

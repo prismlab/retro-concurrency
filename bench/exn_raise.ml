@@ -5,7 +5,7 @@ exception E
 let rec loop n =
   if n = 0 then ()
   else (
-    (try () with E -> ());
+    (try raise E with E -> ());
     loop (n-1)
   )
 
