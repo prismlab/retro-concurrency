@@ -1227,6 +1227,37 @@ integrating fibers with the concurrent mark-and-sweep GC of Multicore OCaml.
 \section{Evaluation}
 \label{sec:eval}
 
+In this section, we evaluate the performance of Multicore OCaml effect handlers
+against the performance requirements set in \S\ref{sec:req}. Multicore OCaml is
+an extension of 4.10.0 OCaml compiler with support for shared memory
+parallelism and effect handlers. These results were obtained on 2-socket,
+Intel\textregistered Xeon\textregistered Gold 5120 x86-64 server, with 28
+physical cores (14 cores on each socket), and 2 hardware threads per core. Each
+core runs at 2.20GHz and has 32 KB of L1 data cache, 32 KB of L1 instruction
+cache and 1MB of L2 cache. The cores on a socket share a 19.25 MB L3 cache. The
+server has 64GB of main memory and runs Ubuntu 18.04.
+
+\subsection{No effects benchmaks}
+
+In this section, we measure the impact of the addition of effect handlers on
+code that does not use effect handlers.
+
+
+\section{Related Work}
+\label{sec:related}
+
+\section{Conclusions and Future Work}
+\label{sec:conc}
+
+\bibliographystyle{ACM-Reference-Format}
+\bibliography{sample-base}
+
+\newpage
+
+\section*{Supplementary Material}
+
+\section*{Evaluation Planning}
+
 \subsection{The impact on code not using effects}
 
 There are several changes to the runtime to support fibers and effect handlers
@@ -1296,16 +1327,6 @@ TODO:
 \item effects are the right way to do some task base parallelism. Use the nqueens example and show the scaling we can achieve in parallel
 \item show that using fibers doesn't have large detrimental impact to existing parallel applications: Take sandmark: minilight, nbody, LU decomposition
 \end{itemize}
-
-
-\section{Related Work}
-\label{sec:related}
-
-\section{Conclusions and Future Work}
-\label{sec:conc}
-
-\bibliographystyle{ACM-Reference-Format}
-\bibliography{sample-base}
 
 
 \end{document}
