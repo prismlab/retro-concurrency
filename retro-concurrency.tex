@@ -1272,14 +1272,14 @@ at reducing the code size, but further work is required to bring it closer to
 \caption{Micro benchmarks without effects. Each entry shows percentage
 	difference for Multicore OCaml over stock OCaml.}
 \vspace{-5mm}
-{\small
+{
 \begin{tabular}{r c c c c c c c c c c}
 	& \rot{exnval} & \rot{exnraise} & \rot{extcall} & \rot{callback} & \rot{ack}
-	& \rot{evenodd} & \rot{fib} & \rot{motzkin} & \rot{sudan} & \rot{tak} \\ \hline
+	& \rot{fib} & \rot{motzkin} & \rot{sudan} & \rot{tak} \\ \hline
 	\textbf{Time} & +0.0 & -1.9 & +17 & +65  & +5.3
-								& -24 & +2.2 & +10 & +0.0 & +4.2 \\
+								& +2.2 & +10 & +0.0 & +4.2 \\
 	\textbf{Instr} & +0.0 & +0.0 & +10 & +72 & +16
-								 & +0.0 & +24 & +16 & +14 & +17 \\ \hline
+								 & +24 & +16 & +14 & +17 \\ \hline
 \end{tabular}
 }
 \label{tab:micro}
@@ -1292,19 +1292,20 @@ iterations of installing exception handlers and returning with value.
 |exnraise| is similar, but raises an exception in each iteration. |extcall| and
 |callback| perform 100 million external calls and callbacks to identity
 functions. The other micro benchmarks are highly recursive programs and were
-taken from ~\ref{Folklore}.
+taken from ~\ref{Folklore}. For micro benchmarks, we observed that padding
+tightloops with a few |nop| instructions, which changes the loop alignment,
+makes the code upto 15\% faster. Hence, the difference in running times under
+15\% may not be statistically significant.
 
 The results show that exceptions are no more expensive in |MC| compared to
 |stock|. In the other programs, |MC| executes more instructions due to stack
-overflow checks, except |evenodd| on which the check is eliminated by the
-compiler. Despite this, observe that |MC| is 24\% faster than stock on
-|evenodd|. At these scales, we observed that padding tightloops with a few
-|nop| instructions, which changes the loop alignment, makes the code upto 15\%
-faster. Hence, the difference in running times under 15\% is not statistically
-significant. External calls and callbacks are more expensive due to additional
-bookkeeping. Callbacks are significantly more expensive, but are also less of a
-concern compared to external calls which are far more numerous. As seen
-previously, these results however do not affect macro benchmark performance.
+overflow checks. External calls and callbacks are more expensive due to
+additional bookkeeping. Callbacks are significantly more expensive in |MC|.
+Since we reuse the current fiber stack for callbacks, we need to ensure it has
+enough room for inserting additional frames, while |stock| does not need to do
+this. Callback performance is less important than external calls, which are far
+more numerous. As seen previously, these results however do not affect macro
+benchmark performance.
 
 \section{Related Work}
 \label{sec:related}
