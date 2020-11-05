@@ -1,55 +1,80 @@
-# PREFIX argument is necessary
-#
-# In order to benchmark, do something like
-# 	taskset --cpu-list 2-10 hyperfine './mc+noredzone_extcall.exe 100_000_000'
+# COMPILER argument is necessary
+COMPILER ?=
 
-PREFIX ?=
-
-ifeq ($(PREFIX),stock)
+ifeq ($(COMPILER),stock)
 	OCAMLOPT := ocamlopt.opt
-else ifeq ($(PREFIX),mc)
+else ifeq ($(COMPILER),mc)
 	OCAMLOPT := ~/repos/ocaml-multicore/_install/bin/ocamlopt.opt
-else ifeq ($(PREFIX),mc+noredzone)
+else ifeq ($(COMPILER),mc+noredzone)
 	OCAMLOPT := ~/repos/ocaml-multicore-redzone0/_install/bin/ocamlopt.opt
 else
 	OCAMLOPT :=
 endif
 
-EXE = $(PREFIX)_extcall.exe $(PREFIX)_callback.exe \
-	$(PREFIX)_exn_val.exe $(PREFIX)_exn_raise.exe \
-	$(PREFIX)_rec_seq_tak.exe $(PREFIX)_rec_seq_fib.exe \
-	$(PREFIX)_rec_seq_motzkin.exe $(PREFIX)_rec_seq_ack.exe \
-	$(PREFIX)_rec_seq_sudan.exe $(PREFIX)_rec_seq_evenodd.exe
+EXE = $(COMPILER)_extcall.exe $(COMPILER)_callback.exe \
+	$(COMPILER)_exn_val.exe $(COMPILER)_exn_raise.exe \
+	$(COMPILER)_rec_seq_tak.exe $(COMPILER)_rec_seq_fib.exe \
+	$(COMPILER)_rec_seq_motzkin.exe $(COMPILER)_rec_seq_ack.exe \
+	$(COMPILER)_rec_seq_sudan.exe $(COMPILER)_rec_seq_evenodd.exe \
+	$(COMPILER)_rec_monad_fib.exe
 
-ifneq ($(PREFIX),stock)
-	EXE += $(PREFIX)_rec_eff_tak.exe $(PREFIX)_rec_eff_fib.exe \
-				 $(PREFIX)_rec_eff_motzkin.exe $(PREFIX)_rec_eff_ack.exe \
-				$(PREFIX)_rec_eff_sudan.exe $(PREFIX)_rec_eff_evenodd.exe
+ifneq ($(COMPILER),stock)
+	EXE += $(COMPILER)_rec_eff_tak.exe $(COMPILER)_rec_eff_fib.exe \
+				 $(COMPILER)_rec_eff_motzkin.exe $(COMPILER)_rec_eff_ack.exe \
+				$(COMPILER)_rec_eff_sudan.exe $(COMPILER)_rec_eff_evenodd.exe
 endif
 
-bench: all
+MONAD_DEPS := sched_monad.mli sched_monad.ml MVar_monad.mli MVar_monad.ml \
+	async.mli async.ml
+
+time: exe
 	taskset --cpu-list 2-10 hyperfine -u millisecond --export-json \
-		$(PREFIX).bench --warmup 3 \
-		'./$(PREFIX)_extcall.exe 100_000_000' \
-		'./$(PREFIX)_callback.exe 100_000_000' \
-		'./$(PREFIX)_exn_val.exe 100_100_000' \
-		'./$(PREFIX)_exn_raise.exe 100_100_000' \
-		'./$(PREFIX)_rec_seq_tak.exe 1 40 20 11' \
-		'./$(PREFIX)_rec_seq_fib.exe 4 40' \
-		'./$(PREFIX)_rec_seq_sudan.exe 10_000_000 2 2 2' \
-		'./$(PREFIX)_rec_seq_motzkin.exe 4 21' \
-		'./$(PREFIX)_rec_seq_evenodd.exe 2 500_000_000' \
-		'./$(PREFIX)_rec_seq_ack.exe 2 3 11'
+		$(COMPILER).bench --warmup 3 \
+		'./$(COMPILER)_extcall.exe 100_000_000' \
+		'./$(COMPILER)_callback.exe 100_000_000' \
+		'./$(COMPILER)_exn_val.exe 100_100_000' \
+		'./$(COMPILER)_exn_raise.exe 100_100_000' \
+		'./$(COMPILER)_rec_seq_tak.exe 1 40 20 11' \
+		'./$(COMPILER)_rec_seq_fib.exe 4 40' \
+		'./$(COMPILER)_rec_seq_sudan.exe 10_000_000 2 2 2' \
+		'./$(COMPILER)_rec_seq_motzkin.exe 4 21' \
+		'./$(COMPILER)_rec_seq_evenodd.exe 2 500_000_000' \
+		'./$(COMPILER)_rec_seq_ack.exe 2 3 11'
 
-all: $(EXE)
+time_eff: exe
+	taskset --cpu-list 2-10 hyperfine -u millisecond --export-json \
+		$(COMPILER)_eff.bench -m 2 \
+		'./$(COMPILER)_rec_eff_tak.exe 1 40 20 11' \
+		'./$(COMPILER)_rec_eff_fib.exe 4 40' \
+		'./$(COMPILER)_rec_eff_sudan.exe 10_000_000 2 2 2' \
+		'./$(COMPILER)_rec_eff_motzkin.exe 4 21' \
+		'./$(COMPILER)_rec_eff_evenodd.exe 2 500_000_000' \
+		'./$(COMPILER)_rec_eff_ack.exe 2 3 11'
 
-$(PREFIX)_extcall.exe: extcall.ml extcall_.c
+instr: exe
+	perf stat ./$(COMPILER)_extcall.exe 100_000_000
+	perf stat ./$(COMPILER)_callback.exe 100_000_000
+	perf stat ./$(COMPILER)_exn_val.exe 100_100_000
+	perf stat ./$(COMPILER)_exn_raise.exe 100_100_000
+	perf stat ./$(COMPILER)_rec_seq_tak.exe 1 40 20 11
+	perf stat ./$(COMPILER)_rec_seq_fib.exe 4 40
+	perf stat ./$(COMPILER)_rec_seq_sudan.exe 10_000_000 2 2 2
+	perf stat ./$(COMPILER)_rec_seq_motzkin.exe 4 21
+	perf stat ./$(COMPILER)_rec_seq_evenodd.exe 2 500_000_000
+	perf stat ./$(COMPILER)_rec_seq_ack.exe 2 3 11
+
+exe: $(EXE)
+
+$(COMPILER)_extcall.exe: extcall.ml extcall_.c
 	$(OCAMLOPT) -o $@ $^
 
-$(PREFIX)_callback.exe: callback.ml callback_.c
+$(COMPILER)_callback.exe: callback.ml callback_.c
 	$(OCAMLOPT) -o $@ $^
 
-$(PREFIX)_%.exe: %.ml
+$(COMPILER)_rec_monad_%.exe: rec_monad_%.ml
+	$(OCAMLOPT) -o $@ $(MONAD_DEPS) $^
+
+$(COMPILER)_%.exe: %.ml
 	$(OCAMLOPT) -o $@ $^
 
 clean:
