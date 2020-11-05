@@ -15,13 +15,15 @@ EXE = $(COMPILER)_extcall.exe $(COMPILER)_callback.exe \
 	$(COMPILER)_exn_val.exe $(COMPILER)_exn_raise.exe \
 	$(COMPILER)_rec_seq_tak.exe $(COMPILER)_rec_seq_fib.exe \
 	$(COMPILER)_rec_seq_motzkin.exe $(COMPILER)_rec_seq_ack.exe \
-	$(COMPILER)_rec_seq_sudan.exe $(COMPILER)_rec_seq_evenodd.exe \
-	$(COMPILER)_rec_monad_fib.exe
+	$(COMPILER)_rec_seq_sudan.exe \
+	$(COMPILER)_rec_monad_fib.exe $(COMPILER)_rec_monad_tak.exe \
+	$(COMPILER)_rec_monad_motzkin.exe $(COMPILER)_rec_monad_ack.exe \
+	$(COMPILER)_rec_monad_sudan.exe
 
 ifneq ($(COMPILER),stock)
 	EXE += $(COMPILER)_rec_eff_tak.exe $(COMPILER)_rec_eff_fib.exe \
 				 $(COMPILER)_rec_eff_motzkin.exe $(COMPILER)_rec_eff_ack.exe \
-				$(COMPILER)_rec_eff_sudan.exe $(COMPILER)_rec_eff_evenodd.exe
+				$(COMPILER)_rec_eff_sudan.exe
 endif
 
 MONAD_DEPS := sched_monad.mli sched_monad.ml MVar_monad.mli MVar_monad.ml \
@@ -38,18 +40,25 @@ time: exe
 		'./$(COMPILER)_rec_seq_fib.exe 4 40' \
 		'./$(COMPILER)_rec_seq_sudan.exe 10_000_000 2 2 2' \
 		'./$(COMPILER)_rec_seq_motzkin.exe 4 21' \
-		'./$(COMPILER)_rec_seq_evenodd.exe 2 500_000_000' \
 		'./$(COMPILER)_rec_seq_ack.exe 2 3 11'
+
+time_monad: exe
+	taskset --cpu-list 2-10 hyperfine -u millisecond --export-json \
+		$(COMPILER)_monad.bench -m 2 \
+		'./$(COMPILER)_rec_monad_tak.exe 1 35 20 11' \
+		'./$(COMPILER)_rec_monad_fib.exe 1 37' \
+		'./$(COMPILER)_rec_monad_sudan.exe 1_000_000 2 2 2' \
+		'./$(COMPILER)_rec_monad_motzkin.exe 1 21' \
+		'./$(COMPILER)_rec_monad_ack.exe 1 3 10'
 
 time_eff: exe
 	taskset --cpu-list 2-10 hyperfine -u millisecond --export-json \
 		$(COMPILER)_eff.bench -m 2 \
-		'./$(COMPILER)_rec_eff_tak.exe 1 40 20 11' \
-		'./$(COMPILER)_rec_eff_fib.exe 4 40' \
-		'./$(COMPILER)_rec_eff_sudan.exe 10_000_000 2 2 2' \
-		'./$(COMPILER)_rec_eff_motzkin.exe 4 21' \
-		'./$(COMPILER)_rec_eff_evenodd.exe 2 500_000_000' \
-		'./$(COMPILER)_rec_eff_ack.exe 2 3 11'
+		'./$(COMPILER)_rec_eff_tak.exe 1 35 20 11' \
+		'./$(COMPILER)_rec_eff_fib.exe 1 37' \
+		'./$(COMPILER)_rec_eff_sudan.exe 1_000_000 2 2 2' \
+		'./$(COMPILER)_rec_eff_motzkin.exe 1 21' \
+		'./$(COMPILER)_rec_eff_ack.exe 1 3 10'
 
 instr: exe
 	perf stat ./$(COMPILER)_extcall.exe 100_000_000
@@ -60,7 +69,6 @@ instr: exe
 	perf stat ./$(COMPILER)_rec_seq_fib.exe 4 40
 	perf stat ./$(COMPILER)_rec_seq_sudan.exe 10_000_000 2 2 2
 	perf stat ./$(COMPILER)_rec_seq_motzkin.exe 4 21
-	perf stat ./$(COMPILER)_rec_seq_evenodd.exe 2 500_000_000
 	perf stat ./$(COMPILER)_rec_seq_ack.exe 2 3 11
 
 exe: $(EXE)
