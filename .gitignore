@@ -7,3 +7,4 @@ retro-concurrency.pdf
 *.aux
 retro-parallel-sources
 .*.swp
+.ipynb_checkpoints

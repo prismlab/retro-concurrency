@@ -33,6 +33,9 @@
 \usepackage{tikz}
 \usetikzlibrary{calc,decorations.pathmorphing,shapes}
 \usepackage{stmaryrd}
+\usepackage{adjustbox}
+
+\newcommand{\rot}[1]{\adjustbox{angle=90}{\textbf{#1}}}
 
 \crefformat{section}{§#2#1#3}
 \newtheorem{theorem}{Theorem}
@@ -95,6 +98,7 @@
 \lstMakeShortInline[columns=fullflexible,keepspaces]|
 
 \newcommand{\mycaption}[1]{\vspace{-4mm}\caption{#1}}
+\setlength{\tabcolsep}{3pt}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Semantics definitions
@@ -1130,9 +1134,11 @@ we run the callbacks on the same fiber as the current one. For example, the
 layout of the Multicore OCaml stack at |caml_raise_exn| in the |meander|
 example from \S\ref{sec:stack} is shown in Figure~\ref{fig:mcstack}. The
 functions |caml_call_c| and |caml_call_ocaml| switch the stacks, and hence are
-shown in both the system stack and the fiber. The details of the exception
-frames have been elided in the figure. Thanks to the fiber representation,
-external calls and callbacks remain fast.
+shown in both the system stack and the fiber. Since we are reusing the fiber
+for the callback, care must be taken to save and restore the |handler_info|
+before calling and after returning from |c_to_ocaml| function, respectively.
+The details of the exception frames have been elided in the figure. Thanks to
+the fiber representation, external calls and callbacks remain fast.
 
 \subsection{Effect handlers}
 \label{sec:effimpl}
@@ -1240,8 +1246,65 @@ server has 64GB of main memory and runs Ubuntu 18.04.
 \subsection{No effects benchmaks}
 
 In this section, we measure the impact of the addition of effect handlers on
-code that does not use effect handlers.
+code that does not use effect handlers. Our macro benchmark suite consists of
+54 real OCaml workloads including verification tools (|Coq|, |Cubicle|,
+|AltErgo|), parsers (|menhir|,|yojson|), storage engines (|irmin|), utilities
+(|cpdf|,|decompress|), bioinformatics (|fasta|, |knucleotide|, |revcomp2|,
+|regexredux2|), numerical analysis (|grammatrix|,|LU_decomposition|) and
+simulations (|nbody|,|game_of_life|). In addition to Stock (|stock|) and
+Multicore OCaml (|MC|), we also ran the benchmarks on Multicore OCaml with no
+red zone (|MC+RedZone0|) in the fiber (all OCaml functions will have stack
+overflow check) and a red zone size of 32 words (|MC+RedZone32|). Recall that
+the default red zone size in Multicore OCaml is 16 words.
 
+The complete results are presented in the supplementary material, which we
+summarise here. On average (geometric mean of the normalized values against
+|stock| as the baseline), the multicore variants were \textbf{less than 1\%
+slower}. The outliers (on either ends) were due to the difference in the
+allocator and the GC between stock and Multicore OCaml. The biggest impact was
+the increase in the code size for OCaml code due to stack overflow checks.
+Compared to |stock|, the code size for OCaml code 19\% (30\%) more for |MC| and
+|MC+RedZone32| (|MC+RedZone0|). The result shows that our red zone is effective
+at reducing the code size, but further work is required to bring it closer to
+|stock|.
+
+\begin{table}
+\caption{Micro benchmarks without effects. Each entry shows percentage
+	difference for Multicore OCaml over stock OCaml.}
+\vspace{-5mm}
+{\small
+\begin{tabular}{r c c c c c c c c c c}
+	& \rot{exnval} & \rot{exnraise} & \rot{extcall} & \rot{callback} & \rot{ack}
+	& \rot{evenodd} & \rot{fib} & \rot{motzkin} & \rot{sudan} & \rot{tak} \\ \hline
+	\textbf{Time} & +0.0 & -1.9 & +17 & +65  & +5.3
+								& -24 & +2.2 & +10 & +0.0 & +4.2 \\
+	\textbf{Instr} & +0.0 & +0.0 & +10 & +72 & +16
+								 & +0.0 & +24 & +16 & +14 & +17 \\ \hline
+\end{tabular}
+}
+\label{tab:micro}
+\end{table}
+
+We also present micro benchmarks results in Table~\ref{tab:micro}. Since micro
+benchmarks magnify micro-architectural optimisations, we also report the number
+of instructions executed along with time. |exnval| perform 100 million
+iterations of installing exception handlers and returning with value.
+|exnraise| is similar, but raises an exception in each iteration. |extcall| and
+|callback| perform 100 million external calls and callbacks to identity
+functions. The other micro benchmarks are highly recursive programs and were
+taken from ~\ref{Folklore}.
+
+The results show that exceptions are no more expensive in |MC| compared to
+|stock|. In the other programs, |MC| executes more instructions due to stack
+overflow checks, except |evenodd| on which the check is eliminated by the
+compiler. Despite this, observe that |MC| is 24\% faster than stock on
+|evenodd|. At these scales, we observed that padding tightloops with a few
+|nop| instructions, which changes the loop alignment, makes the code upto 15\%
+faster. Hence, the difference in running times under 15\% is not statistically
+significant. External calls and callbacks are more expensive due to additional
+bookkeeping. Callbacks are significantly more expensive, but are also less of a
+concern compared to external calls which are far more numerous. As seen
+previously, these results however do not affect macro benchmark performance.
 
 \section{Related Work}
 \label{sec:related}
@@ -1255,22 +1318,29 @@ code that does not use effect handlers.
 \newpage
 
 \section*{Supplementary Material}
+\setcounter{figure}{0}
+
+\subsection*{No effect macro benchmarks}
+
+\begin{figure*}
+	\begin{minipage}{\linewidth}
+	\includegraphics[width=\linewidth]{sandmark-notebook/sandmark_time}
+	\subcaption{Normalized time of macro benchmarks. Baseline is Stock OCaml, whose running time in seconds in given in parenthesis.}
+	\includegraphics[width=\linewidth]{sandmark-notebook/sandmark_codesize}
+	\subcaption{Normalized OCaml code size of macro benchmarks. Baseline is Stock OCaml, whose size in bytes given in parenthesis.}
+	\end{minipage}
+	\caption{Macro benchmark performance on code that does not use effects.}
+	\label{res:macro}
+\end{figure*}
+
+Figure~\ref{res:macro} presents the performance of macro benchmarks that do not
+use effects. The aim is to quantify the impact of the addition of effect
+handlers to the language on code that does not use effect handlers. The |MC| is
+Multicore OCaml with default red zone size (16 words). |MC+RedZone0| uses red
+zone size of 0; every OCaml function has a stack overflow check. |MC+RedZone32|
+uses a red zone size of 32 words.
 
 \section*{Evaluation Planning}
-
-\subsection{The impact on code not using effects}
-
-There are several changes to the runtime to support fibers and effect handlers
-that will be executed by code not using effects: OCaml stacks now have dynamic
-checks in the function prologue and the FFI interface tracks stack switching.
-
-TODO:
-\begin{itemize}
-\item Aim: |R1| not altered existing code performance too much
-\item micro-benchmarks covering 1M external calls, 1M callbacks, 1M install handler return, 1M install handler + raise; 4.10.0+stock vs 4.10.0+multicore
-\item sandmark macro benchmarks to show sequential performance: 4.10.0+stock, 4.10.0+multicore,
-4.10.0+multicore no red-zone/leaf-optimization, 4.10.0+multicore
-\end{itemize}
 
 \subsection{Measurements of overheads in our effects implementation}
 
