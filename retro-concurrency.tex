@@ -1345,6 +1345,24 @@ optimisations is still slower than using the call stack.
 
 \subsection{Concurrent benchmarks}
 
+Next we look at benchmarks that utilize non-local control flow. First, we
+quantify the overhead individual operations in effect handling. Consider the
+following annotated code:
+\begin{lstlisting}
+effect E : unit
+(* a *) match (* b *) perform E (* d *) with
+| v -> (* e *) v
+| effect E k -> (* c *) continue k ()
+\end{lstlisting}
+The sequence |a-b| involves allocating a new fiber and switching to it. |b-c|
+is performing the effect and handling it. |c-d| is resuming the continuation.
+|d-e| is returning from the fiber with a value and freeing the fiber. We
+measured the time taken to execute these sequences using |perf| support for
+cycle-accurate tracing on modern Intel processors. We executed 10 iterations of
+the code, ignoring 3 warm-up runs. We observed that the sequences
+|a-b|, |b-c|, |c-d| and |d-e| took 48ns, 10ns, 13ns and 19ns, respectively. For
+reference, the idle memory latency for the local NUMA node is 93.2ns.
+
 \section{Related Work}
 \label{sec:related}
 
