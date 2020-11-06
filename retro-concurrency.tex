@@ -35,7 +35,7 @@
 \usepackage{stmaryrd}
 \usepackage{adjustbox}
 
-\newcommand{\rot}[1]{\adjustbox{angle=90}{\textbf{#1}}}
+\newcommand{\rot}[2][75]{\adjustbox{angle=#1}{\textbf{#2}}}
 
 \crefformat{section}{§#2#1#3}
 \newtheorem{theorem}{Theorem}
@@ -1169,7 +1169,7 @@ enforce at-most once semantics. Resuming a continuation involves traversing the
 linked-list of fibers and making the last fiber point to the current fiber.
 Just as in the operational semantics, the implementation invokes the
 appropriate closure to either |continue| or |discontinue| the continuation
-(position |p3|). We perform standard tail-call optimization so that resumptions
+(position |p3|). We perform standard tail-call optimisation so that resumptions
 at tail positions do not build up stack.
 
 \subsection{Stack unwinding}
@@ -1243,7 +1243,7 @@ core runs at 2.20GHz and has 32 KB of L1 data cache, 32 KB of L1 instruction
 cache and 1MB of L2 cache. The cores on a socket share a 19.25 MB L3 cache. The
 server has 64GB of main memory and runs Ubuntu 18.04.
 
-\subsection{No effects benchmaks}
+\subsection{No effects benchmarks}
 
 In this section, we measure the impact of the addition of effect handlers on
 code that does not use effect handlers. Our macro benchmark suite consists of
@@ -1269,7 +1269,7 @@ at reducing the code size, but further work is required to bring it closer to
 |stock|.
 
 \begin{table}
-\caption{Micro benchmarks without effects. Each entry shows percentage
+\caption{Micro benchmarks without effects. Each entry is the percentage
 	difference for Multicore OCaml over stock OCaml.}
 \vspace{-5mm}
 {
@@ -1281,21 +1281,22 @@ at reducing the code size, but further work is required to bring it closer to
 	\textbf{Instr} & +0.0 & +0.0 & +10 & +72 & +16
 								 & +24 & +16 & +14 & +17 \\ \hline
 \end{tabular}
+\vspace{-3mm}
 }
-\label{tab:micro}
+\label{tab:micro_noeffect}
 \end{table}
 
-We also present micro benchmarks results in Table~\ref{tab:micro}. Since micro
-benchmarks magnify micro-architectural optimisations, we also report the number
-of instructions executed along with time. |exnval| perform 100 million
-iterations of installing exception handlers and returning with value.
-|exnraise| is similar, but raises an exception in each iteration. |extcall| and
-|callback| perform 100 million external calls and callbacks to identity
-functions. The other micro benchmarks are highly recursive programs and were
-taken from ~\ref{Folklore}. For micro benchmarks, we observed that padding
-tightloops with a few |nop| instructions, which changes the loop alignment,
-makes the code upto 15\% faster. Hence, the difference in running times under
-15\% may not be statistically significant.
+We also present micro benchmarks results in Table~\ref{tab:micro_noeffect}.
+Since micro benchmarks magnify micro-architectural optimisations, we also
+report the number of instructions executed (obtained using |perf|) along with
+time. |exnval| perform 100 million iterations of installing exception handlers
+and returning with value. |exnraise| is similar, but raises an exception in
+each iteration. |extcall| and |callback| perform 100 million external calls and
+callbacks to identity functions. The other micro benchmarks are highly
+recursive programs and were taken from ~\ref{Folklore}. For micro benchmarks,
+we observed that padding tightloops with a few |nop| instructions, which
+changes the loop alignment, makes the code upto 15\% faster. Hence, the
+difference in running times under 15\% may not be statistically significant.
 
 The results show that exceptions are no more expensive in |MC| compared to
 |stock|. In the other programs, |MC| executes more instructions due to stack
@@ -1306,6 +1307,43 @@ enough room for inserting additional frames, while |stock| does not need to do
 this. Callback performance is less important than external calls, which are far
 more numerous. As seen previously, these results however do not affect macro
 benchmark performance.
+
+\subsection{No perform benchmarks}
+
+\begin{table}
+\caption{Micro benchmarks with handlers but no perform. Each entry is the
+	slowdown factor ($\times$ times) over its idiomatic implementation in stock OCaml.}
+\vspace{-3mm}
+{
+\begin{tabular}{r c c c c c}
+	& \textbf{ack} & \textbf{fib} & \textbf{motzkin} & \textbf{sudan} & \textbf{tak} \\ \hline
+	\texttt{MC} 	 	& 10.57 & 15.76 & 16.96 & 12.88 & 13.64 \\
+	\texttt{monad} 	& 42.79 & 69.77 & 348.69 & 33.29 & 39.24 \\ \hline
+\end{tabular}
+}
+\label{tab:micro_noperform}
+\end{table}
+
+Next we look at the cost of setting up an effect handler, but not |perform|ing
+an effect. The aim is to quantify the cost of setting up and tearing down
+effect handlers compared to a non-tail function call. To this end, we surround
+the non-tail calls in the recursive micro benchmarks with an effect handler. We
+also include a version of the same benchmarks implemented using concurrency
+monad~\cite{} (|monad|) as a proxy for CPS versions. Recall that OCaml compiler
+does not use CPS in its IR. In the |monad| version, we use a |fork| to invoke
+the non-tail call and use an |MVar| to collect its result.
+
+The results are presented in Table~\ref{tab:micro_noperform}. They show that
+using effect handlers (concurrency monad) is 13.77$\times$ (67.09$\times$) more
+expensive than the idiomatic implementation using non-tail calls. Concurrency
+monad suffers due to the heap allocation of continuation frames (which need to
+be GCed), where as effect handlers benefit from stack allocation of the frames.
+We note that a compiler that uses CPS IR will be faster than the concurrency
+monad implementation due to optimisations to reduce the heap allocation of
+continuation frames. But Farvardin et al.~\cite{} show that CPS with
+optimisations is still slower than using the call stack.
+
+\subsection{Concurrent benchmarks}
 
 \section{Related Work}
 \label{sec:related}
