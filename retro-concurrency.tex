@@ -1248,10 +1248,10 @@ server has 64GB of main memory and runs Ubuntu 18.04.
 In this section, we measure the impact of the addition of effect handlers on
 code that does not use effect handlers. Our macro benchmark suite consists of
 54 real OCaml workloads including verification tools (|Coq|, |Cubicle|,
-|AltErgo|), parsers (|menhir|,|yojson|), storage engines (|irmin|), utilities
-(|cpdf|,|decompress|), bioinformatics (|fasta|, |knucleotide|, |revcomp2|,
-|regexredux2|), numerical analysis (|grammatrix|,|LU_decomposition|) and
-simulations (|nbody|,|game_of_life|). In addition to Stock (|stock|) and
+|AltErgo|), parsers (|menhir|, |yojson|), storage engines (|irmin|), utilities
+(|cpdf|, |decompress|), bioinformatics (|fasta|, |knucleotide|, |revcomp2|,
+|regexredux2|), numerical analysis (|grammatrix|, |LU_decomposition|) and
+simulations (|nbody|, |game_of_life|). In addition to Stock (|stock|) and
 Multicore OCaml (|MC|), we also ran the benchmarks on Multicore OCaml with no
 red zone (|MC+RedZone0|) in the fiber (all OCaml functions will have stack
 overflow check) and a red zone size of 32 words (|MC+RedZone32|). Recall that
@@ -1324,14 +1324,14 @@ benchmark performance.
 \label{tab:micro_noperform}
 \end{table}
 
-Next we look at the cost of setting up an effect handler, but not |perform|ing
-an effect. The aim is to quantify the overhead of setting up and tearing down
-effect handlers compared to a non-tail function call. To this end, we surround
-the non-tail calls in the recursive micro benchmarks with an effect handler. We
-also include a version of the same benchmarks implemented using concurrency
-monad~\cite{} (|monad|) as a proxy for CPS versions. Recall that OCaml compiler
-does not use CPS in its IR. In the |monad| version, we use a |fork| to invoke
-the non-tail call and use an |MVar| to collect its result.
+Next, we aim to quantify the overhead of setting up and tearing down effect
+handlers compared to a non-tail function call. To this end, we surround the
+non-tail calls in the recursive micro benchmarks with an effect handler. The
+code does not |perform| effects. We also include a version of the same
+benchmarks implemented using concurrency monad~\cite{} (|monad|) as a proxy for
+CPS versions. Recall that OCaml compiler does not use CPS in its IR. In the
+|monad| version, we use a |fork| to invoke the non-tail call and use an |MVar|
+to collect its result.
 
 The results are presented in Table~\ref{tab:micro_noperform}. They show that
 using effect handlers (concurrency monad) is 13.77$\times$ (67.09$\times$) more
@@ -1349,9 +1349,9 @@ optimisations is still slower than using the call stack.
 
 \subsection{Concurrent benchmarks}
 
-Next we look at benchmarks that utilize non-local control flow. First, we
-quantify the overhead individual operations in effect handling. Consider the
-following annotated code:
+Next we look at benchmarks that utilize non-local control flow using effect
+handlers. First, we quantify the overhead individual operations in effect
+handling. Consider the following annotated code:
 \begin{lstlisting}
 effect E : unit
 (* a *) match (* b *) perform E (* d *) with
@@ -1364,33 +1364,38 @@ the continuation. \texttt{d-e} is returning from the fiber with a value and
 freeing the fiber. We measured the time taken to execute these sequences using
 |perf| support for cycle-accurate tracing on modern Intel processors. We
 executed 10 iterations of the code, with 3 warm-up runs. We observed that the
-sequences \texttt{a-b}, \texttt{b-c}, \texttt{c-d} and \texttt{d-e} took \textbf{48ns,
-10ns, 13ns and 19ns}, respectively. For reference, the idle memory latency for
-the local NUMA node is 93.2ns as measured using the Intel MLC tool~\cite{}.
+sequences \texttt{a-b}, \texttt{b-c}, \texttt{c-d} and \texttt{d-e} took
+\textbf{48ns, 10ns, 13ns and 19ns}, respectively. For reference, the idle
+memory latency for the local NUMA node is 93.2ns as measured using the Intel
+MLC tool~\cite{}.
 
 \paragraph{Generators} Generators allow data structures to be traversed on
 demand. Many languages including JavaScript and Python provide generators as a
-built-in primitive. Using effect handlers, given any data structure (|'a t|)
-and its iterator (|val iter: 'a t -> ('a -> unit) -> unit|), we can derive its
-generator function (|val next : unit -> 'a option|) (|MC| version). The code is
-available in the supplementary material.
+built-in primitive. Using effect handlers (|MC|), given any data structure
+(|'a t|) and its iterator (|val iter: 'a t -> ('a -> unit) -> unit|), we can
+derive its generator function (|val next : unit -> 'a option|). The code is
+available in the supplementary material. We evaluate the performance of
+traversing a complete binary tree of depth 25 using this generator. This
+involves $2^{26}$ stack switches in total. For comparison, we also implemented
+a hand-written, selective CPSed~\cite{},
+defunctionalised~\cite{DefunctionalizationAtWork} version (|cps|) and a
+concurrency monad (|monad|) version of the generator for the tree. Both |cps|
+and |monad| versions are specialised to the binary tree, and come with the
+usual caveats of not using the stack for function calls. We observed that the
+|cps| version was the fastest thanks to specialisation and hand optimisation.
+|MC| version was only 2.76$\times$ slower than |cps| while being a generic
+solution, whereas the |monad| version was 8.69$\times$ slower than |cps|.
 
-We evaluate the performance of traversing a complete binary tree of depth 25
-using this generator. For comparison, we also implemented a hand-written,
-selective CPSed~\cite{}, defunctionalised~\cite{DefunctionalizationAtWork}
-version (|cps|) and a concurrency monad (|monad|) version of the generator for
-the tree. Both |cps| and |monad| versions are specialised to the binary tree,
-and come with the usual caveats of not using the stack for function calls. We
-observed that the |cps| version was the fastest thanks to specialisation and
-hand optimisation. |MC| version was only 2.76$\times$ slower than |cps| while
-being a generic solution, whereas the |monad| version was 8.69$\times$ slower
-than |cps|.
+\paragraph{Chameneos} Chameneos~\cite{} is a concurrency game aimed at
+measuring context switching and synchronization overheads. Our implementation
+uses MVars~\cite{} for synchronization. We compare effect handler (|MC|),
+concurrency monad (|monad|) and Lwt, a widely used concurrency programming
+library for OCaml (|lwt|) versions. We observed that |MC| was the fastest, and
+|monad| (|lwt|) was 1.67$\times$ (4.29$\times$) slower than |MC|.
 
-\section{Related Work}
-\label{sec:related}
+\section{Related Work} \label{sec:related}
 
-\section{Conclusions and Future Work}
-\label{sec:conc}
+\section{Conclusions and Future Work} \label{sec:conc}
 
 \bibliographystyle{ACM-Reference-Format}
 \bibliography{sample-base}
@@ -1421,20 +1426,6 @@ zone size of 0; every OCaml function has a stack overflow check. |MC+RedZone32|
 uses a red zone size of 32 words.
 
 \section*{Evaluation Planning}
-
-\subsection{Effects benchmarks}
-
-We now look at the impact of the overhead in a variety of benchmarks comparing
-the cost of using our effects abstraction versus alternative methods of
-implementation.
-
-TODO:
-\begin{itemize}
-\item Aim: |R3| Do we have an efficient implementation of effects and are effects competitive vs alternative implementation strategies.
-\item we can show the sequential vs stack benchmarks as used by 'Folklore to fact' \tk{slightly weak story as the sequential ones will be much faster for these very simple benchmarks and effects don't really add anything to their implementation}
-\item general generator examples (using examples from effects-example)
-\item chamenos vs chamenos effects vs lwt (using examples from effects-example)
-\end{itemize}
 
 \subsection{Webserver benchmarks}
 
