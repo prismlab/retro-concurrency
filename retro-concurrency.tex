@@ -1338,12 +1338,35 @@ using effect handlers (concurrency monad) is 13.77$\times$ (67.09$\times$) more
 expensive than the idiomatic implementation using non-tail calls. Concurrency
 monad suffers due to the heap allocation of continuation frames (which need to
 be GCed), where as effect handlers benefit from stack allocation of the frames.
+Our concurrency monad, and indeed monadic concurrency libraries such as Lwt and
+Async, also has other downsides; due to the lack of stack, exceptions,
+backtraces, and DWARF unwinding are no longer useful.
+
 We note that a compiler that uses CPS IR will be faster than the concurrency
 monad implementation due to optimisations to reduce the heap allocation of
 continuation frames. But Farvardin et al.~\cite{} show that CPS with
 optimisations is still slower than using the call stack.
 
 \subsection{Concurrent benchmarks}
+
+Next we look at benchmarks that utilize non-local control flow. First, we
+quantify the overhead individual operations in effect handling. Consider the
+following annotated code:
+\begin{lstlisting}
+effect E : unit
+(* a *) match (* b *) perform E (* d *) with
+| v -> (* e *) v
+| effect E k -> (* c *) continue k ()
+\end{lstlisting}
+The sequence \texttt{a-b} involves allocating a new fiber and switching to it.
+\texttt{b-c} is performing the effect and handling it. \texttt{c-d} is resuming
+the continuation. \texttt{d-e} is returning from the fiber with a value and
+freeing the fiber. We measured the time taken to execute these sequences using
+|perf| support for cycle-accurate tracing on modern Intel processors. We
+executed 10 iterations of the code, ignoring 3 warm-up runs. We observed that
+the sequences \texttt{a-b}, \texttt{b-c}, \texttt{c-d} and \texttt{d-e} took
+48ns, 10ns, 13ns and 19ns, respectively. For reference, the idle memory latency
+for the local NUMA node is 93.2ns.
 
 \section{Related Work}
 \label{sec:related}
