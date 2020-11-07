@@ -1325,7 +1325,7 @@ benchmark performance.
 \end{table}
 
 Next we look at the cost of setting up an effect handler, but not |perform|ing
-an effect. The aim is to quantify the cost of setting up and tearing down
+an effect. The aim is to quantify the overhead of setting up and tearing down
 effect handlers compared to a non-tail function call. To this end, we surround
 the non-tail calls in the recursive micro benchmarks with an effect handler. We
 also include a version of the same benchmarks implemented using concurrency
@@ -1363,10 +1363,28 @@ The sequence \texttt{a-b} involves allocating a new fiber and switching to it.
 the continuation. \texttt{d-e} is returning from the fiber with a value and
 freeing the fiber. We measured the time taken to execute these sequences using
 |perf| support for cycle-accurate tracing on modern Intel processors. We
-executed 10 iterations of the code, ignoring 3 warm-up runs. We observed that
-the sequences \texttt{a-b}, \texttt{b-c}, \texttt{c-d} and \texttt{d-e} took
-48ns, 10ns, 13ns and 19ns, respectively. For reference, the idle memory latency
-for the local NUMA node is 93.2ns.
+executed 10 iterations of the code, with 3 warm-up runs. We observed that the
+sequences \texttt{a-b}, \texttt{b-c}, \texttt{c-d} and \texttt{d-e} took \textbf{48ns,
+10ns, 13ns and 19ns}, respectively. For reference, the idle memory latency for
+the local NUMA node is 93.2ns as measured using the Intel MLC tool~\cite{}.
+
+\paragraph{Generators} Generators allow data structures to be traversed on
+demand. Many languages including JavaScript and Python provide generators as a
+built-in primitive. Using effect handlers, given any data structure (|'a t|)
+and its iterator (|val iter: 'a t -> ('a -> unit) -> unit|), we can derive its
+generator function (|val next : unit -> 'a option|) (|MC| version). The code is
+available in the supplementary material.
+
+We evaluate the performance of traversing a complete binary tree of depth 25
+using this generator. For comparison, we also implemented a hand-written,
+selective CPSed~\cite{}, defunctionalised~\cite{DefunctionalizationAtWork}
+version (|cps|) and a concurrency monad (|monad|) version of the generator for
+the tree. Both |cps| and |monad| versions are specialised to the binary tree,
+and come with the usual caveats of not using the stack for function calls. We
+observed that the |cps| version was the fastest thanks to specialisation and
+hand optimisation. |MC| version was only 2.76$\times$ slower than |cps| while
+being a generic solution, whereas the |monad| version was 8.69$\times$ slower
+than |cps|.
 
 \section{Related Work}
 \label{sec:related}
@@ -1403,28 +1421,6 @@ zone size of 0; every OCaml function has a stack overflow check. |MC+RedZone32|
 uses a red zone size of 32 words.
 
 \section*{Evaluation Planning}
-
-\subsection{Measurements of overheads in our effects implementation}
-
-We have implemented effects within OCaml, here we present timing measurements
-for the various stages of stack creation (|a| to |b|), performing and handling
-an effect (|b| to |c|), continuation resumption (|c| to |d|) and returning from
-a computation and freeing the stack (|d| to |e|).
-
-\begin{lstlisting}
-let foo () =
- (* a *) match
- (* b *)   perform E
- (* d *) with effect E k ->
- (* c *)   continue k ()
- (* e *)
-\end{lstlisting}
-
-TODO:
-\begin{itemize}
-\item Aim: |R3| to provide some timing information as to the size of the overhead and where the overhead is.
-\item use KC's measurement stubs as presented in WASM
-\end{itemize}
 
 \subsection{Effects benchmarks}
 
