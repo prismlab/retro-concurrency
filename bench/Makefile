@@ -18,13 +18,14 @@ EXE = $(COMPILER)_extcall.exe $(COMPILER)_callback.exe \
 	$(COMPILER)_seq_sudan.exe $(COMPILER)_cps_gen.exe \
 	$(COMPILER)_monad_fib.exe $(COMPILER)_monad_tak.exe \
 	$(COMPILER)_monad_motzkin.exe $(COMPILER)_monad_ack.exe \
-	$(COMPILER)_monad_sudan.exe $(COMPILER)_monad_gen.exe
+	$(COMPILER)_monad_sudan.exe $(COMPILER)_monad_gen.exe \
+	$(COMPILER)_monad_cham.exe
 
 ifneq ($(COMPILER),stock)
 	EXE += $(COMPILER)_eff_tak.exe $(COMPILER)_eff_fib.exe \
 				 $(COMPILER)_eff_motzkin.exe $(COMPILER)_eff_ack.exe \
   			 $(COMPILER)_eff_sudan.exe $(COMPILER)_eff_gen.exe \
-				 $(COMPILER)_eff_nano.exe
+				 $(COMPILER)_eff_nano.exe $(COMPILER)_eff_cham.exe
 endif
 
 MONAD_DEPS := sched_monad.mli sched_monad.ml MVar_monad.mli MVar_monad.ml \
@@ -82,6 +83,12 @@ $(COMPILER)_callback.exe: callback.ml callback_.c
 
 $(COMPILER)_monad_%.exe: monad_%.ml
 	$(OCAMLOPT) -o $@ $(MONAD_DEPS) $^
+
+stock_lwt_%.exe: lwt_%.ml
+	ocamlfind ocamlopt -o $@ -thread -package lwt,lwt.unix,threads -linkpkg $^
+
+$(COMPILER)_eff_cham.exe: eff_cham.ml
+	$(OCAMLOPT) -o $@ sched.mli sched.ml MVar.mli MVar.ml $^
 
 $(COMPILER)_%.exe: %.ml
 	$(OCAMLOPT) -o $@ $^
