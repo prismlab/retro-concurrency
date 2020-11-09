@@ -1393,6 +1393,50 @@ concurrency monad (|monad|) and Lwt, a widely used concurrency programming
 library for OCaml (|lwt|) versions. We observed that |MC| was the fastest, and
 |monad| (|lwt|) was 1.67$\times$ (4.29$\times$) slower than |MC|.
 
+\paragraph{Web server} As one of our primary goals of adding effect handlers to
+OCaml is to support direct-style concurrency, we implement a full-fledged
+HTTP/1.1 web server using effect handlers (|MC|). We use effect handlers to
+implement a user-level threading library, which spawns a thread per request. We
+use \texttt{httpaf} library~\cite{} for HTTP handling, and
+\texttt{libev}~\cite{} for the eventloop. We compare our implementation against
+an Lwt version (|lwt|) which also uses \texttt{httpaf} and \texttt{libev}.
+Unlike using effect handlers, Lwt version is written in monadic style, and does
+not have a notion of thread per request. For comparison, we also include a Go
+version (|go|) that uses \texttt{net/http}~\cite{} package.
+
+\begin{figure}
+	\begin{minipage}{0.49\linewidth}
+		\centering
+		\includegraphics[width=\linewidth]{http-benchmarks/throughput.pdf}
+		\subcaption{Throughput}
+		\label{grf:throughput}
+	\end{minipage}
+	\begin{minipage}{0.49\linewidth}
+		\includegraphics[width=\linewidth]{http-benchmarks/latency.pdf}
+		\subcaption{Tail latency}
+		\label{grf:latency}
+	\end{minipage}
+	\mycaption{Web server performance.}
+	\vspace{-2mm}
+\end{figure}
+
+The client workload was generated with \texttt{wrk2}~\cite{}. We maintain 1k
+open connections and perform requests for a static web page at different rates,
+and record the request service rate and latency. The throughput and tail
+latency graphs are given in Figures~\ref{grf:throughput} and~\ref{grf:latency}.
+In all the versions, the throughput plateaus at around 30k requests per second.
+We measure the tail latencies at 2/3rd of this rate (at 20k requests per
+second), as would be the case in real deployments. We observe that both the
+OCaml versions remain competitive with |go|, and |MC| performs best in terms of
+tail latency.
+
+Using effect handlers in the web server also helps with debugging the system as
+a whole. Multicore OCaml supports getting the backtrace of a continuation,
+which is a minor extension to getting the current backtrace. We can use this
+feature to dump the backtrace of all the user-level threads in the web server.
+Such a feature is provided by Go~\cite{}, but not possible with OCaml
+concurrency libraries such as Async and Lwt which lack the notion of a thread.
+
 \section{Related Work} \label{sec:related}
 
 \section{Conclusions and Future Work} \label{sec:conc}
@@ -1424,28 +1468,5 @@ handlers to the language on code that does not use effect handlers. The |MC| is
 Multicore OCaml with default red zone size (16 words). |MC+RedZone0| uses red
 zone size of 0; every OCaml function has a stack overflow check. |MC+RedZone32|
 uses a red zone size of 32 words.
-
-\section*{Evaluation Planning}
-
-\subsection{Webserver benchmarks}
-
-TODO:
-\begin{itemize}
-\item Aim: |R3| Do we have an efficient implementation of effects.
-\item effects are a very nice way to program non-blocking IO for webservers
-\item show that using effects doesn't impose undue overhead and that we are competitive with LWT, Async, Go with the wrk web benchmark
-\end{itemize}
-
-
-\subsection{Using fibers for task based parallelism}
-
-TODO:
-\begin{itemize}
-\item Aim: |R3| Do we have an efficient implementation of effects.
-\item minor alteration to domainslib to launch tasks in their own stack
-\item effects are the right way to do some task base parallelism. Use the nqueens example and show the scaling we can achieve in parallel
-\item show that using fibers doesn't have large detrimental impact to existing parallel applications: Take sandmark: minilight, nbody, LU decomposition
-\end{itemize}
-
 
 \end{document}

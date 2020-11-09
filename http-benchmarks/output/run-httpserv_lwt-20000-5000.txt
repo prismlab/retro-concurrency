@@ -1,0 +1,184 @@
+Running 1m test @ http://localhost:8080
+  24 threads and 5000 connections
+  Thread calibration: mean lat.: 9223372036854776.000ms, rate sampling interval: 10ms
+  Thread calibration: mean lat.: 1.132ms, rate sampling interval: 10ms
+  Thread calibration: mean lat.: 81.555ms, rate sampling interval: 800ms
+  Thread calibration: mean lat.: 1.197ms, rate sampling interval: 10ms
+  Thread calibration: mean lat.: 9223372036854776.000ms, rate sampling interval: 10ms
+  Thread calibration: mean lat.: 9223372036854776.000ms, rate sampling interval: 10ms
+  Thread calibration: mean lat.: 9223372036854776.000ms, rate sampling interval: 10ms
+  Thread calibration: mean lat.: 1.133ms, rate sampling interval: 10ms
+  Thread calibration: mean lat.: 9223372036854776.000ms, rate sampling interval: 10ms
+  Thread calibration: mean lat.: 9223372036854776.000ms, rate sampling interval: 10ms
+  Thread calibration: mean lat.: 1.111ms, rate sampling interval: 10ms
+  Thread calibration: mean lat.: 9223372036854776.000ms, rate sampling interval: 10ms
+  Thread calibration: mean lat.: 1.116ms, rate sampling interval: 10ms
+  Thread calibration: mean lat.: 9223372036854776.000ms, rate sampling interval: 10ms
+  Thread calibration: mean lat.: 1.153ms, rate sampling interval: 10ms
+  Thread calibration: mean lat.: 1.125ms, rate sampling interval: 10ms
+  Thread calibration: mean lat.: 9223372036854776.000ms, rate sampling interval: 10ms
+  Thread calibration: mean lat.: 9223372036854776.000ms, rate sampling interval: 10ms
+  Thread calibration: mean lat.: 1.103ms, rate sampling interval: 10ms
+  Thread calibration: mean lat.: 9223372036854776.000ms, rate sampling interval: 10ms
+  Thread calibration: mean lat.: 1.215ms, rate sampling interval: 10ms
+  Thread calibration: mean lat.: 9223372036854776.000ms, rate sampling interval: 10ms
+  Thread calibration: mean lat.: 9223372036854776.000ms, rate sampling interval: 10ms
+  Thread calibration: mean lat.: 1.113ms, rate sampling interval: 10ms
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency     0.91ms  565.05us  12.73ms   79.58%
+    Req/Sec   169.32    219.44     1.00k    71.26%
+  Latency Distribution (HdrHistogram - Recorded Latency)
+ 50.000%    0.88ms
+ 75.000%    1.17ms
+ 90.000%    1.45ms
+ 99.000%    2.08ms
+ 99.900%    7.55ms
+ 99.990%   11.30ms
+ 99.999%   12.40ms
+100.000%   12.73ms
+
+  Detailed Percentile spectrum:
+       Value   Percentile   TotalCount 1/(1-Percentile)
+
+       0.047     0.000000            1         1.00
+       0.324     0.100000        19995         1.11
+       0.487     0.200000        40058         1.25
+       0.629     0.300000        60082         1.43
+       0.761     0.400000        79993         1.67
+       0.885     0.500000       100038         2.00
+       0.945     0.550000       110034         2.22
+       1.003     0.600000       120024         2.50
+       1.060     0.650000       129943         2.86
+       1.117     0.700000       139980         3.33
+       1.175     0.750000       149911         4.00
+       1.208     0.775000       154935         4.44
+       1.243     0.800000       159880         5.00
+       1.283     0.825000       164886         5.71
+       1.329     0.850000       169873         6.67
+       1.386     0.875000       174861         8.00
+       1.418     0.887500       177355         8.89
+       1.454     0.900000       179845        10.00
+       1.492     0.912500       182334        11.43
+       1.535     0.925000       184868        13.33
+       1.585     0.937500       187364        16.00
+       1.614     0.943750       188599        17.78
+       1.644     0.950000       189854        20.00
+       1.677     0.956250       191087        22.86
+       1.716     0.962500       192330        26.67
+       1.759     0.968750       193578        32.00
+       1.787     0.971875       194202        35.56
+       1.816     0.975000       194814        40.00
+       1.848     0.978125       195441        45.71
+       1.887     0.981250       196068        53.33
+       1.937     0.984375       196700        64.00
+       1.964     0.985938       197007        71.11
+       1.996     0.987500       197315        80.00
+       2.043     0.989062       197625        91.43
+       2.111     0.990625       197939       106.67
+       2.227     0.992188       198251       128.00
+       2.349     0.992969       198404       142.22
+       2.535     0.993750       198561       160.00
+       2.847     0.994531       198717       182.86
+       3.151     0.995313       198873       213.33
+       3.693     0.996094       199028       256.00
+       3.963     0.996484       199106       284.44
+       4.271     0.996875       199184       320.00
+       4.691     0.997266       199262       365.71
+       5.187     0.997656       199340       426.67
+       5.611     0.998047       199418       512.00
+       5.859     0.998242       199457       568.89
+       6.207     0.998437       199496       640.00
+       6.535     0.998633       199535       731.43
+       7.083     0.998828       199574       853.33
+       7.647     0.999023       199613      1024.00
+       8.031     0.999121       199633      1137.78
+       8.287     0.999219       199652      1280.00
+       8.735     0.999316       199673      1462.86
+       9.023     0.999414       199692      1706.67
+       9.351     0.999512       199711      2048.00
+       9.415     0.999561       199721      2275.56
+       9.623     0.999609       199730      2560.00
+       9.911     0.999658       199740      2925.71
+      10.295     0.999707       199750      3413.33
+      10.495     0.999756       199760      4096.00
+      10.567     0.999780       199765      4551.11
+      10.695     0.999805       199769      5120.00
+      10.759     0.999829       199774      5851.43
+      10.927     0.999854       199779      6826.67
+      10.991     0.999878       199784      8192.00
+      11.263     0.999890       199787      9102.22
+      11.407     0.999902       199789     10240.00
+      11.431     0.999915       199791     11702.86
+      11.519     0.999927       199794     13653.33
+      11.639     0.999939       199796     16384.00
+      11.831     0.999945       199798     18204.44
+      11.847     0.999951       199799     20480.00
+      11.919     0.999957       199800     23405.71
+      11.967     0.999963       199801     27306.67
+      12.239     0.999969       199803     32768.00
+      12.239     0.999973       199803     36408.89
+      12.319     0.999976       199804     40960.00
+      12.319     0.999979       199804     46811.43
+      12.343     0.999982       199805     54613.33
+      12.343     0.999985       199805     65536.00
+      12.399     0.999986       199806     72817.78
+      12.399     0.999988       199806     81920.00
+      12.399     0.999989       199806     93622.86
+      12.647     0.999991       199807    109226.67
+      12.647     0.999992       199807    131072.00
+      12.647     0.999993       199807    145635.56
+      12.647     0.999994       199807    163840.00
+      12.647     0.999995       199807    187245.71
+      12.735     0.999995       199808    218453.33
+      12.735     1.000000       199808          inf
+#[Mean    =        0.911, StdDeviation   =        0.565]
+#[Max     =       12.728, Total count    =       199808]
+#[Buckets =           27, SubBuckets     =         2048]
+----------------------------------------------------------
+  244442 requests in 1.02m, 510.53MB read
+  Socket errors: connect 0, read 0, write 0, timeout 117921
+Requests/sec:   4003.25
+Transfer/sec:      8.36MB
+
+JSON Output:
+{
+	"requests": 244442,
+	"duration_in_microseconds": 61060894.00,
+	"bytes": 535327980,
+	"requests_per_sec": 4003.25,
+	"bytes_transfer_per_sec": 8767116.64,
+	"latency_distribution": [
+		{
+			"percentile": 50,
+			"latency_in_microseconds": 885
+		},
+		{
+			"percentile": 75,
+			"latency_in_microseconds": 1175
+		},
+		{
+			"percentile": 90,
+			"latency_in_microseconds": 1454
+		},
+		{
+			"percentile": 99,
+			"latency_in_microseconds": 2081
+		},
+		{
+			"percentile": 99.9,
+			"latency_in_microseconds": 7555
+		},
+		{
+			"percentile": 99.99,
+			"latency_in_microseconds": 11295
+		},
+		{
+			"percentile": 99.999,
+			"latency_in_microseconds": 12399
+		},
+		{
+			"percentile": 100,
+			"latency_in_microseconds": 12735
+		}
+	]
+}
