@@ -200,17 +200,17 @@ enable new approaches to modular programming.
 \subsection{An effectful calculator}
 
 What makes effect handlers quite powerful is that they provide a structured
-form of delimited continuations~\cite{}, which enables advanced non-local
-control-flow mechanisms such as resumable exceptions, coroutines, generators
-and asynchronous I/O to be composably expressed. As an example, consider the
-task of handling division-by-zero case in a calculator application. Different
-calculators handle division-by-zero differently. In the iOS 13 Calculator App
-(|iOS|), division-by-zero returns |Error|. In the Google search calculator App
-(|gsearch|) |0/0| returns to |Error|, and for any other |n| not equal to |0|,
-|n/0| returns |Infinity| with the same sign as |n|. How can we capture these
-different behaviours without changing the evaluator?
+form of delimited continuations~\cite{Danvy90}, which enables advanced
+non-local control-flow mechanisms such as resumable exceptions, coroutines,
+generators and asynchronous I/O to be composably expressed. As an example,
+consider the task of handling division-by-zero case in a calculator
+application. Different calculators handle division-by-zero differently. In the
+iOS 13 Calculator App (|iOS|), division-by-zero returns |Error|. In the Google
+search calculator App (|gsearch|) |0/0| returns to |Error|, and for any other
+|n| not equal to |0|, |n/0| returns |Infinity| with the same sign as |n|. How
+can we capture these different behaviours without changing the evaluator?
 
-Common Lisp Conditions~\cite{Conditions} are an elegant way to solve this
+Common Lisp Conditions~\cite{Steele90} are an elegant way to solve this
 problem. Unlike exceptions where the library decides whether an error is fatal
 or not, conditions allow the client of the library to make that decision. If
 the error is non-fatal, Conditions provide a \emph{restart} mechanism to resume
@@ -305,8 +305,10 @@ analysis tools such as debuggers and profilers that utilise DWARF stack unwind
 tables~\cite{DWARF} to obtain a backtrace. Our primary motivation for adding
 effect handlers to OCaml is to support (1) highly concurrent applications such
 as web servers to be expressed naturally in \emph{direct-style} as opposed to
-using callbacks and (2) efficient data and task parallel programs in the vein
-of Cilk~\cite{}, OpenMP~\cite{} and Intel TBB~\cite{}.
+using callbacks and (2) efficient nested parallel programs in the vein of
+Cilk~\cite{Cilk}, OpenMP~\cite{}, Habenero Java~\cite{Imam14}, X10~\cite{},
+Intel TBB~\cite{IntelTBB}, parallel Haskell variants~\cite{} and parallel ML
+variants~\cite{}.
 
 OCaml, however, does not support any non-local control flow mechanisms other
 than exceptions. This makes it particularly challenging to implement the
@@ -1442,7 +1444,7 @@ concurrency libraries such as Async and Lwt which lack the notion of a thread.
 \section{Conclusions and Future Work} \label{sec:conc}
 
 \bibliographystyle{ACM-Reference-Format}
-\bibliography{sample-base}
+\bibliography{retro-concurrency}
 
 \newpage
 
