@@ -303,15 +303,22 @@ isbn="978-1-4020-8157-6"
  series = {ASPLOS '13}
 }
 
-@inproceedings{Effekt,
-	author= {Immanuel Brachthäuser, Jonathan and Schuster, Philipp and Ostermann, Klaus},
-	title={Effects as Capabilities: Effect Handlers and Lightweight Effect Polymorphism},
-	year={2020},
-	publisher= {Association fo Computing Machinery},
-  address = {New York, NY, USA},
-	booktitle = {Proceedings of the 20th Annual ACM SIGPLAN Conference on Object-Oriented Programming, Systems, Languages, and Applications},
-	journal = {Proc. ACM Program. Lang.},
-	month = nov
+@article{Effekt,
+author = {Schuster, Philipp and Brachth\"{a}user, Jonathan Immanuel and Ostermann, Klaus},
+title = {Compiling Effect Handlers in Capability-Passing Style},
+year = {2020},
+issue_date = {August 2020},
+publisher = {Association for Computing Machinery},
+address = {New York, NY, USA},
+volume = {4},
+number = {ICFP},
+url = {https://doi.org/10.1145/3408975},
+doi = {10.1145/3408975},
+journal = {Proc. ACM Program. Lang.},
+month = aug,
+articleno = {93},
+numpages = {28},
+keywords = {continuation-passing style, compilation, lexically-scoped effect handlers, algebraic effects, control effects, continuations, capability-passing style}
 }
 
 @article{Biernacki19,
@@ -639,4 +646,113 @@ month = aug,
 articleno = {113},
 numpages = {30},
 keywords = {concurrent garbage collection, backwards compatibility}
+}
+
+@article{Kiselyov18,
+   title={Eff Directly in OCaml},
+   volume={285},
+   ISSN={2075-2180},
+   url={http://dx.doi.org/10.4204/EPTCS.285.2},
+   DOI={10.4204/eptcs.285.2},
+   journal={Electronic Proceedings in Theoretical Computer Science},
+   publisher={Open Publishing Association},
+   author={Kiselyov, Oleg and Sivaramakrishnan, KC},
+   year={2018},
+   month={Dec},
+   pages={23–58}
+}
+
+@InProceedings{Kiselyov12,
+author="Kiselyov, Oleg",
+editor="Blume, Matthias
+and Kobayashi, Naoki
+and Vidal, Germ{\'a}n",
+title="Delimited Control in OCaml, Abstractly and Concretely: System Description",
+booktitle="Functional and Logic Programming",
+year="2010",
+publisher="Springer Berlin Heidelberg",
+address="Berlin, Heidelberg",
+pages="304--320",
+isbn="978-3-642-12251-4"
+}
+
+@InProceedings{Leijen19,
+author="Leijen, Daan
+and Zorn, Benjamin
+and de Moura, Leonardo",
+editor="Lin, Anthony Widjaja",
+title="Mimalloc: Free List Sharding in Action",
+booktitle="Programming Languages and Systems",
+year="2019",
+publisher="Springer International Publishing",
+address="Cham",
+pages="244--265",
+isbn="978-3-030-34175-6"
+}
+
+@InProceedings{Kawahara20,
+author="Kawahara, Satoru and Kameyama, Yukiyoshi",
+editor="Byrski, Aleksander and Hughes, John",
+title="One-Shot Algebraic Effects as Coroutines",
+booktitle="Trends in Functional Programming",
+year="2020",
+publisher="Springer International Publishing",
+address="Cham",
+pages="159--179",
+isbn="978-3-030-57761-2"
+}
+
+@Article{Lua,
+  author = "Ana Lúcia de Moura and Noemi Rodriguez and Roberto Ierusalimschy",
+  title = "Coroutines in Lua",
+  abstract = "After a period of oblivion, a renewal of interest in coroutines is being observed. However, most current implementations of coroutine mechanisms are restricted, and motivated by particular uses. The convenience of providing true coroutines as a general control abstraction is disregarded. This paper presents and discusses the coroutine facilities provided by the language Lua, a full implementation of the concept of asymmetric coroutines. It also shows that this powerful construct supports easy and succint implementations of useful control behaviors.",
+  journal = j-jucs,
+  year = "2004",
+  volume = "10",
+  number = "7",
+  pages = "910--925",
+  date = "2004-07-28",
+  month = "jul",
+  url = "http://www.jucs.org/jucs_10_7/coroutines_in_lua"}
+
+
+@article{Forster19,
+  author    = {Yannick Forster and Ohad Kammar and Sam Lindley and Matija Pretnar},
+  title     = {On the expressive power of user-defined effects: Effect handlers,
+               monadic reflection, delimited control},
+  journal   = {J. Funct. Program.},
+  volume    = {29},
+  pages     = {e15},
+  year      = {2019},
+  url       = {https://doi.org/10.1017/S0956796819000121},
+  doi       = {10.1017/S0956796819000121},
+  timestamp = {Sat, 05 Sep 2020 17:51:31 +0200},
+  biburl    = {https://dblp.org/rec/journals/jfp/0002KLP19.bib},
+  bibsource = {dblp computer science bibliography, https://dblp.org}
+}
+
+@inproceedings{Sitaram03,
+  title={Unwind-protect in portable Scheme},
+  author={Sitaram, Dorai},
+  booktitle={Proceedings of the 4th Workshop on Scheme and Functional Programming (7 Nov. 2003), M. Flatt, Ed., no. UUCS-03-023 in Tech. Rep., School of Computing, University of Utah},
+  pages={48--52},
+  year={2003}
+}
+
+@online{Kiselyov,
+	key={Dynamic Wind},
+	title={The dynamic-wind problem},
+	url={http://okmij.org/ftp/continuations/against-callcc.html#dynamic_wind},
+	urldate={2020-11-11},
+	year={2020}
+}
+
+@techreport{Leijen18,
+author = {Leijen, Daan},
+title = {Algebraic Effect Handlers with Resources and Deep Finalization},
+year = {2018},
+month = {April},
+abstract = {Algebraic effect handlers are a powerful abstraction mechanism that can express many complex control-flow mechanisms. In this article we first define a basic operational semantics and type system for algebraic effect handlers, and then build on that to formalize various optimizations and extensions. In particular, we show how to optimize tail-resumptive operations using skip frames, formalize a semantics and type rules for first-class resource handlers that can express polymorphic references, and formalize a design for finalizers and initializers to handle external resources with linearity constraints. We introduce the concept of deep finalization which ensures finalization is robust across operation handlers even if operations themselves do not resume.},
+pages = {35},
+number = {MSR-TR-2018-10},
 }

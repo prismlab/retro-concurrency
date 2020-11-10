@@ -1073,7 +1073,6 @@ with | v -> v
     \label{fig:fiber_handler}
   \end{minipage}
 \end{minipage}
-\vspace{2mm}
 \mycaption{Layout of Multicore OCaml effect handlers.}
 \end{figure*}
 
@@ -1116,7 +1115,8 @@ fields are the only ones that need to be updated when fibers are moved. We
 allocate the space for the fiber using |malloc| and |free| it when no longer
 required. We do not use a \emph{stack cache} of recently freed stacks for
 speeding up fiber allocation~\ref{Farvardin}. In our experiments, we observed
-that directly using |mimalloc| outperforms having the stack cache.
+that directly using |mimalloc|~\cite{Leijen19} outperforms having the stack
+cache.
 
 \subsection{External calls and callbacks}
 
@@ -1422,7 +1422,7 @@ package.
 		\label{grf:latency}
 	\end{minipage}
 	\mycaption{Web server performance.}
-	\vspace{-2mm}
+	\vspace{-4mm}
 \end{figure}
 
 The client workload was generated with \texttt{wrk2}~\cite{wrk2}. We maintain
@@ -1441,9 +1441,79 @@ feature to dump the backtrace of all the user-level threads in the web server.
 Such a feature is provided by Go~\cite{gopprof}, but not possible with OCaml
 concurrency libraries such as Async and Lwt which lack the notion of a thread.
 
-\section{Related Work} \label{sec:related}
+\section{Related Work}
+\label{sec:related}
 
-\section{Conclusions and Future Work} \label{sec:conc}
+There are several strategies for implementing effect handlers. Eff~\cite{Eff},
+Helium~\cite{Biernacki20}, Frank~\cite{Frank}, Links server
+backend~\cite{Hillerstrom20} use an interpreter similar to our operational
+semantics to implement effect handlers. Effekt~\cite{Effekt}, Links JavaScript
+backend~\cite{Hillerstrom20} and Koka~\cite{Leijen17} use type-directed
+selective CPS translation. These language are equipped with an effect system,
+which allows compiling pure code in direct-style and effectful code in
+continuation passing style. Leijen et al.~\cite{Leijen14} implements effect
+handlers as a library in C using stack copying. Since C allows pointers into
+the stack, care is taken to ensure that when continuations are resumed, the
+constituent frames are restored to the same memory addresses as at the time of
+capture. Kiselyov et al.~\cite{Kiselyov18} use an implementation of
+multi-prompt delimited continuations as an OCaml library~\cite{Kiselyov12} to
+embed Eff language in OCaml. Indeed, Forester et al.~\cite{Forster19} showed
+that in an untyped setting, effect handlers, monadic reflection and delimited
+control can macro-express each other.
+
+Multicore OCaml effect handlers are similar to~\cite{Leijen14, Kiselyov12}, but
+are more efficient; since we only allow our continuations to be resumed at-most
+once, there is no need for copying frames. Bruggeman et al.~\cite{Bruggeman96}
+show how to implement one-shot continuations efficiently using segmented stacks
+in Scheme. Farvardin et al.~\cite{Farvardin20} perform a comprehensive
+evaluation of various implementation strategies for continuations on modern
+hardware. Multicore OCaml stacks do not neatly fit the description of one of
+these implementation strategies. They best described as using the resize
+strategy from Farvardin et al. for each of the fibers, which are in turn linked
+to represent the current stack and the captured continuations.
+
+Kawahara et al.~\cite{Kawahara20} implement one-shot effect handlers using
+coroutines (a non-local control flow mechanism) as a macro-expressible
+translation, and present an embedding in Lua and Ruby. Lua provides asymmetric
+coroutines~\cite{Lua} where each coroutine uses its own stack similar to how
+each handled computation runs in its own fiber in Multicore OCaml. Similar to
+Multicore OCaml, Lua does not allow coroutines to include C frames. It is
+useful to note that Lua is an interpreted language unlike OCaml and DWARF
+unwind tables are not a concern in Lua.
+
+The interaction on non-local control flow and resources have been studied
+extensively. Scheme uses |dynamic-wind| to ensure de-allocation (and
+re-allocation) of resources when the non-local control leaves and enters back
+into a context. |dynamic-wind| is known to be complex and not quite what one
+wants for resource clean up~\cite{Kiselyov,Sitaram03}. The main challenge is distinguishing
+non-returning exits from ones that would, and clean up to occur only on
+non-returning exit. In Multicore OCaml, we assume that continuations are used
+linearly, and hence, no clean up occurs when effects are performed but only when
+an exception is thrown, perhaps from the use of |discontinue|. This obviates
+the need for |dynamic-wind|. Leijen~\cite{Leijen18} explicitly extends effect
+handlers with |finally| clause. Instead, Multicore OCaml |discontinue|
+primitive builds on extant defensive coding practices against exceptions to
+clean up resource.
+
+Languages with effect handlers typically allow continuations to be resumed more
+than once to enable use cases such as backtracking search and probabilistic
+programming~\cite{Pyro}. Multicore OCaml has an experimental feature for
+explicitly cloning continuations, which makes a copy of each of its constituent
+fibers. Multi-shot continuations are difficult to reason about in the presence
+of linear resources such as file descriptors. Recall that OCaml programs are
+written with the expectation that function calls return \emph{exactly-once}
+either normally or exceptionally. With multi-shot continuations, they may
+return more than once, leading to errors such as double-freeing malloc'ed
+memory. Since our goal is to retrofit effect handlers onto OCaml, we relegate
+continuation cloning to the OCaml |Obj| module, which contains unsafe features.
+
+\section{Conclusions}
+\label{sec:conc}
+
+We presented the motivation, design and implementation of effect handlers
+specifically aimed at retrofitting them onto OCaml with tool compatibility,
+negligible overheads for existing OCaml programs and good performance for those
+that use effect handlers. Our evaluation shows that this is indeed the case.
 
 \clearpage
 
