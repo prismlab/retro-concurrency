@@ -294,11 +294,11 @@ that neither of the handlers needs to be aware of the other.
 \subsection{Retrofitting effect handlers}
 
 There are many research languages and libraries built around effect
-handlers~\cite{Koka,Links,Pyro,Frank,Eff}. Unlike these efforts, our goal is to
+handlers~\cite{Leijen14,Hillerstrom20,Pyro,Frank,Eff}. Unlike these efforts, our goal is to
 retrofit effect handlers onto the OCaml programming language, which has been in
 continuous use for the past 25 years in large codebases including verification
-tools~\cite{FStar,Coq}, mission critical software systems~\cite{astree} and
-latency sensitive networked applications~\cite{JS,Docker,MirageOS}. OCaml is
+tools~\cite{everest,Coq}, mission critical software systems~\cite{astree} and
+latency sensitive networked applications~\cite{Madhavapeddy13}. OCaml is
 particularly favoured for its competitive yet predictable performance, with
 fast foreign-function interface (FFI) and excellent compatibility with program
 analysis tools such as debuggers and profilers that utilise DWARF stack unwind
@@ -306,24 +306,24 @@ tables~\cite{DWARF} to obtain a backtrace. Our primary motivation for adding
 effect handlers to OCaml is to support (1) highly concurrent applications such
 as web servers to be expressed naturally in \emph{direct-style} as opposed to
 using callbacks and (2) efficient nested parallel programs in the vein of
-Cilk~\cite{Cilk}, OpenMP~\cite{}, Habenero Java~\cite{Imam14}, X10~\cite{},
-Intel TBB~\cite{IntelTBB}, parallel Haskell variants~\cite{} and parallel ML
-variants~\cite{}.
+Cilk~\cite{Cilk}, OpenMP~\cite{OpenMP}, X10~\cite{Charles05}, Intel
+TBB~\cite{IntelTBB}, and variants of Parallel ML~\cite{MaPLe, Fluet10,
+Sivaramakrishnan14}.
 
 OCaml, however, does not support any non-local control flow mechanisms other
 than exceptions. This makes it particularly challenging to implement the
 delimited continuations necessary for effect handlers without sacrificing the
 desirable properties of OCaml. One standard way of implementing continuations
 is to use continuation-passing style (CPS) in the compiler's intermediate
-representation (IR)~\cite{Koka}. If the compiler were to use CPS, then reifying
+representation (IR)~\cite{Leijen14}. If the compiler were to use CPS, then reifying
 continuations in the source language is relatively straight-forward. But OCaml
 does not use CPS IR, and changing the OCaml compiler to utilise CPS IR would be
 an enormous undertaking. CPS IR would also affect the performance profile of
 OCaml applications due to increased memory allocations as continuation closures
-get allocated on the heap~\cite{Folklore}. Moreover, with CPS, stack unwinding
-is meaningless and hence, we would lose compatibility with tools that inspect
-the program stack. Hence, we choose not to use CPS translation and represent
-continuations as call stacks.
+get allocated on the heap~\cite{Farvardin20}. Moreover, with CPS, stack
+unwinding is meaningless and hence, we would lose compatibility with tools that
+inspect the program stack. Hence, we choose not to use CPS translation and
+represent continuations as call stacks.
 
 The search for an expressive effect system that guarantees that all the effects
 performed in the program are handled (\emph{effect safety}) in the presence of
@@ -391,11 +391,11 @@ must generate DWARF stack unwind tables for stacks that may be non-contiguous.
 In this work, we develop the compiler and runtime support for implementing
 efficient effect handlers for OCaml that satisfy these requirements.
 
-Our work is also timely. WebAssembly~\ref{} community group is actively
+Our work is also timely. WebAssembly~\cite{Hass17} community group is actively
 considering effect handlers as one of the mechanism for supporting concurrency,
-asynchronous I/O and generators~\ref{WasmPropoal}. Project Loom~\cite{} is an
+asynchronous I/O and generators~\ref{WasmPropoal}. Project Loom~\cite{loom} is an
 OpenJDK project which adds virtual threads and delimited continuations to Java.
-Swift concurrency roadmap~\cite{} includes direct-style asynchronous
+Swift concurrency roadmap~\cite{swift} includes direct-style asynchronous
 programming and structured concurrency as milestones. We believe that our
 design choices will inform similar choices to be made in the other
 industrial-strength languages.
@@ -408,7 +408,7 @@ Our contributions are to present:
   \item the design and implementation of one-shot effect handlers for OCaml.
     Our design retains OCaml's compatibility with program analysis tools that
     inspect the stack using DWARF unwind tables. We have validated our DWARF
-    unwind tables using an automated validator tool~\cite{}.
+    unwind tables using an automated validator tool~\cite{Bastian19}.
   \item a formal operational semantics for the effect handler implementation in
     OCaml.
   \item extensive evaluation which shows that our implementation has negligible
@@ -610,12 +610,12 @@ generators and enable task parallelism. These use cases do not resume the
 continuations more than once. Hence, our continuations are one-shot, and
 resuming the continuation more than once raises |Invalid_argument| exception.
 It is well-known that one-shot continuations can be implemented
-efficiently~\cite{Bruggeman96RepresentingControl}.
+efficiently~\cite{Bruggeman96}.
 
 While OCaml permits throwing exceptions across C frames, we do not allow
 effects to propagate across C frames as the C frames would become part of the
 captured continuation. Managing C frames as part of the continuation is a
-complex endeavour~\cite{Daan17Aplas}, and we find that the complexity budget
+complex endeavour~\cite{Leijen17}, and we find that the complexity budget
 outweighs the relatively fewer mechanisms enabled by this addition in our
 setting.
 
@@ -678,7 +678,7 @@ As mentioned earlier, effect handlers in Multicore OCaml do not guarantee
 effect safety, but only guarantee type safety. Programs without matching effect
 handlers are well-typed Multicore OCaml programs. As a result, our static
 semantics is simpler than languages that ensure effect
-safety~\cite{Links,Koka,Effekt,Frank,HeliumBiernacki}. This is important for
+safety~\cite{Hillerstrom20,Leijen14,Effekt,Frank,Biernacki19}. This is important for
 backwards compatibility as our goal is to retrofit effect handlers to a
 language with large legacy codebases. Programs that do not use effects remain
 well-typed, and those that do compose well with those that don't.
@@ -698,11 +698,11 @@ type ('a,'b) handler =
  effc: 'c.'c eff -> ('c,'b)continuation -> 'b; }
 val match_with: 'a comp -> ('a,'b) handler -> 'b
 \end{lstlisting}
-We introduce an extensible variant type~\cite{} |'a eff| of effect values,
-which when performed using the |perform| primitive returns a |'a| value.
-Constructors for the value of type |'a eff| are declared using the effect
-declarations. For example, the declaration |effect E : string -> int| is
-syntactic sugar for adding a new constructor to the variant type
+We introduce an extensible variant type~\cite{ExtVariants} |'a eff| of effect
+values, which when performed using the |perform| primitive returns a |'a|
+value. Constructors for the value of type |'a eff| are declared using the
+effect declarations. For example, the declaration |effect E : string -> int|
+is syntactic sugar for adding a new constructor to the variant type
 |type _ eff += E : string -> int eff|. We introduce the type
 |('a,'b) continuation| of delimited continuations which expect a |'a| value for
 resumption and return |'b| value. The continuations may be |continue|d with a
@@ -791,8 +791,8 @@ more effect cases ($\caseeff{l}{x}{k}{e}$) with label $l$, parameter $x$,
 continuation $k$ and body $e$.
 
 The operational semantics is an extension of a CEK machine
-semantics~\cite{Felleisen} for effect handlers, following the abstract machine
-semantics of Hillerstrom et al.~\cite{Hillerstrom2020}. The crucial difference
+semantics~\cite{Felleisen86} for effect handlers, following the abstract machine
+semantics of Hillerstrom et al.~\cite{Hillerstrom20}. The crucial difference
 from Hillerstrom et al. is that our stacks are composed of alternating sequence
 of OCaml and C stack segments. The program state is captured as configuration
 $\config \coloneqq \configa{\tau}{\env}{\stack}$ with the current term $\tau$
@@ -991,7 +991,7 @@ handler has a matching effect case. We evaluate the body of the matching case,
 and bind the continuation parameter |r| to the captured continuation. Observe
 that the captured continuation |k''| includes the current handler. Intuitively,
 the handler wraps around captured continuation. This gives Multicore OCaml
-effect handlers deep handler semantics~\cite{}. \textsc{EffFwd} forwards the
+effect handlers deep handler semantics~\cite{Hillerstrom20}. \textsc{EffFwd} forwards the
 effect to the outer fiber, and extends the captured continuation |k''| in the
 process. Recall that we do not capture C frames as part of a continuation. To
 this end, \textsc{EffUnHn} models unhandled effect. If the effect bubbles up to
@@ -1028,7 +1028,7 @@ mentioned in \S~\ref{sec:exn_handlers}, exceptions are pervasive in OCaml and
 are so cheap that they are used for local control flow. Hence, we retain the
 linked exception handler frame implementation of stock OCaml exception handlers
 in Multicore OCaml for performance backwards compatibility. This differs from
-other research languages with effect handlers~\cite{Links,Frank,Eff}, which
+other research languages with effect handlers~\cite{Hillerstrom20,Frank,Eff}, which
 implement exceptions using effects (by ignoring the continuation argument in
 the handler).
 
@@ -1069,7 +1069,7 @@ with | v -> v
   \begin{minipage}{0.44\linewidth}
     \centering
     \includegraphics[scale=0.42]{figures/fiber_handler}
-		\subcaption{Program state for Figure~\ref{code:effimpl}}
+		\subcaption{Program state for code in~\ref{code:effimpl}}
     \label{fig:fiber_handler}
   \end{minipage}
 \end{minipage}
@@ -1180,7 +1180,8 @@ The challenge with DWARF stack unwinding is to make it aware of the
 non-contiguous stacks. While the complete details of DWARF stack unwinding is
 beyond the scope of the paper, it is beneficial to know how DWARF unwind tables
 are constructed in order to appreciate our solution. We refer the interested
-reader to Bastian et al.~\cite{} for a good overview of DWARF stack unwinding.
+reader to Bastian et al.~\cite{Bastian19} for a good overview of DWARF stack
+unwinding.
 
 Logically, DWARF maintains a large table which records for every machine
 instruction where the return address and callee-saved registers are stored. To
@@ -1195,7 +1196,7 @@ address is at |CFA - 8|.
 Our goal is to help DWARF identify the CFA when stacks are switched at external
 calls, callbacks and effect handlers. We have implemented short, hand-written
 DWARF bytecode at these three places, which we have validated with the DWARF
-unwind table validator tool~\cite{Bastian}. When starting to run on a new
+unwind table validator tool~\cite{Bastian19}. When starting to run on a new
 fiber, we insert DWARF bytecode to follow the |parent_fiber| pointer and
 dereference the |saved_sp| to get the CFA (|saved_sp + 8|). During callback, we
 save the current system stack pointer in the |DWARF block| in
@@ -1229,7 +1230,7 @@ of using effect handlers.
 For stack walking during GC, the only change necessary was to make the runtime
 aware of fiber layout and how to follow the parent pointers. The stack map
 generation and scanning each frame for roots remains the same. Sivaramakrishnan
-et al.~\cite{RetroParallel} present the challenges and solutions for
+et al.~\cite{Sivaramakrishnan20} present the challenges and solutions for
 integrating fibers with the concurrent mark-and-sweep GC of Multicore OCaml.
 
 \section{Evaluation}
@@ -1330,23 +1331,24 @@ Next, we aim to quantify the overhead of setting up and tearing down effect
 handlers compared to a non-tail function call. To this end, we surround the
 non-tail calls in the recursive micro benchmarks with an effect handler. The
 code does not |perform| effects. We also include a version of the same
-benchmarks implemented using concurrency monad~\cite{} (|monad|) as a proxy for
-CPS versions. Recall that OCaml compiler does not use CPS in its IR. In the
-|monad| version, we use a |fork| to invoke the non-tail call and use an |MVar|
-to collect its result.
+benchmarks implemented using concurrency monad~\cite{Claessen99} (|monad|) as a
+proxy for CPS versions. Recall that OCaml compiler does not use CPS in its IR.
+In the |monad| version, we use a |fork| to invoke the non-tail call and use an
+|MVar| to collect its result.
 
 The results are presented in Table~\ref{tab:micro_noperform}. They show that
 using effect handlers (concurrency monad) is 13.77$\times$ (67.09$\times$) more
 expensive than the idiomatic implementation using non-tail calls. Concurrency
 monad suffers due to the heap allocation of continuation frames (which need to
 be GCed), where as effect handlers benefit from stack allocation of the frames.
-Our concurrency monad, and indeed monadic concurrency libraries such as Lwt and
-Async, also has other downsides; due to the lack of stack, exceptions,
-backtraces, and DWARF unwinding are no longer useful.
+Our concurrency monad, and indeed monadic concurrency libraries such as
+Lwt~\cite{lwt} and Async~\cite{async}, also have other downsides; due to the
+lack of stack, exceptions, backtraces, and DWARF unwinding are no longer
+useful.
 
 We note that a compiler that uses CPS IR will be faster than the concurrency
 monad implementation due to optimisations to reduce the heap allocation of
-continuation frames. But Farvardin et al.~\cite{} show that CPS with
+continuation frames. But Farvardin et al.~\cite{Farvardin20} show that CPS with
 optimisations is still slower than using the call stack.
 
 \subsection{Concurrent benchmarks}
@@ -1369,7 +1371,7 @@ executed 10 iterations of the code, with 3 warm-up runs. We observed that the
 sequences \texttt{a-b}, \texttt{b-c}, \texttt{c-d} and \texttt{d-e} took
 \textbf{48ns, 10ns, 13ns and 19ns}, respectively. For reference, the idle
 memory latency for the local NUMA node is 93.2ns as measured using the Intel
-MLC tool~\cite{}.
+MLC tool~\cite{mlc}.
 
 \paragraph{Generators} Generators allow data structures to be traversed on
 demand. Many languages including JavaScript and Python provide generators as a
@@ -1379,8 +1381,8 @@ derive its generator function (|val next : unit -> 'a option|). The code is
 available in the supplementary material. We evaluate the performance of
 traversing a complete binary tree of depth 25 using this generator. This
 involves $2^{26}$ stack switches in total. For comparison, we also implemented
-a hand-written, selective CPSed~\cite{},
-defunctionalised~\cite{DefunctionalizationAtWork} version (|cps|) and a
+a hand-written, selective CPSed~\cite{Nielson01},
+defunctionalised~\cite{Danvy01} version (|cps|) and a
 concurrency monad (|monad|) version of the generator for the tree. Both |cps|
 and |monad| versions are specialised to the binary tree, and come with the
 usual caveats of not using the stack for function calls. We observed that the
@@ -1388,23 +1390,24 @@ usual caveats of not using the stack for function calls. We observed that the
 |MC| version was only 2.76$\times$ slower than |cps| while being a generic
 solution, whereas the |monad| version was 8.69$\times$ slower than |cps|.
 
-\paragraph{Chameneos} Chameneos~\cite{} is a concurrency game aimed at
+\paragraph{Chameneos} Chameneos~\cite{Chameneos} is a concurrency game aimed at
 measuring context switching and synchronization overheads. Our implementation
-uses MVars~\cite{} for synchronization. We compare effect handler (|MC|),
-concurrency monad (|monad|) and Lwt, a widely used concurrency programming
-library for OCaml (|lwt|) versions. We observed that |MC| was the fastest, and
-|monad| (|lwt|) was 1.67$\times$ (4.29$\times$) slower than |MC|.
+uses |MVars| for synchronization. We compare effect handler (|MC|), concurrency
+monad (|monad|) and Lwt, a widely used concurrency programming library for
+OCaml (|lwt|) versions. We observed that |MC| was the fastest, and |monad|
+(|lwt|) was 1.67$\times$ (4.29$\times$) slower than |MC|.
 
 \paragraph{Web server} As one of our primary goals of adding effect handlers to
 OCaml is to support direct-style concurrency, we implement a full-fledged
 HTTP/1.1 web server using effect handlers (|MC|). We use effect handlers to
 implement a user-level threading library, which spawns a thread per request. We
-use \texttt{httpaf} library~\cite{} for HTTP handling, and
-\texttt{libev}~\cite{} for the eventloop. We compare our implementation against
-an Lwt version (|lwt|) which also uses \texttt{httpaf} and \texttt{libev}.
-Unlike using effect handlers, Lwt version is written in monadic style, and does
-not have a notion of thread per request. For comparison, we also include a Go
-version (|go|) that uses \texttt{net/http}~\cite{} package.
+use \texttt{httpaf} library~\cite{httpaf} for HTTP handling, and
+\texttt{libev}~\cite{libev} for the eventloop. We compare our implementation
+against an Lwt version (|lwt|) which also uses \texttt{httpaf} and
+\texttt{libev}. Unlike using effect handlers, Lwt version is written in monadic
+style, and does not have a notion of thread per request. For comparison, we
+also include a Go version (|go|) that uses \texttt{net/http}~\cite{nethttp}
+package.
 
 \begin{figure}
 	\begin{minipage}{0.49\linewidth}
@@ -1422,31 +1425,32 @@ version (|go|) that uses \texttt{net/http}~\cite{} package.
 	\vspace{-2mm}
 \end{figure}
 
-The client workload was generated with \texttt{wrk2}~\cite{}. We maintain 1k
-open connections and perform requests for a static web page at different rates,
-and record the request service rate and latency. The throughput and tail
+The client workload was generated with \texttt{wrk2}~\cite{wrk2}. We maintain
+1k open connections and perform requests for a static web page at different
+rates, and record the request service rate and latency. The throughput and tail
 latency graphs are given in Figures~\ref{grf:throughput} and~\ref{grf:latency}.
 In all the versions, the throughput plateaus at around 30k requests per second.
-We measure the tail latencies at 2/3rd of this rate (at 20k requests per
-second), as would be the case in real deployments. We observe that both the
-OCaml versions remain competitive with |go|, and |MC| performs best in terms of
-tail latency.
+We measure the tail latencies at 2/3rd of this rate (20k requests per second)
+to simulate optimal load. We observe that both of the OCaml versions remain
+competitive with |go|, and |MC| performs best in terms of tail latency.
 
 Using effect handlers in the web server also helps with debugging the system as
 a whole. Multicore OCaml supports getting the backtrace of a continuation,
 which is a minor extension to getting the current backtrace. We can use this
 feature to dump the backtrace of all the user-level threads in the web server.
-Such a feature is provided by Go~\cite{}, but not possible with OCaml
+Such a feature is provided by Go~\cite{gopprof}, but not possible with OCaml
 concurrency libraries such as Async and Lwt which lack the notion of a thread.
 
 \section{Related Work} \label{sec:related}
 
 \section{Conclusions and Future Work} \label{sec:conc}
 
+\clearpage
+
 \bibliographystyle{ACM-Reference-Format}
 \bibliography{retro-concurrency}
 
-\newpage
+\clearpage
 
 \section*{Supplementary Material}
 \setcounter{figure}{0}
