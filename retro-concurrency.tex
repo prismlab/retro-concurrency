@@ -35,7 +35,7 @@
 \usepackage{stmaryrd}
 \usepackage{adjustbox}
 
-\newcommand{\rot}[2][75]{\adjustbox{angle=#1}{\textbf{#2}}}
+\newcommand{\rot}[2][70]{\adjustbox{angle=#1}{\textbf{#2}}}
 
 \crefformat{section}{§#2#1#3}
 \newtheorem{theorem}{Theorem}
@@ -393,7 +393,7 @@ efficient effect handlers for OCaml that satisfy these requirements.
 
 Our work is also timely. WebAssembly~\cite{Hass17} community group is actively
 considering effect handlers as one of the mechanism for supporting concurrency,
-asynchronous I/O and generators~\ref{WasmPropoal}. Project Loom~\cite{loom} is an
+asynchronous I/O and generators~\cite{WasmPropoal}. Project Loom~\cite{loom} is an
 OpenJDK project which adds virtual threads and delimited continuations to Java.
 Swift concurrency roadmap~\cite{swift} includes direct-style asynchronous
 programming and structured concurrency as milestones. We believe that our
@@ -411,9 +411,9 @@ Our contributions are to present:
     unwind tables using an automated validator tool~\cite{Bastian19}.
   \item a formal operational semantics for the effect handler implementation in
     OCaml.
-  \item extensive evaluation which shows that our implementation has negligible
-    impact on code that does not use effect handlers, and serves as an
-    efficient foundation for scalable concurrent and parallel programming.
+	\item extensive evaluation which shows that our implementation has negligible
+		impact on code that does not use effect handlers, and serves as an
+		efficient foundation for scalable concurrent programming.
 \end{itemize}
 
 We have implemented effect handlers in a multicore extension of the OCaml
@@ -506,8 +506,8 @@ value ocaml_to_c (value unit) {
 \end{figure*}
 
 The main challenge in implementing effect handlers in Multicore OCaml is
-managing the program stack. To this end, in this section, we provide an
-overview of the program stack and related mechanisms in stock OCaml.
+managing the program stack. In this section, we provide an overview of the
+program stack and related mechanisms in stock OCaml.
 
 In order to illustrate the layout of the stock OCaml stack, consider the
 program in Figures~\ref{code:meander_ml} and~\ref{code:meander_c}. The OCaml
@@ -534,17 +534,18 @@ raised to unwind the stack.
 
 OCaml does not use the C calling convention. In particular, there are no
 callee-saved registers in OCaml. On the |x86-64| backend, the C callee-saved
-registers, |r15| holds the \emph{allocation pointer} into the minor heap used
-for bump pointer allocation, and |r14| holds the |Caml_state|, a table of
-global variables used by the runtime. This makes external calls extremely fast
-in OCaml. If the external function does not allocate in the OCaml heap, then
-the external functions can be called directly, and no bookkeeping is necessary.
-For external functions which allocate in the OCaml heap, the cached allocation
-pointer is saved to a field in the |Caml_state| before the external call, and
-loaded back on return. Similarly, callbacks into OCaml are also cheap.
-Callbacks into OCaml involves loading the arguments in the right registers and
-calling the OCaml function. OCaml callbacks are relatively common as the
-garbage collector (GC) finalisation functions are executed as OCaml callbacks.
+registers  |r15| holds the \emph{allocation pointer} into the minor heap used
+for bump pointer allocation, and |r14| holds a reference to the |Caml_state|
+table of global variables used by the runtime. This makes external calls
+extremely fast in OCaml. If the external function does not allocate in the
+OCaml heap, then the external functions can be called directly, and no
+bookkeeping is necessary. For external functions which allocate in the OCaml
+heap, the cached allocation pointer is saved to a field in the |Caml_state|
+before the external call, and loaded back on return. Similarly, callbacks into
+OCaml are also cheap. Callbacks into OCaml involves loading the arguments in
+the right registers and calling the OCaml function. OCaml callbacks are
+relatively common as the garbage collector (GC) finalisation functions are
+executed as OCaml callbacks.
 
 \subsection{Exception handlers}
 \label{sec:exn_handlers}
@@ -771,76 +772,26 @@ primitive to avoid executing code on the resumption path.
   \end{array}
   \end{smathpar}
   \end{minipage}
-  \mycaption{Syntax of expressions and configurations}
+	\vspace{-3mm}
+  \caption{Syntax of expressions and configurations}
   \label{sem:syntax}
+	\vspace{-3mm}
 \end{figure*}
-
-We present the operational semantics for a core language of effect handlers in
-Multicore OCaml. The operational semantics intends to faithfully capture the
-semantics of Multicore OCaml effect handlers, and to inform an implementation.
-
-\subsubsection{Syntax}
-
-Figure~\ref{sem:syntax} presents the syntax of expressions and configurations.
-Our expressions consists of integer constants ($n$), variables ($x$),
-abstraction ($\lam{x}{x}$), application ($e~e$), arithmetic expressions ($e
-\odot e$) where $\odot$ ranges over $\{+,-,*,/\}$, raising exceptions
-($\throw{l}{e}$), performing effects ($\perform{l}{e}$), and handling effects
-($\handle{e}{h}$). Abstractions come in two forms: OCaml abstractions
-($\lambda^o$) and C abstractions ($\lambda^c$). The handler consists of a
-return case ($\caseval{x}{e}$), zero or more exception cases
-($\caseexn{l}{x}{e}$) with label $l$, parameter $x$ and body $e$, and zero or
-more effect cases ($\caseeff{l}{x}{k}{e}$) with label $l$, parameter $x$,
-continuation $k$ and body $e$.
-
-The operational semantics is an extension of a CEK machine
-semantics~\cite{Felleisen86} for effect handlers, following the abstract machine
-semantics of Hillerstrom et al.~\cite{Hillerstrom20}. The crucial difference
-from Hillerstrom et al. is that our stacks are composed of alternating sequence
-of OCaml and C stack segments. The program state is captured as configuration
-$\config \coloneqq \configa{\tau}{\env}{\stack}$ with the current term $\tau$
-under evaluation, its environment $\env$ and the current stack $\stack$. The
-term is either an expression $e$ or a value $v$. The value are integer
-constants $n$, continuations $k$, closure $\clos{x}{e}{\env}$, effect being
-performed $\effval{l}{k}$ and exception being raised $\exnval{l}$. The
-environment is a map from variables to values.
-
-The stack $\stack$ is either a C stack ($\cstack$) or an OCaml stack
-($\ostack$). Every C stack $\cstacka{\fl}{\ostack}$ consists of a list of
-frames $\fl$, and the OCaml stack $\ostack$ under it. Every OCaml stack is
-either empty $\ostackemp$ or non-empty $\ostacka{k}{\cstack}$ with the
-C stack $\cstack$ under it. Thus, the program stack is an alternating sequence
-of C and OCaml stacks terminating with an empty OCaml stack $\ostackemp$. The
-frame list $\fl$ is composed of individual frames $r$, which is one of an
-argument frame $\farg{e}{\env}$ with the expression $e$ at the argument
-position of an application with its environment $\env$, a function frame
-$\ffun{v}$ with the value at the function position of an application, and
-frames for evaluating the arguments of an arithmetic expression.
-
-Continuations $k$ are either empty $[]$ or non-empty sequence of \emph{fibers}.
-A fiber $\fiber \coloneqq (\fl,\hc)$ is a list of frames $\fl$ and a handler
-closure $\hc \coloneqq (h,\env)$, which is a pair of handler $h$ and its
-environment $\env$.
-
-\subsubsection{Top-level reductions}
-
-The initial configuration for an expression $e$ is
-$\configa{e}{\emptyset}{\cstacka{[]}{\bullet}}$, where the environment and the
-stack are empty. The top-level reductions
-\begin{smathpar}
-	\begin{array}{cc}
-		\textsc{StepC} ~
-		\inferrule{(\term, \env, \fl, \ostack) \cstep \config}
-							{\configa{\term}{\env}{\cstacka{\fl}{\ostack}} \step \config} &
-		\textsc{StepO} ~
-		\inferrule{(\term, \env, k, \cstack) \ostep \config}
-							{\configa{\term}{\env}{\ostacka{k}{\cstack}} \step \config}
-	\end{array}
-\end{smathpar}
-can be performed by either by taking a C step $\cstep$ or an OCaml step
-$\ostep$. Intuitively, this splits the world into executing C code and OCaml
-code.
-
+\begin{figure*}
+	\begin{smathpar}
+		\begin{array}{cc}
+			\textsc{StepC} ~
+			\inferrule{(\term, \env, \fl, \ostack) \cstep \config}
+								{\configa{\term}{\env}{\cstacka{\fl}{\ostack}} \step \config} &
+			\textsc{StepO} ~
+			\inferrule{(\term, \env, k, \cstack) \ostep \config}
+								{\configa{\term}{\env}{\ostacka{k}{\cstack}} \step \config}
+		\end{array}
+	\end{smathpar}
+	\mycaption{Top-level reductions}
+	\label{sem:toplevel}
+	\vspace{-3mm}
+\end{figure*}
 \begin{figure*}
   \begin{smathpar}
     \begin{array}{rrcl}
@@ -868,9 +819,9 @@ code.
                        & (e, \env, \ffun{\exnval{l}}::\fl)
     \end{array}
   \end{smathpar}
-  \vspace{-1mm}
   \mycaption{Administrative Reductions -- $(\term, \env, \fl) \rightsquigarrow (\tau, \env, \fl)$.}
   \label{sem:step}
+	\vspace{-3mm}
 \end{figure*}
 \begin{figure*}
   \begin{smathpar}
@@ -889,10 +840,66 @@ code.
                         & \configa{v}{\env}{\ostacka{(\ffun{\exnval{l}}::\fl,\hc) \kcons k}{\cstack}}
     \end{array}
   \end{smathpar}
-  \vspace{-1mm}
   \mycaption{C Reductions -- $(\term, \env, \fl, \ostack) \cstep \config$.}
   \label{sem:cstep}
+	\vspace{-3mm}
 \end{figure*}
+
+We present the operational semantics for a core language of effect handlers in
+Multicore OCaml. The operational semantics intends to faithfully capture the
+semantics of Multicore OCaml effect handlers, and to inform an implementation.
+
+\subsubsection{Syntax}
+
+Figure~\ref{sem:syntax} presents the syntax of expressions and configurations.
+Our expressions consists of integer constants ($n$), variables ($x$),
+abstraction ($\lam{x}{x}$), application ($e~e$), arithmetic expressions ($e
+\odot e$) where $\odot$ ranges over $\{+,-,*,/\}$, raising exceptions
+($\throw{l}{e}$), performing effects ($\perform{l}{e}$), and handling effects
+($\handle{e}{h}$). Abstractions come in two forms: OCaml abstractions
+($\lambda^o$) and C abstractions ($\lambda^c$). The handler consists of a
+return case ($\caseval{x}{e}$), zero or more exception cases
+($\caseexn{l}{x}{e}$) with label $l$, parameter $x$ and body $e$, and zero or
+more effect cases ($\caseeff{l}{x}{k}{e}$) with label $l$, parameter $x$,
+continuation $k$ and body $e$.
+
+The operational semantics is an extension of a CEK machine
+semantics~\cite{Felleisen86} for effect handlers, following the abstract
+machine semantics of Hillerstrom et al.~\cite{Hillerstrom20}. The key
+difference from Hillerstrom et al. is that our stacks are composed of
+alternating sequence of OCaml and C stack segments. The program state is
+captured as configuration $\config \coloneqq \configa{\tau}{\env}{\stack}$ with
+the current term $\tau$ under evaluation, its environment $\env$ and the
+current stack $\stack$. The term is either an expression $e$ or a value $v$.
+The value are integer constants $n$, continuations $k$, closure
+$\clos{x}{e}{\env}$, effect being performed $\effval{l}{k}$ and exception being
+raised $\exnval{l}$. The environment is a map from variables to values.
+
+The stack $\stack$ is either a C stack ($\cstack$) or an OCaml stack
+($\ostack$). Every C stack $\cstacka{\fl}{\ostack}$ consists of a list of
+frames $\fl$, and the OCaml stack $\ostack$ under it. Every OCaml stack is
+either empty $\ostackemp$ or non-empty $\ostacka{k}{\cstack}$ with the
+C stack $\cstack$ under it. Thus, the program stack is an alternating sequence
+of C and OCaml stacks terminating with an empty OCaml stack $\ostackemp$. The
+frame list $\fl$ is composed of individual frames $r$, which is one of an
+argument frame $\farg{e}{\env}$ with the expression $e$ at the argument
+position of an application with its environment $\env$, a function frame
+$\ffun{v}$ with the value at the function position of an application, and
+frames for evaluating the arguments of an arithmetic expression.
+
+Continuations $k$ are either empty $[]$ or non-empty sequence of \emph{fibers}.
+A fiber $\fiber \coloneqq (\fl,\hc)$ is a list of frames $\fl$ and a handler
+closure $\hc \coloneqq (h,\env)$, which is a pair of handler $h$ and its
+environment $\env$.
+
+\subsubsection{Top-level reductions}
+
+The initial configuration for an expression $e$ is
+$\configa{e}{\emptyset}{\cstacka{[]}{\bullet}}$, where the environment and the
+stack are empty. The top-level reductions (Figure ~\ref{sem:toplevel}) can be
+performed by either by taking a C step $\cstep$ or an OCaml step $\ostep$.
+Intuitively, this splits the world into executing C code and OCaml code.
+
 
 
 \subsubsection{C reductions}
@@ -1031,10 +1038,11 @@ mentioned in \S~\ref{sec:exn_handlers}, exceptions are pervasive in OCaml and
 are so cheap that they are used for local control flow. Hence, we retain the
 linked exception handler frame implementation of stock OCaml exception handlers
 in Multicore OCaml for performance backwards compatibility. This differs from
-other research languages with effect handlers~\cite{Hillerstrom20,Frank,Eff}, which
-implement exceptions using effects (by ignoring the continuation argument in
-the handler).
+other research languages with effect handlers~\cite{Hillerstrom20,Frank,Eff},
+which implement exceptions using effects (by ignoring the continuation argument
+in the handler).
 
+\vspace{-2mm}
 \subsection{Heap-allocated fibers}
 
 \begin{figure*}
@@ -1144,9 +1152,10 @@ functions |caml_call_c| and |caml_call_ocaml| switch the stacks, and hence are
 shown in both the system stack and the fiber. Since we are reusing the fiber
 for the callback, care must be taken to save and restore the |handler_info|
 before calling and after returning from |c_to_ocaml| function, respectively.
-The details of the exception frames have been elided in the figure. Thanks to
-the fiber representation, external calls and callbacks remain fast.
+Thanks to the fiber representation, external calls and callbacks remain
+competitive with stock OCaml.
 
+\vspace{-2mm}
 \subsection{Effect handlers}
 \label{sec:effimpl}
 
@@ -1330,7 +1339,7 @@ benchmark performance.
 \end{tabular}
 }
 \label{tab:micro_noperform}
-	\vspace{-3mm}
+	\vspace{-4mm}
 \end{table}
 
 Next, we aim to quantify the overhead of setting up and tearing down effect
@@ -1480,13 +1489,12 @@ strategy from Farvardin et al. for each of the fibers, which are in turn linked
 to represent the current stack and the captured continuations.
 
 Kawahara et al.~\cite{Kawahara20} implement one-shot effect handlers using
-coroutines (a non-local control flow mechanism) as a macro-expressible
-translation, and present an embedding in Lua and Ruby. Lua provides asymmetric
-coroutines~\cite{Lua} where each coroutine uses its own stack similar to how
-each handled computation runs in its own fiber in Multicore OCaml. Similar to
-Multicore OCaml, Lua does not allow coroutines to include C frames. It is
-useful to note that Lua is an interpreted language, unlike OCaml, and DWARF
-unwind tables are not a concern in Lua.
+coroutines as a macro-expressible translation, and present an embedding in Lua
+and Ruby. Lua provides asymmetric coroutines~\cite{Lua} where each coroutine
+uses its own stack similar to how each handled computation runs in its own
+fiber in Multicore OCaml. Similar to Multicore OCaml, Lua does not allow
+coroutines to include C frames. It is useful to note that Lua is an interpreted
+language, unlike OCaml, and DWARF unwind tables are not a concern in Lua.
 
 The interaction on non-local control flow and resources have been studied
 extensively. Scheme uses |dynamic-wind| to ensure de-allocation (and
@@ -1494,27 +1502,27 @@ re-allocation) of resources when the non-local control leaves and enters back
 into a context. |dynamic-wind| is considered to be complex and not quite what
 one wants for resource clean up~\cite{Kiselyov,Sitaram03}. The main challenge
 is distinguishing returning exits from a computation closing over resources
-from exits that would not return. Resource clean up needs to occur only during
+from non-returning ones. Resource clean up needs to occur only during
 non-returning exit. In Multicore OCaml, we assume that continuations are used
 linearly, and hence, no clean up occurs when effects are performed but only
 when an exception is thrown, perhaps from the use of |discontinue|. This
 obviates the need for |dynamic-wind|.
 
-OCaml does not have a |try/finally| construct available in many programming
-languages. In OCaml, alternative standard libraries such as Base~\cite{} and
-Core~\cite{} provide mechanisms analogous to Common Lisp |unwind-protect|,
-which are in turn implemented using OCaml exceptions. Leijen~\cite{Leijen18}
-explicitly extends effect handlers with |finally| clause in Koka. Instead,
-Multicore OCaml |discontinue| primitive builds on extant defensive coding
-practices against exceptions to clean up resources. This design choice is
-crucial to ensure backwards compatibility of legacy systems code with non-local
-control flow introduced by effect handlers. Sivaramakrishnan et
-al.~\cite{TFP17} describe the interaction of effect handlers and asynchronous
-exceptions. This is orthogonal to the contributions of this paper which
-focusses on compiler and runtime system support for implementing effect
-handlers. Ahman et al.~\cite{Ahman20} present a effect handler core calculus
-with asynchrony which might help lay the formal foundations for reconciling
-asynchrony in systems and effect handlers.
+OCaml does not have a \texttt{\footnotesize try/finally} construct available in
+many programming languages. In OCaml, alternative standard libraries such as
+Base~\cite{} and Core~\cite{} provide mechanisms analogous to Common Lisp
+|unwind-protect|, which are in turn implemented using OCaml exceptions.
+Leijen~\cite{Leijen18} explicitly extends effect handlers with |finally| clause
+in Koka. Instead, Multicore OCaml |discontinue| primitive builds on extant
+defensive coding practices against exceptions to clean up resources. This
+design choice is crucial to ensure backwards compatibility of legacy systems
+code with non-local control flow introduced by effect handlers.
+Sivaramakrishnan et al.~\cite{TFP17} describe the interaction of effect
+handlers and asynchronous exceptions. This is orthogonal to the contributions
+of this paper which focusses on compiler and runtime system support for
+implementing effect handlers. Ahman et al.~\cite{Ahman20} present a effect
+handler core calculus with asynchrony which might help lay the formal
+foundations for reconciling asynchrony in systems and effect handlers.
 
 Languages with effect handlers typically allow continuations to be resumed more
 than once to enable use cases such as backtracking search and probabilistic
