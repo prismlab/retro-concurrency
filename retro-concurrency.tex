@@ -393,7 +393,7 @@ efficient effect handlers for OCaml that satisfy these requirements.
 
 Our work is also timely. WebAssembly~\cite{Hass17} community group is actively
 considering effect handlers as one of the mechanism for supporting concurrency,
-asynchronous I/O and generators~\cite{WasmPropoal}. Project Loom~\cite{loom} is an
+asynchronous I/O and generators~\cite{WasmProposal}. Project Loom~\cite{loom} is an
 OpenJDK project which adds virtual threads and delimited continuations to Java.
 Swift concurrency roadmap~\cite{swift} includes direct-style asynchronous
 programming and structured concurrency as milestones. We believe that our
@@ -1127,7 +1127,7 @@ Since OCaml does not generate pointers into the stack, the two |fiber_info|
 fields are the only ones that need to be updated when fibers are moved. We
 allocate the space for the fiber using |malloc| and |free| it when no longer
 required. We do not use a \emph{stack cache} of recently freed stacks for
-speeding up fiber allocation~\ref{Farvardin}. In our experiments, we observed
+speeding up fiber allocation~\cite{Farvardin20}. In our experiments, we observed
 that directly using |mimalloc|~\cite{Leijen19} outperforms having the stack
 cache.
 
@@ -1238,8 +1238,8 @@ and ignores the result:
 Gc.finalise (fun k ->
   try ignore (discontinue k Unwind) | _ -> ()) k
 \end{lstlisting}
-Multicore OCaml does not enforce this behaviour in order to minimise the cost
-of using effect handlers.
+Multicore OCaml does not enforce this behaviour in order to avoid installing an
+effect handler every time a continuation is captured.
 
 For stack walking during GC, the only change necessary was to make the runtime
 aware of fiber layout and how to follow the parent pointers. The stack map
@@ -1496,33 +1496,34 @@ fiber in Multicore OCaml. Similar to Multicore OCaml, Lua does not allow
 coroutines to include C frames. It is useful to note that Lua is an interpreted
 language, unlike OCaml, and DWARF unwind tables are not a concern in Lua.
 
-The interaction on non-local control flow and resources have been studied
-extensively. Scheme uses |dynamic-wind| to ensure de-allocation (and
-re-allocation) of resources when the non-local control leaves and enters back
-into a context. |dynamic-wind| is considered to be complex and not quite what
-one wants for resource clean up~\cite{Kiselyov,Sitaram03}. The main challenge
-is distinguishing returning exits from a computation closing over resources
-from non-returning ones. Resource clean up needs to occur only during
-non-returning exit. In Multicore OCaml, we assume that continuations are used
-linearly, and hence, no clean up occurs when effects are performed but only
-when an exception is thrown, perhaps from the use of |discontinue|. This
-obviates the need for |dynamic-wind|.
+The interaction of non-local control flow and resources has been studied
+extensively. Scheme uses |dynamic-wind|~\cite{}, which is a generalisation of
+Common Lisp |unwind-protect|~\cite{}, which ensures de-allocation (and
+re-allocation) of resources every time the non-local control leaves and enters
+back into a context. |dynamic-wind| is considered to be complex and not quite
+what one wants for resource clean up~\cite{Kiselyov,Sitaram03}. The main
+challenge is distinguishing returning exits from non-returning ones. Resource
+clean up needs to occur only during non-returning exit.
 
-OCaml does not have a \texttt{\footnotesize try/finally} construct available in
-many programming languages. In OCaml, alternative standard libraries such as
-Base~\cite{} and Core~\cite{} provide mechanisms analogous to Common Lisp
-|unwind-protect|, which are in turn implemented using OCaml exceptions.
-Leijen~\cite{Leijen18} explicitly extends effect handlers with |finally| clause
-in Koka. Instead, Multicore OCaml |discontinue| primitive builds on extant
-defensive coding practices against exceptions to clean up resources. This
-design choice is crucial to ensure backwards compatibility of legacy systems
-code with non-local control flow introduced by effect handlers.
-Sivaramakrishnan et al.~\cite{TFP17} describe the interaction of effect
-handlers and asynchronous exceptions. This is orthogonal to the contributions
-of this paper which focusses on compiler and runtime system support for
-implementing effect handlers. Ahman et al.~\cite{Ahman20} present a effect
-handler core calculus with asynchrony which might help lay the formal
-foundations for reconciling asynchrony in systems and effect handlers.
+In Multicore OCaml, we build on the existing defensive coding practices against
+exceptions to clean up resources on non-returning exits. Our continuations are
+assumed to be resumed exactly once using |continue| or |discontinue|. As a
+result, when a computation performs an effect, we are guaranteed that the
+control will return. For the non-returning cases (value and exceptional
+return), the code already handles resource cleanup. OCaml does not have a
+\texttt{\footnotesize try/finally} construct commonly used for resource cleanup
+in many programming languages. Alternative standard libraries such as
+Base~\cite{BaseProtect} and Core~\cite{CoreProtect} provide mechanisms
+analogous to |unwind-protect|, which are in turn implemented using exceptions.
+Thus, the linear use of continuations enabled by the |discontinue| primitive
+ensures backwards compatibility of legacy OCaml systems code with non-local
+control flow introduced by effect handlers.
+
+Leijen~\cite{Leijen18} explicitly extends effect handlers with |initially| and
+|finally| clauses in Koka for resource safety. Sivaramakrishnan et
+al.~\cite{TFP17} describe the interaction of effect handlers and asynchronous
+exceptions. This is orthogonal to the contributions of this paper. Our focus i
+the compiler and runtime system support for implementing effect handlers.
 
 Languages with effect handlers typically allow continuations to be resumed more
 than once to enable use cases such as backtracking search and probabilistic
@@ -1543,7 +1544,9 @@ features.
 We presented the motivation, design and implementation of effect handlers
 specifically aimed at retrofitting them onto OCaml with tool compatibility,
 negligible overheads for existing OCaml programs and good performance for those
-that use effect handlers. Our evaluation shows that this is indeed the case.
+that use effect handlers. Our evaluation shows that this is indeed the case. We
+plan to upstream the compiler and runtime support for effect handlers followed
+by an effect system.
 
 \clearpage
 
