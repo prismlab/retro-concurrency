@@ -627,15 +627,17 @@ functions from the OCaml standard library to copy data from the input channel
 let rec copy ic oc =
   try output_string oc ((input_line ic) ^ "\n");
       copy ic oc
-  with _ -> (close_in ic; close_out oc)
+  with End_of_file -> close_in ic; close_out oc
+	   | e -> close_in ic; close_out oc; raise e
 \end{lstlisting}
-
-The function |input_line| raises |End_of_file| exception on reaching the end of input.
-Although not apparent, the code is written in a defensive style to handle other
-exceptional cases such as the channels being closed externally. Both
-|input_line| and |output_string| raise |Sys_error| exception if the channel is
-closed. This function cleanly closes the channels on exceptional cases;
-|close_*| functions do nothing if the channel is already closed.
+The function |input_line| raises |End_of_file| exception on reaching the end of
+input, which is handled by the exception handler which closes the channels. The
+|close_*| functions do nothing if the channel is already closed. The code is
+written in a defensive style to handle other exceptional cases such as the
+channels being closed externally. Both |input_line| and |output_string| raise
+|Sys_error| exception if the channel is closed. In this case, the channels are
+closed and the exception is reraised to communicate the exceptional behaviour
+to the caller.
 
 One of our goals(\S\ref{sec:req}) is to make this code transparently
 asynchronous. We can define effects for performing the I/O operations  and wrap
@@ -665,6 +667,7 @@ with no matching handler, then the function \emph{will not return at all}. To
 remedy this, when such an effect bubbles up to the top-level, we discontinue
 the continuation with |Unhandled| exception so that the exception handlers may
 run and clean up the resources.
+
 
 \section{Semantics}
 \label{sec:semantics}
@@ -824,16 +827,16 @@ environment $\env$.
 The initial configuration for an expression $e$ is
 $\configa{e}{\emptyset}{\cstacka{[]}{\bullet}}$, where the environment and the
 stack are empty. The top-level reductions
-  \begin{mathpar}
-    \begin{array}{cc}
-      \textsc{StepC} ~
-      \inferrule{(\term, \env, \fl, \ostack) \cstep \config}
-                {\configa{\term}{\env}{\cstacka{\fl}{\ostack}} \step \config} &
-      \textsc{StepO} ~
-      \inferrule{(\term, \env, k, \cstack) \ostep \config}
-                {\configa{\term}{\env}{\ostacka{k}{\cstack}} \step \config}
-    \end{array}
-  \end{mathpar}
+\begin{smathpar}
+	\begin{array}{cc}
+		\textsc{StepC} ~
+		\inferrule{(\term, \env, \fl, \ostack) \cstep \config}
+							{\configa{\term}{\env}{\cstacka{\fl}{\ostack}} \step \config} &
+		\textsc{StepO} ~
+		\inferrule{(\term, \env, k, \cstack) \ostep \config}
+							{\configa{\term}{\env}{\ostacka{k}{\cstack}} \step \config}
+	\end{array}
+\end{smathpar}
 can be performed by either by taking a C step $\cstep$ or an OCaml step
 $\ostep$. Intuitively, this splits the world into executing C code and OCaml
 code.
@@ -1073,7 +1076,9 @@ with | v -> v
     \label{fig:fiber_handler}
   \end{minipage}
 \end{minipage}
-\mycaption{Layout of Multicore OCaml effect handlers.}
+\vspace{-2mm}
+\caption{Layout of Multicore OCaml effect handlers.}
+\vspace{-3mm}
 \end{figure*}
 
 In the operational semantics, the continuations may be resumed more than once.
@@ -1296,7 +1301,7 @@ time. |exnval| perform 100 million iterations of installing exception handlers
 and returning with value. |exnraise| is similar, but raises an exception in
 each iteration. |extcall| and |callback| perform 100 million external calls and
 callbacks to identity functions. The other micro benchmarks are highly
-recursive programs and were taken from ~\ref{Folklore}. For micro benchmarks,
+recursive programs and were taken from ~\cite{Farvardin20}. For micro benchmarks,
 we observed that padding tightloops with a few |nop| instructions, which
 changes the loop alignment, makes the code upto 15\% faster. Hence, the
 difference in running times under 15\% may not be statistically significant.
@@ -1374,7 +1379,7 @@ sequences \texttt{a-b}, \texttt{b-c}, \texttt{c-d} and \texttt{d-e} took
 memory latency for the local NUMA node is 93.2ns as measured using the Intel
 MLC tool~\cite{mlc}.
 
-\paragraph{Generators} Generators allow data structures to be traversed on
+\textbf{\textit{Generators.}} Generators allow data structures to be traversed on
 demand. Many languages including JavaScript and Python provide generators as a
 built-in primitive. Using effect handlers (|MC|), given any data structure
 (|'a t|) and its iterator (|val iter: 'a t -> ('a -> unit) -> unit|), we can
@@ -1391,14 +1396,14 @@ usual caveats of not using the stack for function calls. We observed that the
 |MC| version was only 2.76$\times$ slower than |cps| while being a generic
 solution, whereas the |monad| version was 8.69$\times$ slower than |cps|.
 
-\paragraph{Chameneos} Chameneos~\cite{Chameneos} is a concurrency game aimed at
+\textbf{\textit{Chameneos.}} Chameneos~\cite{Chameneos} is a concurrency game aimed at
 measuring context switching and synchronization overheads. Our implementation
 uses |MVars| for synchronization. We compare effect handler (|MC|), concurrency
 monad (|monad|) and Lwt, a widely used concurrency programming library for
 OCaml (|lwt|) versions. We observed that |MC| was the fastest, and |monad|
 (|lwt|) was 1.67$\times$ (4.29$\times$) slower than |MC|.
 
-\paragraph{Web server} As one of our primary goals of adding effect handlers to
+\textbf{\textit{Web server.}} As one of our primary goals of adding effect handlers to
 OCaml is to support direct-style concurrency, we implement a full-fledged
 HTTP/1.1 web server using effect handlers (|MC|). We use effect handlers to
 implement a user-level threading library, which spawns a thread per request. We
@@ -1422,7 +1427,8 @@ package.
 		\subcaption{Tail latency}
 		\label{grf:latency}
 	\end{minipage}
-	\mycaption{Web server performance.}
+	\vspace{-3mm}
+	\caption{Web server performance.}
 	\vspace{-4mm}
 \end{figure}
 
@@ -1452,7 +1458,7 @@ semantics to implement effect handlers. Effekt~\cite{Effekt}, Links JavaScript
 backend~\cite{Hillerstrom20} and Koka~\cite{Leijen17} use type-directed
 selective CPS translation. These language are equipped with an effect system,
 which allows compiling pure code in direct-style and effectful code in
-continuation passing style. Leijen et al.~\cite{Leijen14} implements effect
+continuation passing style. Leijen et al.~\cite{Leijen14} implement effect
 handlers as a library in C using stack copying. Since C allows pointers into
 the stack, care is taken to ensure that when continuations are resumed, the
 constituent frames are restored to the same memory addresses as at the time of
@@ -1479,22 +1485,36 @@ translation, and present an embedding in Lua and Ruby. Lua provides asymmetric
 coroutines~\cite{Lua} where each coroutine uses its own stack similar to how
 each handled computation runs in its own fiber in Multicore OCaml. Similar to
 Multicore OCaml, Lua does not allow coroutines to include C frames. It is
-useful to note that Lua is an interpreted language unlike OCaml and DWARF
+useful to note that Lua is an interpreted language, unlike OCaml, and DWARF
 unwind tables are not a concern in Lua.
 
 The interaction on non-local control flow and resources have been studied
 extensively. Scheme uses |dynamic-wind| to ensure de-allocation (and
 re-allocation) of resources when the non-local control leaves and enters back
-into a context. |dynamic-wind| is known to be complex and not quite what one
-wants for resource clean up~\cite{Kiselyov,Sitaram03}. The main challenge is distinguishing
-non-returning exits from ones that would, and clean up to occur only on
+into a context. |dynamic-wind| is considered to be complex and not quite what
+one wants for resource clean up~\cite{Kiselyov,Sitaram03}. The main challenge
+is distinguishing returning exits from a computation closing over resources
+from exits that would not return. Resource clean up needs to occur only during
 non-returning exit. In Multicore OCaml, we assume that continuations are used
-linearly, and hence, no clean up occurs when effects are performed but only when
-an exception is thrown, perhaps from the use of |discontinue|. This obviates
-the need for |dynamic-wind|. Leijen~\cite{Leijen18} explicitly extends effect
-handlers with |finally| clause. Instead, Multicore OCaml |discontinue|
-primitive builds on extant defensive coding practices against exceptions to
-clean up resource.
+linearly, and hence, no clean up occurs when effects are performed but only
+when an exception is thrown, perhaps from the use of |discontinue|. This
+obviates the need for |dynamic-wind|.
+
+OCaml does not have a |try/finally| construct available in many programming
+languages. In OCaml, alternative standard libraries such as Base~\cite{} and
+Core~\cite{} provide mechanisms analogous to Common Lisp |unwind-protect|,
+which are in turn implemented using OCaml exceptions. Leijen~\cite{Leijen18}
+explicitly extends effect handlers with |finally| clause in Koka. Instead,
+Multicore OCaml |discontinue| primitive builds on extant defensive coding
+practices against exceptions to clean up resources. This design choice is
+crucial to ensure backwards compatibility of legacy systems code with non-local
+control flow introduced by effect handlers. Sivaramakrishnan et
+al.~\cite{TFP17} describe the interaction of effect handlers and asynchronous
+exceptions. This is orthogonal to the contributions of this paper which
+focusses on compiler and runtime system support for implementing effect
+handlers. Ahman et al.~\cite{Ahman20} present a effect handler core calculus
+with asynchrony which might help lay the formal foundations for reconciling
+asynchrony in systems and effect handlers.
 
 Languages with effect handlers typically allow continuations to be resumed more
 than once to enable use cases such as backtracking search and probabilistic
@@ -1504,9 +1524,10 @@ fibers. Multi-shot continuations are difficult to reason about in the presence
 of linear resources such as file descriptors. Recall that OCaml programs are
 written with the expectation that function calls return \emph{exactly-once}
 either normally or exceptionally. With multi-shot continuations, they may
-return more than once, leading to errors such as double-freeing malloc'ed
-memory. Since our goal is to retrofit effect handlers onto OCaml, we relegate
-continuation cloning to the OCaml |Obj| module, which contains unsafe features.
+return \emph{more than once}, leading to errors such as double-freeing
+malloc'ed memory. Since our goal is to retrofit effect handlers onto OCaml, we
+relegate continuation cloning to the OCaml |Obj| module, which contains unsafe
+features.
 
 \section{Conclusions}
 \label{sec:conc}
