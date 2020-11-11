@@ -1096,15 +1096,15 @@ cases. The closures are created by the translation described in
 \S\ref{sec:static_semantics}; Multicore OCaml supports exception patterns in
 addition to effect patterns in the same handler. This is followed by a block to
 support DWARF unwinding, whose details we will return to later. Then, there is
-a top-level handler that invokes the exception handler closure |clos_hexn|
+a top-level handler that invokes the exception handler |clos_hexn|
 after switching to the parent fiber. This is followed by the |pc| of the code
-that invokes value handler |clos_hval| after switching to the parent stack. The
+that invokes the value handler |clos_hval| after switching to the parent stack. The
 stack is laid out such that when the computation in the handler returns,
-control goes to value handler.
+control goes to the value handler.
 
 We have the variable-sized area for the OCaml frames next. Since we want the
 handlers to be as small as possible, this area is initially 16 words in length.
-When the stack pointer |rsp| goes less than stack threshold (maintained in the
+When the stack pointer |rsp| becomes less than the stack threshold (maintained in the
 |Caml_state| table), the stack is said to have overflown. On stack overflow, we
 copy the whole fiber to a new area with double the size. In Multicore OCaml, we
 introduce stack overflow checks into the function prologue of OCaml functions.
@@ -1122,19 +1122,19 @@ fields are the only ones that need to be updated when fibers are moved. We
 allocate the space for the fiber using |malloc| and |free| it when no longer
 required. We do not use a \emph{stack cache} of recently freed stacks for
 speeding up fiber allocation~\cite{Farvardin20}. In our experiments, we
-observed that directly using |mimalloc|~\cite{Leijen19} outperforms the stack
+observed that directly using |mimalloc|~\cite{Leijen19} outperforms a stack
 cache.
 
 \subsection{External calls and callbacks}
 
 Since C functions do not have stack overflow checks, we have to execute the
 external calls in the system stack. Calling a C function from OCaml involves
-saving the exception and stack pointers in the current fiber, saving the
+saving the stack pointer in the current fiber, saving the
 allocation pointer in the |Caml_state|, updating |rsp| to the top of system
 stack (maintained in |Caml_state|), and calling the C function. The actions are
-reversed when returning from the external call. One subtlety is that for C
+reversed when returning from the external call. For C
 functions that take arguments on the stack, the arguments must be copied to the
-C stack from the OCaml stack where they are laid out. For vast majority of
+C stack from the OCaml stack where they are laid out. In the vast majority of
 external calls, we perform only a few additional instructions over stock OCaml.
 
 When we first enter OCaml from C, a new fiber is allocated for the main OCaml
@@ -1191,35 +1191,41 @@ are constructed in order to appreciate our solution. We refer the interested
 reader to Bastian et al.~\cite{Bastian19} for a good overview of DWARF stack
 unwinding.
 
-Logically, DWARF maintains a large table which records for every machine
-instruction where the return address and callee-saved registers are stored. To
-avoid reifying this large table, DWARF represents the table using a compact,
-turing-complete, bytecode representation, which is interpreted on demand for
-building the stack unwind table. Within each function, DWARF maintains a
-\emph{canonical frame address} (CFA), which is invariant in the function body,
-and is traditionally the stack pointer before entering this function. Hence, on
-x86-64, where the return address is pushed on the stack on call, the return
-address is at |CFA - 8|.
+Logically, DWARF call-frame information maintains a large table which records
+for every machine instruction where the return address and callee-saved
+registers are stored. To avoid reifying this large table, DWARF directives
+represent the table using a compact bytecode representation. This representation
+is interpreted on demand for building the stack unwind table. Within each
+function, DWARF maintains a \emph{canonical frame address} (CFA) and is
+traditionally the stack pointer before entering this function. Hence, on x86-64,
+where the return address is pushed on the stack on call, the return address is
+at |CFA - 8|.
 
-Our goal is to help DWARF identify the CFA when stacks are switched at external
-calls, callbacks and effect handlers. We have implemented short, hand-written
-DWARF bytecode at these three places, which we have validated with the DWARF
-unwind table validator tool~\cite{Bastian19}. When starting to run on a new
+
+One challenge is to encode in DWARF directives the CFA when stacks are switched
+at effect handlers, callbacks and external calls. When starting to run on a new
 fiber, we insert DWARF bytecode to follow the |parent_fiber| pointer and
-dereference the |saved_sp| to get the CFA (|saved_sp + 8|). During callback, we
-save the current system stack pointer in the |DWARF block| in
+dereference the |saved_sp| to get the CFA (|saved_sp + 8|). During callbacks
+into OCaml, we save the current system stack pointer in the |DWARF block| in
 Figure~\ref{fig:fiber} to identify the CFA in the C stack. DWARF unwinding for
-external calls is implemented similarly by saving the current OCaml stack
+external calls is implemented by following a link to the current OCaml stack
 pointer. With these changes, we get the same backtrace for the \texttt{meander}
 program from \S\ref{sec:unwind}, modulo runtime system functions due to effect
-handlers.
+handlers. We have utilized a DWARF verification tool~\cite{Bastian19} with
+extensions to handle PIE and additional DWARF primitives to flag possible errors
+in the hand written DWARF directives where we have altered the OCaml assembler
+to implement effects. In three places additional manual verification was
+required; two were where the stack is intentionally switched between fibers and
+one was where the return to the parent stack on child stack completion could not
+track stack resizes and intermediate effect handler frames.
+
 
 \subsection{Garbage collection}
 
 Recall that OCaml programs are written with the expectation that function calls
 return exactly once (\S\ref{sec:refine}). Consider the scenario when a
 continuation is neither continued nor discontinued. Since fibers are
-malloced and are |free|d when the computation being handled returns a value
+|malloc|ed and are |free|d when the computation being handled returns a value
 or raises an exception, not resuming continuations leaks memory. In addition,
 unresumed continuations may also leak other resource such as open file
 descriptors.
