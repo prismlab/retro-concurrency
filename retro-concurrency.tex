@@ -667,7 +667,6 @@ remedy this, when such an effect bubbles up to the top-level, we discontinue the
 continuation with an |Unhandled| exception so that the exception handlers may
 run and clean up the resources.
 
-\vspace{-2mm}
 \section{Semantics}
 \label{sec:semantics}
 
@@ -887,6 +886,7 @@ primitive to avoid executing code on the resumption path.
 \caption{Operational semantics of Multicore OCaml effect handlers.}
 \end{figure*}
 
+\vspace{-5mm}
 \subsection{Dynamic semantics}
 
 We present an operational semantics for a core language of effect handlers that
@@ -1113,6 +1113,7 @@ speeding up fiber allocation~\cite{Farvardin20}. In our experiments, we
 observed that directly using |mimalloc|~\cite{Leijen19} outperforms a stack
 cache.
 
+\vspace{-3mm}
 \subsection{External calls and callbacks}
 
 Since C functions do not have stack overflow checks, we have to execute the
@@ -1170,6 +1171,7 @@ appropriate closure to either |continue| or |discontinue| the continuation
 (position |p3|). We perform standard tail-call optimisation so that resumptions
 at tail positions do not build up stack.
 
+\vspace{-2mm}
 \subsection{Stack unwinding}
 
 The challenge with DWARF stack unwinding is to make it aware of the
@@ -1189,7 +1191,6 @@ traditionally the stack pointer before entering this function. Hence, on x86-64,
 where the return address is pushed on the stack on call, the return address is
 at |CFA - 8|.
 
-
 One challenge is to encode in DWARF directives the CFA when stacks are switched
 at effect handlers, callbacks and external calls. When starting to run on a new
 fiber, we insert DWARF bytecode to follow the |parent_fiber| pointer and
@@ -1199,15 +1200,24 @@ Figure~\ref{fig:fiber} to identify the CFA in the C stack. DWARF unwinding for
 external calls is implemented by following a link to the current OCaml stack
 pointer. With these changes, we get the same backtrace for the \texttt{meander}
 program from \S\ref{sec:unwind}, modulo runtime system functions due to effect
-handlers. We have utilized a DWARF verification tool~\cite{Bastian19} with
-extensions to handle PIE and additional DWARF primitives to flag possible errors
-in the hand written DWARF directives where we have altered the OCaml assembler
-to implement effects. In three places additional manual verification was
-required; two were where the stack is intentionally switched between fibers and
-one was where the return to the parent stack on child stack completion could not
-track stack resizes and intermediate effect handler frames.
+handlers.
 
+We have utilized a DWARF verification tool~\cite{Bastian19} with extensions to
+handle PIE and additional DWARF primitives to flag possible errors in the hand
+written DWARF directives where we have altered the OCaml assembler to implement
+effects. In three places additional manual verification was required; two were
+where the stack is intentionally switched between fibers and one was where the
+return to the parent stack on child stack completion could not track stack
+resizes and intermediate effect handler frames.
 
+Even with correct DWARF unwind information, using DWARF to record call stack
+information in |perf| only captures the call stack of the current fiber in
+Multicore OCaml. Since stack unwinding using DWARF is slow due to bytecode
+interpretation overhead, |perf| dumps the (user) call stack when
+sampled~\cite{Bastian19}. This only includes the frames from the current fiber.
+This is a limitation of |perf| and not of our stack layout.
+
+\vspace{-2mm}
 \subsection{Garbage collection}
 
 Recall that OCaml programs are written with the expectation that function calls
@@ -1235,6 +1245,7 @@ generation and scanning each frame for roots remains the same. Sivaramakrishnan
 et al.~\cite{Sivaramakrishnan20} present the challenges and solutions for
 integrating fibers with the concurrent mark-and-sweep GC of Multicore OCaml.
 
+\vspace{-3mm}
 \section{Evaluation}
 \label{sec:eval}
 
@@ -1248,6 +1259,7 @@ core runs at 2.20GHz and has 32 KB of L1 data cache, 32 KB of L1 instruction
 cache and 1MB of L2 cache. The cores on a socket share a 19.25 MB L3 cache. The
 server has 64GB of main memory and runs Ubuntu 18.04.
 
+\vspace{-3mm}
 \subsection{No effects benchmarks}
 
 In this section, we measure the impact of the addition of effect handlers on
@@ -1313,6 +1325,7 @@ this. Callback performance is less important than external calls, which are far
 more numerous. As seen previously, these results however do not affect macro
 benchmark performance.
 
+\vspace{-3mm}
 \subsection{No perform benchmarks}
 
 \begin{table}
@@ -1354,6 +1367,7 @@ monad implementation due to optimisations to reduce the heap allocation of
 continuation frames. But Farvardin et al.~\cite{Farvardin20} show that CPS with
 optimisations is still slower than using the call stack.
 
+\vspace{-3mm}
 \subsection{Concurrent benchmarks}
 
 Next we look at benchmarks that utilize non-local control flow using effect
@@ -1445,6 +1459,7 @@ feature to dump the backtrace of all the user-level threads in the web server.
 Such a feature is provided by Go~\cite{gopprof}, but not possible with OCaml
 concurrency libraries such as Async and Lwt which lack the notion of a thread.
 
+\vspace{-3mm}
 \section{Related Work}
 \label{sec:related}
 
@@ -1522,16 +1537,13 @@ handlers and asynchronous exceptions. This is orthogonal to the contributions
 of this paper. Our focus is the compiler and runtime system support for
 implementing effect handlers.
 
-
 \section{Conclusions}
 \label{sec:conc}
 
 We presented the motivation, design and implementation of effect handlers
 specifically aimed at retrofitting them onto OCaml with tool compatibility,
 negligible overheads for existing OCaml programs and good performance for those
-that use effect handlers. Our evaluation shows that this is indeed the case. We
-plan to upstream the compiler and runtime support for effect handlers followed
-by an effect system.
+that use effect handlers. Our evaluation shows that this is indeed the case.
 
 \clearpage
 
@@ -1557,6 +1569,35 @@ continuations, they may return \emph{more than once}, leading to errors such as
 double-freeing malloced memory. Since our goal is to retrofit effect handlers
 onto OCaml, we relegate continuation cloning to the OCaml |Obj| module, which
 contains unsafe features.
+
+In addition, multi-shot continuations currently are not safe under compiler
+optimisations. For example consider the following program:
+\begin{lstlisting}
+effect E : unit
+
+let foo () = perform E
+
+let bar f =
+  let r = ref 0 in
+	f ();
+  r := !r + 1;
+  !r
+
+let _ = match bar foo with
+| v -> v
+| effect E k ->
+    let k' = Obj.clone_continuation k in
+    let r1 = continue k () in
+    let r2 = continue k' () in
+    Printf.printf "%d %d\n" r1 r2;
+		0
+\end{lstlisting}
+This program is expected to print |1 2|. However, OCaml optimizes |bar| by
+converting the heap allocation of |r| to a stack allocation. As a result, each
+continuation ends up with a copy of |r|, and the program prints |1 1|. In the
+presence of multi-shot continuations, compiler optimisations need to be made
+aware of the effects of a function. We leave proper support for multi-shot
+continuations to future work.
 
 \subsection*{No effect macro benchmarks}
 
