@@ -292,26 +292,26 @@ has been in continuous use for the past 25 years in large codebases including
 verification tools~\cite{everest,Coq}, mission critical software
 systems~\cite{astree} and latency sensitive networked
 applications~\cite{Madhavapeddy13}. OCaml is particularly favoured for its
-competitive yet predictable performance, with fast foreign-function interface
-(FFI) and excellent compatibility with program analysis tools such as debuggers
+competitive yet predictable performance, with a fast foreign-function interface
+(FFI). It has excellent compatibility with program analysis tools such as debuggers
 and profilers that utilise DWARF stack unwind tables~\cite{DWARF} to obtain a
 backtrace. Our primary motivation for adding effect handlers to OCaml is to
-support (1) highly concurrent applications such as web servers using a
-natural \emph{direct-style} as opposed to using callbacks and (2) efficient
+support: {\em (i)} highly concurrent applications such as web servers using a
+natural \emph{direct-style} as opposed to using callbacks; and {\em (ii)} efficient
 nested parallel programs in the vein of Cilk~\cite{Cilk}, OpenMP~\cite{OpenMP},
 X10~\cite{Charles05}, Intel TBB~\cite{IntelTBB}, and variants of Parallel
 ML~\cite{MaPLe, Fluet10, Sivaramakrishnan14}.
 
-OCaml, however, does not support any non-local control flow mechanisms other
+OCaml currently does not support any non-local control flow mechanisms other
 than exceptions. This makes it particularly challenging to implement the
 delimited continuations necessary for effect handlers without sacrificing the
 desirable properties of OCaml. One standard way of implementing continuations is
 to use continuation-passing style (CPS) in the compiler's intermediate
 representation (IR)~\cite{Leijen14}. If the compiler were to use CPS, then
 reifying continuations in the source language is relatively straight-forward.
-But OCaml does not use CPS IR, and changing the OCaml compiler to utilise CPS IR
-would be an enormous undertaking. Utilizing a CPS IR would also affect the
-performance profile of OCaml applications due to increased memory allocations as
+But OCaml does not use a CPS IR, and changing the OCaml compiler to utilise a CPS IR
+would be an enormous undertaking that would affect the
+performance profile of existing OCaml applications due to increased memory allocations as
 continuation closures get allocated on the heap~\cite{Farvardin20}. Moreover,
 with CPS, stack unwinding is meaningless and hence, we would lose compatibility
 with tools that inspect the program stack. Hence, we choose not to use CPS
