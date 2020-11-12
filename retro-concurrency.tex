@@ -1075,11 +1075,11 @@ At the bottom of the stack, we have the |handler_info|, which contains the
 pointer to parent fiber, and the closures for the value, exception and effect
 cases. The closures are created by the translation described in
 \S\ref{sec:static_semantics}; Multicore OCaml supports exception patterns in
-addition to effect patterns in the same handler. This is followed by a block to
-support DWARF unwinding, whose details we will return to later. Then, there is
-a top-level handler that invokes the exception handler |clos_hexn|
-after switching to the parent fiber. This is followed by the |pc| of the code
-that invokes the value handler |clos_hval| after switching to the parent stack. The
+addition to effect patterns in the same handler. This is followed by a context
+block needed for DWARF and GC bookkeeping with callbacks. Then, there is a
+top-level handler that invokes the exception handler |clos_hexn| after
+switching to the parent fiber. This is followed by the |pc| of the code that
+invokes the value handler |clos_hval| after switching to the parent stack. The
 stack is laid out such that when the computation in the handler returns,
 control goes to the value handler.
 
@@ -1188,7 +1188,7 @@ One challenge is to encode in DWARF directives the CFA when stacks are switched
 at effect handlers, callbacks and external calls. When starting to run on a new
 fiber, we insert DWARF bytecode to follow the |parent_fiber| pointer and
 dereference the |saved_sp| to get the CFA (|saved_sp + 8|). During callbacks
-into OCaml, we save the current system stack pointer in the |DWARF block| in
+into OCaml, we save the current system stack pointer in the |context block| in
 Figure~\ref{fig:fiber} to identify the CFA in the C stack. DWARF unwinding for
 external calls is implemented by following a link to the current OCaml stack
 pointer. With these changes, we get the same backtrace for the \texttt{meander}
