@@ -1416,7 +1416,7 @@ use \texttt{httpaf} library~\cite{httpaf} for HTTP handling, and
 against an Lwt version (|lwt|) which also uses \texttt{httpaf} and
 \texttt{libev}. Unlike using effect handlers, Lwt version is written in monadic
 style, and does not have a notion of thread per request. For comparison, we
-also include a Go version (|go|) that uses \texttt{net/http}~\cite{nethttp}
+also include a Go 1.13 version (|go|) that uses \texttt{net/http}~\cite{nethttp}
 package. As both OCaml versions are single threaded, the Go benchmark is run with
 \texttt{GOMAXPROCS=1}.
 
