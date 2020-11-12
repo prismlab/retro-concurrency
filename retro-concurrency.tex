@@ -171,7 +171,7 @@ stack; and {\em (iii)} is efficient for new code that makes use of effect handle
 
 \section{Introduction}
 
-Effect Handlers~\cite{Plotkin09} provide a modular foundation for user-defined
+Effect handlers~\cite{Plotkin09} provide a modular foundation for user-defined
 effects. The key idea is to separate the definition of the effectful operations
 from their interpretations, which are defined by \emph{handlers} of the
 effects. For example,
@@ -192,25 +192,25 @@ enable new approaches to modular programming.
 
 \subsection{An effectful calculator}
 
-What makes effect handlers quite powerful is that they provide a structured
-form of delimited continuations~\cite{Danvy90}, which enables advanced
+Effect handlers provide a structured
+form of delimited continuations~\cite{Danvy90} that enables
 non-local control-flow mechanisms such as resumable exceptions, coroutines,
-generators and asynchronous I/O to be composably expressed. As an example,
-consider the task of handling division-by-zero case in a calculator
+generators and asynchronous I/O to be composably expressed. For example,
+consider the task of handling division-by-zero in a calculator
 application. Different calculators handle division-by-zero differently. In the
-iOS 13 Calculator App (|iOS|), division-by-zero returns |Error|. In the Google
-search calculator App (|gsearch|) |0/0| returns to |Error|, and for any other
-|n| not equal to |0|, |n/0| returns |Infinity| with the same sign as |n|. How
-can we capture these different behaviours without changing the evaluator?
+iOS 13 Calculator (|iOS|), |0/0| returns |Error|. In the Google
+search calculator (|gsearch|) |0/0| returns |Error|, but for
+|n!=0| the |n/0| returns |Infinity| with the same sign as |n|.
+How do we capture all these different behaviours without changing the evaluator?
 
 Common Lisp Conditions~\cite{Steele90} are an elegant way to solve this
 problem. Unlike exceptions where the library decides whether an error is fatal
-or not, conditions allow the client of the library to make that decision. If
-the error is non-fatal, Conditions provide a \emph{restart} mechanism to resume
+or not, conditions allow the client of the library to make that decision.
+Conditions provide a \emph{restart} mechanism for non-fatal errors to resume
 execution from the point where the condition was signalled. On
 division-by-zero, the calculator signals the handler and lets the handler
-decide the course of action based on the desired semantics. We can implement
-this mechanism using effect handlers as shown below:
+decide the course of action based on the desired semantics. We now implement
+this using effect handlers in OCaml syntax:
 
 \begin{lstlisting}[numbers=left]
 type sign = P | N
@@ -231,23 +231,22 @@ let rec eval e =
 let (/) n d = Div (Val (Z n), Val (Z d))
 \end{lstlisting}
 
-On line 4, we declare an effect |DivBy0| that is parameterised by an integer,
+Line 4 declares an effect |DivBy0| that is parameterised by an integer,
 which when performed returns the result of division-by-zero. If the denominator
-is 0, then we perform |DivBy0| effect with the numerator value (line 12) so that
-the context may decide the return value. We can get the |iOS| semantics by
-wrapping the evaluator with the following handler:
+is 0, then we perform the |DivBy0| effect with the numerator value (line 12) so that
+the context may decide the return value. We obtain the |iOS| semantics by
+wrapping the evaluator with this handler:
 \begin{lstlisting}
 let ios e = match eval e with
 | v -> v
 | effect (DivBy0 _) k -> continue k Error
 \end{lstlisting}
 If the evaluator returns a value, we simply return that. If the evaluator
-performs the |DivBy0| effect, we catch the effect in the effect case along with
+performs the |DivBy0| effect, we catch the effect in the pattern match along with
 the continuation |k| of the corresponding |perform| \emph{delimited} by this
-handler. In the case of |iOS|, we |continue| the suspended computation with
-|Error| value. Hence, the computation |ios(1/0)| returns |Error|. On the
-other hand, we can get the |gsearch| semantics by enclosing the evaluator in the
-following handler:
+handler. For |iOS|, we |continue| the suspended computation with an
+|Error| value and the computation |ios(1/0)| returns |Error|.
+We can get the |gsearch| semantics by enclosing the evaluator in this handler:
 \begin{lstlisting}
 let gsearch e = match eval e with
 | v -> v
@@ -256,7 +255,7 @@ let gsearch e = match eval e with
 		else if v > 0 then continue k (Inf P)
 		else continue k (Inf N)
 \end{lstlisting}
-The computation |gsearch(1/0)| returns positive infinity (|Inf P|).
+Executing |gsearch(1/0)| returns positive infinity (|Inf P|).
 
 \subsection{Asynchronous I/O}
 \label{sec:aio}
