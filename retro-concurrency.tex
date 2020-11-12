@@ -879,7 +879,6 @@ primitive to avoid executing code on the resumption path.
 \caption{Operational semantics of Multicore OCaml effect handlers.}
 \end{figure*}
 
-\vspace{-5mm}
 \subsection{Dynamic semantics}
 
 We present an operational semantics for a core language of effect handlers that
@@ -1018,7 +1017,6 @@ other research languages with effect handlers~\cite{Hillerstrom20,Frank,Eff},
 which implement exceptions using effects (by ignoring the continuation argument
 in the handler).
 
-\vspace{-2mm}
 \subsection{Heap-allocated fibers}
 
 \begin{figure*}
@@ -1106,7 +1104,6 @@ speeding up fiber allocation~\cite{Farvardin20}. In our experiments, we
 observed that directly using |mimalloc|~\cite{Leijen19} outperforms a stack
 cache.
 
-\vspace{-3mm}
 \subsection{External calls and callbacks}
 
 Since C functions do not have stack overflow checks, we have to execute the
@@ -1131,7 +1128,6 @@ before calling and after returning from |c_to_ocaml| function, respectively.
 Thanks to the fiber representation, external calls and callbacks remain
 competitive with stock OCaml.
 
-\vspace{-2mm}
 \subsection{Effect handlers}
 \label{sec:effimpl}
 
@@ -1164,7 +1160,7 @@ appropriate closure to either |continue| or |discontinue| the continuation
 (position |p3|). We perform standard tail-call optimisation so that resumptions
 at tail positions do not build up stack.
 
-\vspace{-2mm}
+\vspace{-2.5mm}
 \subsection{Stack unwinding}
 
 The challenge with DWARF stack unwinding is to make it aware of the
@@ -1210,7 +1206,6 @@ interpretation overhead, |perf| dumps the (user) call stack when
 sampled~\cite{Bastian19}. This only includes the frames from the current fiber.
 This is a limitation of |perf| and not of our stack layout.
 
-\vspace{-2mm}
 \subsection{Garbage collection}
 
 Recall that OCaml programs are written with the expectation that function calls
@@ -1238,7 +1233,6 @@ generation and scanning each frame for roots remains the same. Sivaramakrishnan
 et al.~\cite{Sivaramakrishnan20} present the challenges and solutions for
 integrating fibers with the concurrent mark-and-sweep GC of Multicore OCaml.
 
-\vspace{-3mm}
 \section{Evaluation}
 \label{sec:eval}
 
@@ -1407,18 +1401,18 @@ monad (|monad|) and Lwt, a widely used concurrency programming library for
 OCaml (|lwt|) versions. We observed that |MC| was the fastest, and |monad|
 (|lwt|) was 1.67$\times$ (4.29$\times$) slower than |MC|.
 
-\textbf{\textit{Web server.}} As one of our primary goals of adding effect handlers to
-OCaml is to support direct-style concurrency, we implement a full-fledged
-HTTP/1.1 web server using effect handlers (|MC|). We use effect handlers to
-implement a user-level threading library, which spawns a thread per request. We
-use \texttt{httpaf} library~\cite{httpaf} for HTTP handling, and
+\textbf{\textit{Web server.}} As one of our primary goals of adding effect
+handlers to OCaml is to support direct-style concurrency, we implement a
+full-fledged HTTP/1.1 web server using effect handlers (|MC|). We use effect
+handlers to implement a user-level threading library, which spawns a thread per
+request. We use \texttt{httpaf} library~\cite{httpaf} for HTTP handling, and
 \texttt{libev}~\cite{libev} for the eventloop. We compare our implementation
 against an Lwt version (|lwt|) which also uses \texttt{httpaf} and
 \texttt{libev}. Unlike using effect handlers, Lwt version is written in monadic
 style, and does not have a notion of thread per request. For comparison, we
-also include a Go 1.13 version (|go|) that uses \texttt{net/http}~\cite{nethttp}
-package. As both OCaml versions are single threaded, the Go benchmark is run with
-\texttt{GOMAXPROCS=1}.
+also include a Go 1.13 version (|go|) that uses
+\texttt{net/http}~\cite{nethttp} package. As both the OCaml versions are single
+threaded, the Go benchmark is run with \texttt{GOMAXPROCS=1}.
 
 \begin{figure}
 	\begin{minipage}{0.49\linewidth}
@@ -1566,18 +1560,18 @@ contains unsafe features.
 
 In addition, multi-shot continuations currently are not safe under compiler
 optimisations. For example consider the following program:
+
+\begin{minipage}{\linewidth}
 \begin{lstlisting}
 effect E : unit
-
 let foo () = perform E
-
 let bar f =
   let r = ref 0 in
 	f ();
   r := !r + 1;
   !r
-
-let _ = match bar foo with
+;;
+match bar foo with
 | v -> v
 | effect E k ->
     let k' = Obj.clone_continuation k in
@@ -1586,11 +1580,13 @@ let _ = match bar foo with
     Printf.printf "%d %d\n" r1 r2;
 		0
 \end{lstlisting}
+\end{minipage}
+
 This program is expected to print |1 2|. However, OCaml optimizes |bar| by
 converting the heap allocation of |r| to a stack allocation. As a result, each
-continuation ends up with a copy of |r|, and the program prints |1 1|. In the
-presence of multi-shot continuations, compiler optimisations need to be made
-aware of the effects of a function. We leave proper support for multi-shot
+continuation ends up with a copy of |r|, and the program prints |1 1|. Thus, in
+the presence of multi-shot continuations, compiler optimisations need to be
+made aware of the effects of a function. We leave proper support for multi-shot
 continuations to future work.
 
 \subsection*{No effect macro benchmarks}
