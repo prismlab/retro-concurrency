@@ -589,13 +589,13 @@ corresponds to the stack in Figure~\ref{fig:stock_stack}.
 
 The same backtrace can also be obtained by using \emph{frame pointers} instead
 of DWARF unwind tables. OCaml allows compiling code with frame pointers, but
-they are not enabled by default. OCaml stack tends to be deep with small frames
+they are not enabled by default. The OCaml stack tends to be deep with small frames
 due to the pervasive use of recursive functions, not all of which are
 tail-recursive. Hence, the addition of frame pointers can significantly
 increase the size of the
 stack\footnote{https://github.com/ocaml/ocaml/issues/5721\#issuecomment-472965549}.
 Moreover, not using frame pointers saves two instructions in the function
-prologue and epilogue, and makes an extra register (|rbp| on x86) available.
+prologue and epilogue, and makes an extra register (|rbp| on x86\_64) available.
 Note that the DWARF unwind information is complementary to the information used
 by OCaml to walk the stack for GC.
 
@@ -607,7 +607,7 @@ primary motivation for adding effect handlers to OCaml is to support a non-local
 control flow mechanism to implement asynchronous I/O in direct style, generators
 and enable task parallelism. These use cases do not resume the continuations
 more than once. Hence, our continuations are one-shot, and resuming the
-continuation more than once raises |Invalid_argument| exception. It is
+continuation more than once raises an |Invalid_argument| exception. It is
 well-known that one-shot continuations can be implemented
 efficiently~\cite{Bruggeman96}.
 
@@ -1018,7 +1018,7 @@ architecture in the sequel.
 The implementation follows the operational semantics, but has a few key
 representational differences. Unlike the operational semantics, handlers with
 just exception patterns (exception handlers) are implemented differently than
-effect handlers. As mentioned in \S~\ref{sec:exn_handlers}, exceptions are
+effect handlers. As mentioned in \S\ref{sec:exn_handlers}, exceptions are
 pervasive in OCaml and are so cheap that they are used for local control flow.
 Hence, we retain the linked exception handler frame implementation of stock
 OCaml exception handlers in Multicore OCaml for performance backwards
