@@ -1002,20 +1002,22 @@ with an executable version of the semantics implemented in OCaml.
 \label{sec:impl}
 
 In this section, we present the implementation details of effect handlers in
-Multicore OCaml. The implementation follows the operational semantics, but has
-a few key representational differences. Multicore OCaml currently only supports
-the x86-64 backend on Linux, but our design does not preclude other backends.
-We assume x86-64 architecture in the sequel.
+Multicore OCaml. Multicore OCaml currently only supports the x86-64 backend on
+Linux, but our design does not preclude other backends. We assume x86-64
+architecture in the sequel.
 
-Unlike the operational semantics, handlers with just exception patterns
-(exception handlers) are implemented differently from effect handlers. As
-mentioned in \S~\ref{sec:exn_handlers}, exceptions are pervasive in OCaml and
-are so cheap that they are used for local control flow. Hence, we retain the
-linked exception handler frame implementation of stock OCaml exception handlers
-in Multicore OCaml for performance backwards compatibility. This differs from
-other research languages with effect handlers~\cite{Hillerstrom20,Frank,Eff},
-which implement exceptions using effects (by ignoring the continuation argument
-in the handler).
+\subsection{Exceptions}
+
+The implementation follows the operational semantics, but has a few key
+representational differences. Unlike the operational semantics, handlers with
+just exception patterns (exception handlers) are implemented differently than
+effect handlers. As mentioned in \S~\ref{sec:exn_handlers}, exceptions are
+pervasive in OCaml and are so cheap that they are used for local control flow.
+Hence, we retain the linked exception handler frame implementation of stock
+OCaml exception handlers in Multicore OCaml for performance backwards
+compatibility. This differs from other research languages with effect
+handlers~\cite{Hillerstrom20,Frank,Eff}, which implement exceptions using
+effects (by ignoring the continuation argument in the handler).
 
 \subsection{Heap-allocated fibers}
 
@@ -1066,12 +1068,19 @@ In the operational semantics, the continuations may be resumed more than once.
 Captured continuations are copies of the original fibers and resuming the
 continuation copies the fibers and leaves the continuation as it is. In our use
 cases, continuations will be resumed at-most once, and copying fibers is
-unnecessary and inefficient. Instead, Multicore OCaml allocates fibers on the
-heap. Figure~\ref{fig:fiber} shows the layout of a fiber in Multicore OCaml.
+unnecessary and inefficient. Instead, Multicore OCaml optimises fibers for
+one-shot continuations.
 
-At the bottom of the stack, we have the |handler_info|, which contains the
-pointer to parent fiber, and the closures for the value, exception and effect
-cases. The closures are created by the translation described in
+Fibers are allocated on the heap using |malloc| and are |free|d when no longer
+necessary. We do not use a \emph{stack cache} of recently freed stacks for
+speeding up fiber allocation~\cite{Farvardin20}. In our experiments, we
+observed that directly using |mimalloc|~\cite{Leijen19} outperforms a stack
+cache.
+
+Figure~\ref{fig:fiber} shows the layout of a fiber in Multicore
+OCaml. At the bottom of the stack, we have the |handler_info|, which contains
+the pointer to parent fiber, and the closures for the value, exception and
+effect cases. The closures are created by the translation described in
 \S\ref{sec:static_semantics}; Multicore OCaml supports exception patterns in
 addition to effect patterns in the same handler. This is followed by a context
 block needed for DWARF and GC bookkeeping with callbacks. Then, there is a
@@ -1082,39 +1091,35 @@ stack is laid out such that when the computation in the handler returns,
 control goes to the value handler.
 
 We have the variable-sized area for the OCaml frames next. Since we want the
-handlers to be as small as possible, this area is initially 16 words in length.
-When the stack pointer |rsp| becomes less than the stack threshold (maintained in the
-|Caml_state| table), the stack is said to have overflown. On stack overflow, we
-copy the whole fiber to a new area with double the size. In Multicore OCaml, we
-introduce stack overflow checks into the function prologue of OCaml functions.
-We observed that most function calls are to leaf functions with small frame
-size. In order to take advantage of this fact, we introduce a small red zone at
-the top of the stack. The compiler elides the stack overflow check for leaf
-functions whose frame size is less than the size of the red zone.
+fibers to be as small as possible, this area is initially 16 words in length.
+When the stack pointer |rsp| becomes less than the stack threshold (maintained
+in the |Caml_state| table), the stack is said to have overflown. On stack
+overflow, we copy the whole fiber to a new area with double the size. In
+Multicore OCaml, we introduce stack overflow checks into the function prologue
+of OCaml functions. In our evaluation of real world OCaml programs, we observed
+that most function calls are to leaf functions with small frame size. In order
+to take advantage of this fact, we introduce a small red zone at the top of the
+stack. The compiler elides the stack overflow check for leaf functions whose
+frame size is less than the size of the red zone.
 
 Finally, we have the saved exception pointer, which points to the top-most
 exception frame, and the saved stack pointer, which points to the top of the
 stack. Switching between fibers only involves saving the exception and the
 stack pointer of the current stack and loading the same on the target stack.
 Since OCaml does not generate pointers into the stack, the two |fiber_info|
-fields are the only ones that need to be updated when fibers are moved. We
-allocate the space for the fiber using |malloc| and |free| it when no longer
-required. We do not use a \emph{stack cache} of recently freed stacks for
-speeding up fiber allocation~\cite{Farvardin20}. In our experiments, we
-observed that directly using |mimalloc|~\cite{Leijen19} outperforms a stack
-cache.
+fields are the only ones that need to be updated when fibers are moved.
 
 \subsection{External calls and callbacks}
 
 Since C functions do not have stack overflow checks, we have to execute the
 external calls in the system stack. Calling a C function from OCaml involves
-saving the stack pointer in the current fiber, saving the
-allocation pointer in the |Caml_state|, updating |rsp| to the top of system
-stack (maintained in |Caml_state|), and calling the C function. The actions are
-reversed when returning from the external call. For C
-functions that take arguments on the stack, the arguments must be copied to the
-C stack from the OCaml stack where they are laid out. In the vast majority of
-external calls, we perform only a few additional instructions over stock OCaml.
+saving the stack pointer in the current fiber, saving the allocation pointer in
+the |Caml_state|, updating |rsp| to the top of system stack (maintained in
+|Caml_state|), and calling the C function. The actions are reversed when
+returning from the external call. For C functions that take arguments on the
+stack, the arguments must be copied to the C stack from the OCaml stack where
+they are laid out. In the vast majority of external calls, we perform only a
+few additional instructions over stock OCaml.
 
 When we first enter OCaml from C, a new fiber is allocated for the main OCaml
 stack. Since callbacks may be frequent in OCaml programs that use finalisers,
@@ -1146,10 +1151,10 @@ first handler does not handle effect |E|, the effect is \emph{reperformed}
 (\S\ref{sec:static_semantics}) by appending the fiber |e| to the tail of
 continuation |ke|, set fiber |e|'s parent pointer to |NULL|, and evaluate the
 current continuation closure on the parent fiber |main| with |E| and |ke| as
-arguments, which handles |E| (position |p2|). Thus, continuations are captured
-without copying frames. Since every handler closure is evaluated until a
-machine one is found, the time taken to handle an effect is linear in the
-number of handlers. We observe that the handler stack is shallow in real
+arguments, which handles |E| (position |p2|). Thus, \emph{continuations are
+captured without copying frames}. Since every handler closure is evaluated
+until a matching one is found, the time taken to handle an effect is linear in
+the number of handlers. We observe that the handler stack is shallow in real
 programs.
 
 When the continuation is resumed, we overwrite the value of |ke| to |NULL| to
@@ -1160,7 +1165,6 @@ appropriate closure to either |continue| or |discontinue| the continuation
 (position |p3|). We perform standard tail-call optimisation so that resumptions
 at tail positions do not build up stack.
 
-\vspace{-2.5mm}
 \subsection{Stack unwinding}
 
 The challenge with DWARF stack unwinding is to make it aware of the
@@ -1275,7 +1279,7 @@ at reducing the code size, but further work is required to bring it closer to
 \begin{table}
 \caption{Micro benchmarks without effects. Each entry is the percentage
 	difference for Multicore OCaml over stock OCaml.}
-\vspace{-5mm}
+\vspace{-7mm}
 {
 \begin{tabular}{r c c c c c c c c c c}
 	& \rot{exnval} & \rot{exnraise} & \rot{extcall} & \rot{callback} & \rot{ack}
@@ -1285,7 +1289,7 @@ at reducing the code size, but further work is required to bring it closer to
 	\textbf{Instr} & +0.0 & +0.0 & +10 & +72 & +16
 								 & +24 & +16 & +14 & +17 \\ \hline
 \end{tabular}
-\vspace{-3mm}
+\vspace{-5mm}
 }
 \label{tab:micro_noeffect}
 \end{table}
@@ -1327,7 +1331,7 @@ benchmark performance.
 \end{tabular}
 }
 \label{tab:micro_noperform}
-	\vspace{-4mm}
+	\vspace{-5mm}
 \end{table}
 
 Next, we aim to quantify the overhead of setting up and tearing down effect
@@ -1374,8 +1378,8 @@ freeing the fiber. We measured the time taken to execute these sequences using
 executed 10 iterations of the code, with 3 warm-up runs. We observed that the
 sequences \texttt{a-b}, \texttt{b-c}, \texttt{c-d} and \texttt{d-e} took
 \textbf{48ns, 10ns, 13ns and 19ns}, respectively. For reference, the idle
-memory latency for the local NUMA node is 93.2ns as measured using the Intel
-MLC tool~\cite{mlc}.
+memory load latency for the local NUMA node is 93.2ns as measured using the
+Intel MLC tool~\cite{mlc}.
 
 \textbf{\textit{Generators.}} Generators allow data structures to be traversed on
 demand. Many languages including JavaScript and Python provide generators as a
@@ -1417,27 +1421,27 @@ threaded, the Go benchmark is run with \texttt{GOMAXPROCS=1}.
 \begin{figure}
 	\begin{minipage}{0.49\linewidth}
 		\centering
-		\includegraphics[width=\linewidth]{http-benchmarks/throughput.pdf}
+		\includegraphics[width=0.9\linewidth]{http-benchmarks/throughput.pdf}
 		\subcaption{Throughput}
 		\label{grf:throughput}
 	\end{minipage}
 	\begin{minipage}{0.49\linewidth}
-		\includegraphics[width=\linewidth]{http-benchmarks/latency.pdf}
+		\includegraphics[width=0.9\linewidth]{http-benchmarks/latency.pdf}
 		\subcaption{Tail latency}
 		\label{grf:latency}
 	\end{minipage}
 	\vspace{-3mm}
 	\caption{Web server performance.}
-	\vspace{-4mm}
+	\vspace{-5mm}
 \end{figure}
 
 The client workload was generated with \texttt{wrk2}~\cite{wrk2}. We maintain
 1k open connections and perform requests for a static web page at different
-rates, and record the request service rate and latency. The throughput and tail
-latency graphs are given in Figures~\ref{grf:throughput} and~\ref{grf:latency}.
-In all the versions, the throughput plateaus at around 30k requests per second.
-We measure the tail latencies at 2/3rd of this rate (20k requests per second)
-to simulate optimal load. We observe that both of the OCaml versions remain
+rates, and record the service rate and latency. The throughput and tail latency
+graphs are given in Figures~\ref{grf:throughput} and~\ref{grf:latency}. In all
+the versions, the throughput plateaus at around 30k requests per second. We
+measure the tail latencies at 2/3rd of this rate (20k requests per second) to
+simulate optimal load. We observe that both of the OCaml versions remain
 competitive with |go|, and |MC| performs best in terms of tail latency.
 
 Using effect handlers in the web server also helps with debugging the system as
@@ -1447,7 +1451,7 @@ feature to dump the backtrace of all the user-level threads in the web server.
 Such a feature is provided by Go~\cite{gopprof}, but not possible with OCaml
 concurrency libraries such as Async and Lwt which lack the notion of a thread.
 
-\vspace{-3mm}
+\vspace{-3.5mm}
 \section{Related Work}
 \label{sec:related}
 
