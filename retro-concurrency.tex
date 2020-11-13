@@ -1226,7 +1226,7 @@ captured continuation that |discontinue|s the continuation during finalisation
 and ignores the result:
 \begin{lstlisting}
 Gc.finalise (fun k ->
-  try ignore (discontinue k Unwind) | _ -> ()) k
+  try ignore (discontinue k Unwind) with _ -> ()) k
 \end{lstlisting}
 Multicore OCaml does not enforce this behaviour in order to avoid installing an
 effect handler every time a continuation is captured.
