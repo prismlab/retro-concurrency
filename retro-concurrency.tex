@@ -313,9 +313,10 @@ than exceptions. This makes it particularly challenging to implement the
 delimited continuations necessary for effect handlers without sacrificing the
 desirable properties of OCaml. One standard way of implementing continuations is
 to use continuation-passing style (CPS) in the compiler's intermediate
-representation (IR)~\cite{Leijen14}. If the compiler were to use CPS, then
-reifying continuations in the source language is relatively straight-forward.
-But OCaml does not use a CPS IR, and changing the OCaml compiler to utilise a CPS IR
+representation (IR)~\cite{Leijen14}. 
+%If the compiler were to use CPS, then
+%reifying continuations in the source language is relatively straight-forward.
+OCaml does not use a CPS IR, and changing the compiler to utilise a CPS IR
 would be an enormous undertaking that would affect the
 performance profile of existing OCaml applications due to increased memory allocations as
 continuation closures get allocated on the heap~\cite{Farvardin20}. Moreover,
@@ -390,10 +391,10 @@ In this work, we develop the compiler and runtime support for implementing
 efficient effect handlers for OCaml that satisfy these requirements.
 
 Our work is also timely. The WebAssembly~\cite{Hass17} community group is
-actively considering effect handlers as one of the mechanism for supporting
+considering effect handlers as one of the mechanisms for supporting
 concurrency, asynchronous I/O and generators~\cite{WasmProposal}. Project
-Loom~\cite{loom} is an OpenJDK project which adds virtual threads and delimited
-continuations to Java. Swift concurrency roadmap~\cite{swift} includes
+Loom~\cite{loom} is an OpenJDK project that adds virtual threads and delimited
+continuations to Java. The Swift roadmap~\cite{swift} includes
 direct-style asynchronous programming and structured concurrency as milestones.
 We believe that our design choices will inform similar choices to be made in the
 other industrial-strength languages.
