@@ -157,27 +157,21 @@
 \title{Retrofitting Effect Handlers onto OCaml}
 
 \begin{abstract}
-  Effect handlers have gained immense interest in the recent years as a means
+Effect handlers have been gathering momentum as a mechanism
 for modular programming with user-defined effects. The runtime semantics of
-effect handlers is particularly attractive as they allow advanced control flow
-mechanisms such as first-class continuations, generators, async/await,
-coroutines to be composably expressed. This paper presents a design, a
-full-fledged implementation and an evaluation of effect handlers for OCaml.
-OCaml is industrial-strength multi-paradigm programming language that tends to
-be widely used for systems programming, our implementation strives to maintain
-the existing performance profile and toolchain compatibility. Retrofitting
-effect handlers onto OCaml is challenging since OCaml does not have any
-non-local control flow mechanisms other than exceptions. Our implementation of
-effect handlers for OCaml imposes negligible overhead on code that does not use
-effect handlers, remains compatible with program analysis tools that inspect the
-stack and is efficient for code that makes use of effect handlers.
+effect handlers allow for control flow
+mechanisms such as first-class continuations, generators, async/await and coroutines to be composably expressed. We present a design and evaluate a
+full-fledged efficient implementation of effect handlers for OCaml, an industrial-strength multi-paradigm programming language. Our implementation strives to maintain the existing performance profile of conventional OCaml code, particularly in the domain of systems and toolchain programming. Retrofitting effect handlers onto OCaml is challenging since OCaml does currently not have any non-local control flow mechanisms other than exceptions. Our implementation of
+effect handlers for OCaml: {\em (i)} imposes negligible overhead on code that does not use
+effect handlers; {\em (ii)} remains compatible with program analysis tools that inspect the
+stack; and {\em (iii)} is efficient for new code that makes use of effect handlers.
 \end{abstract}
 
 \maketitle
 
 \section{Introduction}
 
-Effect Handlers~\cite{Plotkin09} provide a modular foundation for user-defined
+Effect handlers~\cite{Plotkin09} provide a modular foundation for user-defined
 effects. The key idea is to separate the definition of the effectful operations
 from their interpretations, which are defined by \emph{handlers} of the
 effects. For example,
@@ -198,25 +192,25 @@ enable new approaches to modular programming.
 
 \subsection{An effectful calculator}
 
-What makes effect handlers quite powerful is that they provide a structured
-form of delimited continuations~\cite{Danvy90}, which enables advanced
+Effect handlers provide a structured
+form of delimited continuations~\cite{Danvy90} that enables
 non-local control-flow mechanisms such as resumable exceptions, coroutines,
-generators and asynchronous I/O to be composably expressed. As an example,
-consider the task of handling division-by-zero case in a calculator
+generators and asynchronous I/O to be composably expressed. For example,
+consider the task of handling division-by-zero in a calculator
 application. Different calculators handle division-by-zero differently. In the
-iOS 13 Calculator App (|iOS|), division-by-zero returns |Error|. In the Google
-search calculator App (|gsearch|) |0/0| returns to |Error|, and for any other
-|n| not equal to |0|, |n/0| returns |Infinity| with the same sign as |n|. How
-can we capture these different behaviours without changing the evaluator?
+iOS 13 Calculator (|iOS|), |0/0| returns |Error|. In the Google
+search calculator (|gsearch|) |0/0| returns |Error|, but for
+|n!=0| the |n/0| returns |Infinity| with the same sign as |n|.
+How do we capture all these different behaviours without changing the evaluator?
 
 Common Lisp Conditions~\cite{Steele90} are an elegant way to solve this
 problem. Unlike exceptions where the library decides whether an error is fatal
-or not, conditions allow the client of the library to make that decision. If
-the error is non-fatal, Conditions provide a \emph{restart} mechanism to resume
+or not, conditions allow the client of the library to make that decision.
+Conditions provide a \emph{restart} mechanism for non-fatal errors to resume
 execution from the point where the condition was signalled. On
 division-by-zero, the calculator signals the handler and lets the handler
-decide the course of action based on the desired semantics. We can implement
-this mechanism using effect handlers as shown below:
+decide the course of action based on the desired semantics. We now implement
+this using effect handlers in OCaml syntax:
 
 \begin{lstlisting}[numbers=left]
 type sign = P | N
@@ -237,23 +231,22 @@ let rec eval e =
 let (/) n d = Div (Val (Z n), Val (Z d))
 \end{lstlisting}
 
-On line 4, we declare an effect |DivBy0| that is parameterised by an integer,
+Line 4 declares an effect |DivBy0| that is parameterised by an integer,
 which when performed returns the result of division-by-zero. If the denominator
-is 0, then we perform |DivBy0| effect with the numerator value (line 12) so that
-the context may decide the return value. We can get the |iOS| semantics by
-wrapping the evaluator with the following handler:
+is 0, then we perform the |DivBy0| effect with the numerator value (line 12) so that
+the context may decide the return value. We obtain the |iOS| semantics by
+wrapping the evaluator with this handler:
 \begin{lstlisting}
 let ios e = match eval e with
 | v -> v
 | effect (DivBy0 _) k -> continue k Error
 \end{lstlisting}
 If the evaluator returns a value, we simply return that. If the evaluator
-performs the |DivBy0| effect, we catch the effect in the effect case along with
+performs the |DivBy0| effect, we catch the effect in the pattern match along with
 the continuation |k| of the corresponding |perform| \emph{delimited} by this
-handler. In the case of |iOS|, we |continue| the suspended computation with
-|Error| value. Hence, the computation |ios(1/0)| returns |Error|. On the
-other hand, we can get the |gsearch| semantics by enclosing the evaluator in the
-following handler:
+handler. For |iOS|, we |continue| the suspended computation with an
+|Error| value and the computation |ios(1/0)| returns |Error|.
+We can get the |gsearch| semantics by enclosing the evaluator in this handler:
 \begin{lstlisting}
 let gsearch e = match eval e with
 | v -> v
@@ -262,7 +255,7 @@ let gsearch e = match eval e with
 		else if v > 0 then continue k (Inf P)
 		else continue k (Inf N)
 \end{lstlisting}
-The computation |gsearch(1/0)| returns positive infinity (|Inf P|).
+Executing |gsearch(1/0)| returns positive infinity (|Inf P|).
 
 \subsection{Asynchronous I/O}
 \label{sec:aio}
@@ -299,26 +292,26 @@ has been in continuous use for the past 25 years in large codebases including
 verification tools~\cite{everest,Coq}, mission critical software
 systems~\cite{astree} and latency sensitive networked
 applications~\cite{Madhavapeddy13}. OCaml is particularly favoured for its
-competitive yet predictable performance, with fast foreign-function interface
-(FFI) and excellent compatibility with program analysis tools such as debuggers
+competitive yet predictable performance, with a fast foreign-function interface
+(FFI). It has excellent compatibility with program analysis tools such as debuggers
 and profilers that utilise DWARF stack unwind tables~\cite{DWARF} to obtain a
 backtrace. Our primary motivation for adding effect handlers to OCaml is to
-support (1) highly concurrent applications such as web servers using a
-natural \emph{direct-style} as opposed to using callbacks and (2) efficient
+support: {\em (i)} highly concurrent applications such as web servers using a
+natural \emph{direct-style} as opposed to using callbacks; and {\em (ii)} efficient
 nested parallel programs in the vein of Cilk~\cite{Cilk}, OpenMP~\cite{OpenMP},
 X10~\cite{Charles05}, Intel TBB~\cite{IntelTBB}, and variants of Parallel
 ML~\cite{MaPLe, Fluet10, Sivaramakrishnan14}.
 
-OCaml, however, does not support any non-local control flow mechanisms other
+OCaml currently does not support any non-local control flow mechanisms other
 than exceptions. This makes it particularly challenging to implement the
 delimited continuations necessary for effect handlers without sacrificing the
 desirable properties of OCaml. One standard way of implementing continuations is
 to use continuation-passing style (CPS) in the compiler's intermediate
 representation (IR)~\cite{Leijen14}. If the compiler were to use CPS, then
 reifying continuations in the source language is relatively straight-forward.
-But OCaml does not use CPS IR, and changing the OCaml compiler to utilise CPS IR
-would be an enormous undertaking. Utilizing a CPS IR would also affect the
-performance profile of OCaml applications due to increased memory allocations as
+But OCaml does not use a CPS IR, and changing the OCaml compiler to utilise a CPS IR
+would be an enormous undertaking that would affect the
+performance profile of existing OCaml applications due to increased memory allocations as
 continuation closures get allocated on the heap~\cite{Farvardin20}. Moreover,
 with CPS, stack unwinding is meaningless and hence, we would lose compatibility
 with tools that inspect the program stack. Hence, we choose not to use CPS
@@ -667,7 +660,6 @@ remedy this, when such an effect bubbles up to the top-level, we discontinue the
 continuation with an |Unhandled| exception so that the exception handlers may
 run and clean up the resources.
 
-\vspace{-2mm}
 \section{Semantics}
 \label{sec:semantics}
 
@@ -1025,7 +1017,6 @@ other research languages with effect handlers~\cite{Hillerstrom20,Frank,Eff},
 which implement exceptions using effects (by ignoring the continuation argument
 in the handler).
 
-\vspace{-2mm}
 \subsection{Heap-allocated fibers}
 
 \begin{figure*}
@@ -1082,11 +1073,11 @@ At the bottom of the stack, we have the |handler_info|, which contains the
 pointer to parent fiber, and the closures for the value, exception and effect
 cases. The closures are created by the translation described in
 \S\ref{sec:static_semantics}; Multicore OCaml supports exception patterns in
-addition to effect patterns in the same handler. This is followed by a block to
-support DWARF unwinding, whose details we will return to later. Then, there is
-a top-level handler that invokes the exception handler |clos_hexn|
-after switching to the parent fiber. This is followed by the |pc| of the code
-that invokes the value handler |clos_hval| after switching to the parent stack. The
+addition to effect patterns in the same handler. This is followed by a context
+block needed for DWARF and GC bookkeeping with callbacks. Then, there is a
+top-level handler that invokes the exception handler |clos_hexn| after
+switching to the parent fiber. This is followed by the |pc| of the code that
+invokes the value handler |clos_hval| after switching to the parent stack. The
 stack is laid out such that when the computation in the handler returns,
 control goes to the value handler.
 
@@ -1137,7 +1128,6 @@ before calling and after returning from |c_to_ocaml| function, respectively.
 Thanks to the fiber representation, external calls and callbacks remain
 competitive with stock OCaml.
 
-\vspace{-2mm}
 \subsection{Effect handlers}
 \label{sec:effimpl}
 
@@ -1170,6 +1160,7 @@ appropriate closure to either |continue| or |discontinue| the continuation
 (position |p3|). We perform standard tail-call optimisation so that resumptions
 at tail positions do not build up stack.
 
+\vspace{-2.5mm}
 \subsection{Stack unwinding}
 
 The challenge with DWARF stack unwinding is to make it aware of the
@@ -1189,24 +1180,31 @@ traditionally the stack pointer before entering this function. Hence, on x86-64,
 where the return address is pushed on the stack on call, the return address is
 at |CFA - 8|.
 
-
 One challenge is to encode in DWARF directives the CFA when stacks are switched
 at effect handlers, callbacks and external calls. When starting to run on a new
 fiber, we insert DWARF bytecode to follow the |parent_fiber| pointer and
 dereference the |saved_sp| to get the CFA (|saved_sp + 8|). During callbacks
-into OCaml, we save the current system stack pointer in the |DWARF block| in
+into OCaml, we save the current system stack pointer in the |context block| in
 Figure~\ref{fig:fiber} to identify the CFA in the C stack. DWARF unwinding for
 external calls is implemented by following a link to the current OCaml stack
 pointer. With these changes, we get the same backtrace for the \texttt{meander}
 program from \S\ref{sec:unwind}, modulo runtime system functions due to effect
-handlers. We have utilized a DWARF verification tool~\cite{Bastian19} with
-extensions to handle PIE and additional DWARF primitives to flag possible errors
-in the hand written DWARF directives where we have altered the OCaml assembler
-to implement effects. In three places additional manual verification was
-required; two were where the stack is intentionally switched between fibers and
-one was where the return to the parent stack on child stack completion could not
-track stack resizes and intermediate effect handler frames.
+handlers.
 
+We have utilized a DWARF verification tool~\cite{Bastian19} with extensions to
+handle PIE and additional DWARF primitives to flag possible errors in the hand
+written DWARF directives where we have altered the OCaml assembler to implement
+effects. In three places additional manual verification was required; two were
+where the stack is intentionally switched between fibers and one was where the
+return to the parent stack on child stack completion could not track stack
+resizes and intermediate effect handler frames.
+
+Even with correct DWARF unwind information, using DWARF to record call stack
+information in |perf| only captures the call stack of the current fiber in
+Multicore OCaml. Since stack unwinding using DWARF is slow due to bytecode
+interpretation overhead, |perf| dumps the (user) call stack when
+sampled~\cite{Bastian19}. This only includes the frames from the current fiber.
+This is a limitation of |perf| and not of our stack layout.
 
 \subsection{Garbage collection}
 
@@ -1248,6 +1246,7 @@ core runs at 2.20GHz and has 32 KB of L1 data cache, 32 KB of L1 instruction
 cache and 1MB of L2 cache. The cores on a socket share a 19.25 MB L3 cache. The
 server has 64GB of main memory and runs Ubuntu 18.04.
 
+\vspace{-3mm}
 \subsection{No effects benchmarks}
 
 In this section, we measure the impact of the addition of effect handlers on
@@ -1313,6 +1312,7 @@ this. Callback performance is less important than external calls, which are far
 more numerous. As seen previously, these results however do not affect macro
 benchmark performance.
 
+\vspace{-3mm}
 \subsection{No perform benchmarks}
 
 \begin{table}
@@ -1354,6 +1354,7 @@ monad implementation due to optimisations to reduce the heap allocation of
 continuation frames. But Farvardin et al.~\cite{Farvardin20} show that CPS with
 optimisations is still slower than using the call stack.
 
+\vspace{-3mm}
 \subsection{Concurrent benchmarks}
 
 Next we look at benchmarks that utilize non-local control flow using effect
@@ -1400,17 +1401,18 @@ monad (|monad|) and Lwt, a widely used concurrency programming library for
 OCaml (|lwt|) versions. We observed that |MC| was the fastest, and |monad|
 (|lwt|) was 1.67$\times$ (4.29$\times$) slower than |MC|.
 
-\textbf{\textit{Web server.}} As one of our primary goals of adding effect handlers to
-OCaml is to support direct-style concurrency, we implement a full-fledged
-HTTP/1.1 web server using effect handlers (|MC|). We use effect handlers to
-implement a user-level threading library, which spawns a thread per request. We
-use \texttt{httpaf} library~\cite{httpaf} for HTTP handling, and
+\textbf{\textit{Web server.}} As one of our primary goals of adding effect
+handlers to OCaml is to support direct-style concurrency, we implement a
+full-fledged HTTP/1.1 web server using effect handlers (|MC|). We use effect
+handlers to implement a user-level threading library, which spawns a thread per
+request. We use \texttt{httpaf} library~\cite{httpaf} for HTTP handling, and
 \texttt{libev}~\cite{libev} for the eventloop. We compare our implementation
 against an Lwt version (|lwt|) which also uses \texttt{httpaf} and
 \texttt{libev}. Unlike using effect handlers, Lwt version is written in monadic
 style, and does not have a notion of thread per request. For comparison, we
-also include a Go version (|go|) that uses \texttt{net/http}~\cite{nethttp}
-package.
+also include a Go 1.13 version (|go|) that uses
+\texttt{net/http}~\cite{nethttp} package. As both the OCaml versions are single
+threaded, the Go benchmark is run with \texttt{GOMAXPROCS=1}.
 
 \begin{figure}
 	\begin{minipage}{0.49\linewidth}
@@ -1445,6 +1447,7 @@ feature to dump the backtrace of all the user-level threads in the web server.
 Such a feature is provided by Go~\cite{gopprof}, but not possible with OCaml
 concurrency libraries such as Async and Lwt which lack the notion of a thread.
 
+\vspace{-3mm}
 \section{Related Work}
 \label{sec:related}
 
@@ -1522,16 +1525,13 @@ handlers and asynchronous exceptions. This is orthogonal to the contributions
 of this paper. Our focus is the compiler and runtime system support for
 implementing effect handlers.
 
-
 \section{Conclusions}
 \label{sec:conc}
 
 We presented the motivation, design and implementation of effect handlers
 specifically aimed at retrofitting them onto OCaml with tool compatibility,
 negligible overheads for existing OCaml programs and good performance for those
-that use effect handlers. Our evaluation shows that this is indeed the case. We
-plan to upstream the compiler and runtime support for effect handlers followed
-by an effect system.
+that use effect handlers. Our evaluation shows that this is indeed the case.
 
 \clearpage
 
@@ -1557,6 +1557,37 @@ continuations, they may return \emph{more than once}, leading to errors such as
 double-freeing malloced memory. Since our goal is to retrofit effect handlers
 onto OCaml, we relegate continuation cloning to the OCaml |Obj| module, which
 contains unsafe features.
+
+In addition, multi-shot continuations currently are not safe under compiler
+optimisations. For example consider the following program:
+
+\begin{minipage}{\linewidth}
+\begin{lstlisting}
+effect E : unit
+let foo () = perform E
+let bar f =
+  let r = ref 0 in
+	f ();
+  r := !r + 1;
+  !r
+;;
+match bar foo with
+| v -> v
+| effect E k ->
+    let k' = Obj.clone_continuation k in
+    let r1 = continue k () in
+    let r2 = continue k' () in
+    Printf.printf "%d %d\n" r1 r2;
+		0
+\end{lstlisting}
+\end{minipage}
+
+This program is expected to print |1 2|. However, OCaml optimizes |bar| by
+converting the heap allocation of |r| to a stack allocation. As a result, each
+continuation ends up with a copy of |r|, and the program prints |1 1|. Thus, in
+the presence of multi-shot continuations, compiler optimisations need to be
+made aware of the effects of a function. We leave proper support for multi-shot
+continuations to future work.
 
 \subsection*{No effect macro benchmarks}
 

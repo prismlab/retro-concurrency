@@ -16,13 +16,13 @@ let run f = match f () with
 | v -> v
 | effect E k ->
     let k' = Obj.clone_continuation k in
-    let _ = Printf.printf "%d\n" (continue k ()) in
-    let _ = Printf.printf "%d\n" (continue k' ()) in
+    let r1 = continue k () in
+    let r2 = continue k' () in
+    Printf.printf "%d %d\n" r1 r2;
     0
 
 let _ = print_endline "----Expected----"
-let _ = print_endline "1"
-let _ = print_endline "2"
+let _ = print_endline "1 2"
 let _ = print_endline "----Atomic.ref----"
 let _ = run foo
 let _ = print_endline "----ref----"
