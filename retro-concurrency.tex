@@ -157,14 +157,20 @@
 \title{Retrofitting Effect Handlers onto OCaml}
 
 \begin{abstract}
-Effect handlers have been gathering momentum as a mechanism
-for modular programming with user-defined effects. The runtime semantics of
-effect handlers allow for control flow
-mechanisms such as first-class continuations, generators, async/await and coroutines to be composably expressed. We present a design and evaluate a
-full-fledged efficient implementation of effect handlers for OCaml, an industrial-strength multi-paradigm programming language. Our implementation strives to maintain the existing performance profile of conventional OCaml code, particularly in the domain of systems and toolchain programming. Retrofitting effect handlers onto OCaml is challenging since OCaml does currently not have any non-local control flow mechanisms other than exceptions. Our implementation of
-effect handlers for OCaml: {\em (i)} imposes negligible overhead on code that does not use
-effect handlers; {\em (ii)} remains compatible with program analysis tools that inspect the
-stack; and {\em (iii)} is efficient for new code that makes use of effect handlers.
+Effect handlers have been gathering momentum as a mechanism for modular
+	programming with user-defined effects. Effect handlers allow for non-local
+	control flow mechanisms such as generators, async/await, lightweight threads
+	and coroutines to be composably expressed. We present a design and evaluate a
+	full-fledged efficient implementation of effect handlers for OCaml, an
+	industrial-strength multi-paradigm programming language. Our implementation
+	strives to maintain the backwards compatibility and existing performance
+	profile of conventional OCaml code. Retrofitting effect handlers onto OCaml
+	is challenging since OCaml does currently not have any non-local control flow
+	mechanisms other than exceptions. Our implementation of effect handlers for
+	OCaml: {\em (i)} imposes negligible overhead on code that does not use effect
+	handlers; {\em (ii)} remains compatible with program analysis tools that
+	inspect the stack; and {\em (iii)} is efficient for new code that makes use
+	of effect handlers.
 \end{abstract}
 
 \maketitle
