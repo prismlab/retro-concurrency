@@ -377,8 +377,8 @@ The need to host millions of continuations at the same time rules out the use
 of a large contiguous stack space as in C for continuations. Instead, we resort
 to using small initial stacks and growing the stacks on demand. As a result,
 OCaml functions, irrespective of whether they use effect handlers, need to
-perform stack overflow checks and external C functions, which do not have stack
-overflow checks, must be performed on a separate system stack. Additionally, we
+perform stack overflow checks and external C functions (which do not have stack
+overflow checks) must be performed on a separate system stack. Additionally, we
 must generate DWARF stack unwind tables for stacks that may be non-contiguous.
 In this work, we develop the compiler and runtime support for implementing
 efficient effect handlers for OCaml that satisfy these requirements.
