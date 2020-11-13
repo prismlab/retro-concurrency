@@ -336,7 +336,7 @@ requirements:
 \if{0}
 \begin{enumerate}[label=R\arabic*]
   \item \textbf{Backwards compatibility} A well-behaved OCaml program does not
-    break under OCaml extended with effect handlers. OCaml code that does not
+    break under an OCaml extended with effect handlers. OCaml code that does not
     use effect handlers will pay negligible performance cost.
   \item \textbf{Tool compatibility} OCaml with effect handlers produce
     well-formed backtraces, and remains compatible with program analysis tools
@@ -355,17 +355,17 @@ requirements:
 \fi
 
 \noindent \textbf{R1: Backwards compatibility.} A well-behaved OCaml program does
-not break under OCaml extended with effect handlers. OCaml code that does not
-use effect handlers will pay negligible performance cost.
+not break under an OCaml that is extended with effect handlers. OCaml code that does not
+use effect handlers will pay negligible performance and memory cost.
 
-\noindent \textbf{R2: Tool compatibility.} OCaml with effect handlers produce
-well-formed backtraces, and remains compatible with program analysis tools such
-as debuggers and profilers that inspect the stack using DWARF stack unwind
+\noindent \textbf{R2: Tool compatibility.} OCaml programs with effect handlers produce
+well-formed backtraces and remain compatible with program analysis tools such
+as debuggers and profilers that inspect the stack using DWARF unwind
 tables.
 
-\noindent \textbf{R3: Effect handler efficiency.} In order to support
-highly-concurrent applications, the program must accommodate millions of
-continuations at the same time. Installing effect handlers, capturing and
+\noindent \textbf{R3: Effect handler efficiency.} The program must accommodate millions of
+continuations at the same time to support
+highly-concurrent applications. Installing effect handlers, capturing and
 resuming continuations must be fast.
 
 \noindent \textbf{R4: Forwards compatibility.} While this work does not present an
