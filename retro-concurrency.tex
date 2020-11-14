@@ -313,7 +313,7 @@ than exceptions. This makes it particularly challenging to implement the
 delimited continuations necessary for effect handlers without sacrificing the
 desirable properties of OCaml. One standard way of implementing continuations is
 to use continuation-passing style (CPS) in the compiler's intermediate
-representation (IR)~\cite{Leijen14}. 
+representation (IR)~\cite{Leijen14}.
 %If the compiler were to use CPS, then
 %reifying continuations in the source language is relatively straight-forward.
 OCaml does not use a CPS IR, and changing the compiler to utilise a CPS IR
@@ -669,6 +669,8 @@ run and clean up the resources.
 
 \section{Semantics}
 \label{sec:semantics}
+
+In this section, we formalise the effect handler design for Multicore OCaml.
 
 \subsection{Static semantics}
 \label{sec:static_semantics}
