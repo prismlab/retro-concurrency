@@ -1224,7 +1224,7 @@ This is a limitation of |perf| and not of our stack layout.
 Recall that OCaml programs are written with the expectation that function calls
 return exactly once (\S\ref{sec:refine}). Consider the scenario when a
 continuation is neither continued nor discontinued. Since fibers are
-|malloc|ed and are |free|d when the computation being handled returns a value
+|malloc|ed, and are |free|d when the computation being handled returns a value
 or raises an exception, not resuming continuations leaks memory. In addition,
 unresumed continuations may also leak other resource such as open file
 descriptors.
@@ -1237,8 +1237,8 @@ and ignores the result:
 Gc.finalise (fun k ->
   try ignore (discontinue k Unwind) with _ -> ()) k
 \end{lstlisting}
-Multicore OCaml does not enforce this behaviour in order to avoid installing an
-effect handler every time a continuation is captured.
+However, Multicore OCaml does not enforce this behaviour in order to avoid
+installing a finaliser every time a continuation is captured.
 
 For stack walking during GC, the only change necessary was to make the runtime
 aware of fiber layout and how to follow the parent pointers. The stack map
