@@ -163,14 +163,14 @@ Effect handlers have been gathering momentum as a mechanism for modular
 	and coroutines to be composably expressed. We present a design and evaluate a
 	full-fledged efficient implementation of effect handlers for OCaml, an
 	industrial-strength multi-paradigm programming language. Our implementation
-	strives to maintain the backwards compatibility and existing performance
-	profile of conventional OCaml code. Retrofitting effect handlers onto OCaml
-	is challenging since OCaml does currently not have any non-local control flow
-	mechanisms other than exceptions. Our implementation of effect handlers for
-	OCaml: {\em (i)} imposes negligible overhead on code that does not use effect
-	handlers; {\em (ii)} remains compatible with program analysis tools that
-	inspect the stack; and {\em (iii)} is efficient for new code that makes use
-	of effect handlers.
+	strives to maintain the backwards compatibility and performance profile of
+	existing OCaml code. Retrofitting effect handlers onto OCaml is challenging
+	since OCaml does not currently have any non-local control flow mechanisms
+	other than exceptions. Our implementation of effect handlers for OCaml: {\em
+	(i)} imposes negligible overhead on code that does not use effect handlers;
+	{\em (ii)} remains compatible with program analysis tools that inspect the
+	stack; and {\em (iii)} is efficient for new code that makes use of effect
+	handlers.
 \end{abstract}
 
 \maketitle
@@ -179,8 +179,8 @@ Effect handlers have been gathering momentum as a mechanism for modular
 
 Effect handlers~\cite{Plotkin09} provide a modular foundation for user-defined
 effects. The key idea is to separate the definition of the effectful operations
-from their interpretations, which are defined by \emph{handlers} of the
-effects. For example,
+from their interpretations, which are given by \emph{handlers} of the effects.
+For example,
 %
 \begin{lstlisting}
 effect Read : in_channel -> string
@@ -198,16 +198,15 @@ enable new approaches to modular programming.
 
 \subsection{An effectful calculator}
 
-Effect handlers provide a structured
-form of delimited continuations~\cite{Danvy90} that enables
-non-local control-flow mechanisms such as resumable exceptions, coroutines,
-generators and asynchronous I/O to be composably expressed. For example,
-consider the task of handling division-by-zero in a calculator
-application. Different calculators handle division-by-zero differently. In the
-iOS 13 Calculator (|iOS|), |0/0| returns |Error|. In the Google
-search calculator (|gsearch|) |0/0| returns |Error|, but for
-|n!=0| the |n/0| returns |Infinity| with the same sign as |n|.
-How do we capture all these different behaviours without changing the evaluator?
+Effect handlers provide a structured form of delimited
+continuations~\cite{Danvy90} that enables non-local control-flow mechanisms
+such as resumable exceptions, coroutines, generators and asynchronous I/O to be
+composably expressed. For example, consider the task of handling
+division-by-zero in a calculator application. Different calculators handle
+division-by-zero differently. In the iOS 13 Calculator (|iOS|), |0/0| returns
+|Error|. In the Google search calculator (|gsearch|) |0/0| returns |Error|, but
+for |n!=0| the |n/0| returns |Infinity| with the same sign as |n|. How do we
+capture all these different behaviours without changing the evaluator?
 
 Common Lisp Conditions~\cite{Steele90} are an elegant way to solve this
 problem. Unlike exceptions where the library decides whether an error is fatal
@@ -237,15 +236,15 @@ let rec eval e =
 let (/) n d = Div (Val (Z n), Val (Z d))
 \end{lstlisting}
 
-Line 4 declares an effect |DivBy0| that is parameterised by an integer,
-which when performed returns the result of division-by-zero. If the denominator
-is 0, then we perform the |DivBy0| effect with the numerator value (line 12) so that
-the context may decide the return value. We obtain the |iOS| semantics by
-wrapping the evaluator with this handler:
+Line 4 declares an effect |DivBy0| that is parameterised by an integer, which
+when performed returns the result of division-by-zero. If the denominator of
+the division is 0, then we perform the |DivBy0| effect with the numerator value
+(line 12) so that the context may decide the return value. We obtain the |iOS|
+semantics by wrapping the evaluator with this handler:
 \begin{lstlisting}
 let ios e = match eval e with
-| v -> v
-| effect (DivBy0 _) k -> continue k Error
+| v -> v (* value case *)
+| effect (DivBy0 _) k -> continue k Error (* effect case *)
 \end{lstlisting}
 If the evaluator returns a value, we simply return that. If the evaluator
 performs the |DivBy0| effect, we catch the effect in the pattern match along with
@@ -384,7 +383,7 @@ The need to host millions of continuations at the same time rules out the use
 of a large contiguous stack space as in C for continuations. Instead, we resort
 to using small initial stacks and growing the stacks on demand. As a result,
 OCaml functions, irrespective of whether they use effect handlers, need to
-perform stack overflow checks and external C functions (which do not have stack
+perform stack overflow checks, and external C functions (which do not have stack
 overflow checks) must be performed on a separate system stack. Additionally, we
 must generate DWARF stack unwind tables for stacks that may be non-contiguous.
 In this work, we develop the compiler and runtime support for implementing
@@ -565,7 +564,7 @@ and jumps to the |pc| of the handler.
 % Note |caml_call_ocaml| is |caml_start_program| in ocaml-multicore source
 
 In order to forward exceptions across C frames, the C stub function
-|caml_call_ocaml|, pushes an exception handler frame that forwards the
+|caml_call_ocaml|, pushes an exception handler frame that either forwards the
 exception to the innermost OCaml exception handler (|raise_exn_c| in
 Figure~\ref{fig:stock_stack}) or prints a fatal error (|fatal_uncaught|) if
 there are no enclosing handlers. Exceptions are so cheap in OCaml that it is
@@ -578,7 +577,7 @@ OCaml generates \emph{stack maps} in order to accurately identify roots on the
 stack for assisting the GC. For every call point in the program, the OCaml
 compiler emits the size of the frame and the set of all live registers in the
 frame containing pointers into the heap. During a GC, the OCaml stack is walked
-and the roots are marked skipping over the C frames.
+and the roots are marked, skipping over the C frames.
 
 OCaml also generates precise DWARF unwind information for OCaml, thanks to
 which debuggers such as |gdb| and |lldb|, and profilers such as |perf| work
@@ -629,14 +628,14 @@ let rec copy ic oc =
   with End_of_file -> close_in ic; close_out oc
 	   | e -> close_in ic; close_out oc; raise e
 \end{lstlisting}
-The function |input_line| raises an |End_of_file| exception on reaching the end of
-input, which is handled by the exception handler which closes the channels. The
-|close_*| functions do nothing if the channel is already closed. The code is
-written in a defensive style to handle other exceptional cases such as the
+The function |input_line| raises an |End_of_file| exception on reaching the end
+of input, which is handled by the exception handler which closes the channels.
+The |close_*| functions do nothing if the channel is already closed. The code
+is written in a defensive style to handle other exceptional cases such as the
 channels being closed externally. Both |input_line| and |output_string| raise
-|Sys_error| exception if the channel is closed. In this case, the channels are
-closed and the exception is reraised to communicate the exceptional behaviour
-to the caller.
+|Sys_error| exception if the channel is closed. In this case, the catch-all
+exception handler closes the channels and reraises the exception to communicate
+the exceptional behaviour to the caller.
 
 One of our goals (\S\ref{sec:req}) is to make this code transparently
 asynchronous. We can define effects for performing the I/O operations and wrap
@@ -658,7 +657,7 @@ reaching the end of file, we would discontinue the continuation of the |copy|
 function with |discontinue k End_of_file|, which raises the exception at
 |input_line|, and the open channels will be closed.
 
-Programs that use resources such as channels are usually written defensively
+OCaml programs that use resources such as channels are usually written defensively
 with the assumption that calling a function will return \emph{exactly once},
 either normally or exceptionally. Since effect handlers in Multicore OCaml do
 not ensure that all the effects are handled, if the function performs an effect
@@ -679,10 +678,11 @@ As mentioned earlier, effect handlers in Multicore OCaml do not guarantee
 effect safety, but only guarantee type safety. Programs without matching effect
 handlers are well-typed Multicore OCaml programs. As a result, our static
 semantics is simpler than languages that ensure effect
-safety~\cite{Hillerstrom20,Leijen14,Effekt,Frank,Biernacki19}. This is important for
-backwards compatibility as our goal is to retrofit effect handlers to a
-language with large legacy codebases. Programs that do not use effects remain
-well-typed, and those that do compose well with those that don't.
+safety~\cite{Eff,Hillerstrom20,Leijen14,Effekt,Frank,Biernacki19}. This is
+important for backwards compatibility as our goal is to retrofit effect
+handlers to a language with large legacy codebases. Programs that do not use
+effects remain well-typed, and those that do compose well with those that
+don't.
 
 The static semantics of effect handlers in OCaml is captured succinctly by its
 API:
@@ -729,7 +729,7 @@ match_with (fun () -> e)
 \end{lstlisting}
 For the sake of exposition, we introduce a |('a,'b) handler| type. This handler
 handles a |'a comp| that returns a |'a| value, and itself returns a |'b| value.
-The handler has a return case of type |'a -> 'b|. The effect case |effc|
+The handler has a return case |retc| of type |'a -> 'b|. The effect case |effc|
 handles effects of type |'c eff| with |('c,'b) continuation| and returns a
 value of type |'b|. The last case in |effc| \emph{reperforms} any unmatched
 effect to the outer handler and returns the value and exceptions back to the
@@ -824,13 +824,13 @@ primitive to avoid executing code on the resumption path.
       \textsc{AdminC}   & (\term,\env,\fl,\ostack) & \cstep
                         & \configa{\term'}{\env'}{\cstacka{\fl'}{\ostack}}
                         & \text{if } (\term,\env,\fl) \rightsquigarrow (\term',\env',\fl') \\
-      \textsc{RetToO}   & (v,\env,[],\ostacka{k}{\cstack}) & \cstep
-                        & \configa{v}{\env}{\ostacka{k}{\cstack}} \\
       \textsc{CallC}    & (v, \_, \cclos{x}{e}{\env}::\fl, \ostack) & \cstep
                         & \configa{e}{\envext{\env}{x}{v}}{\cstacka{\fl}{\ostack}} \\
       \textsc{Callback} & (v, \_, \oclos{x}{e}{\env}::\fl, \ostack) & \cstep
                         & \configa{e}{\envext{\env}{x}{v}}{\ostacka{k}{\cstacka{\fl}{\ostack}}}
                         & \text{if } k = [[],(\{\caseval{x}{x}\},\emptyset)] \\
+      \textsc{RetToO}   & (v,\env,[],\ostacka{k}{\cstack}) & \cstep
+                        & \configa{v}{\env}{\ostacka{k}{\cstack}} \\
       \textsc{ExnFwdO}  & (v, \env, \ffun{\exnval{l}}::\_, \ostacka{(\fl,\hc) \kcons k}{\cstack}) & \cstep
                         & \configa{v}{\env}{\ostacka{(\ffun{\exnval{l}}::\fl,\hc) \kcons k}{\cstack}}
     \end{array}
@@ -845,24 +845,29 @@ primitive to avoid executing code on the resumption path.
       \textsc{AdminO}   & (\term,\env,(\fl,\hc) \kcons k,\cstack) & \ostep
                         & \configa{\term'}{\env'}{\ostacka{(\fl',\hc) \kcons k}{\cstack}}
                         & \text{if } (\term,\env,\fl) \rightsquigarrow (\term',\env',\fl') \\
+      \textsc{CallO}    & (v, \_, (\oclos{x}{e}{\env}::\fl,\hc) \kcons k, \cstack) & \ostep
+                        & \configa{e}{\envext{\env}{x}{v}}{\ostacka{(\fl,\hc) \kcons k}{\cstack}} \\
+      \textsc{ExtCall}  & (v, \_, (\cclos{x}{e}{\env}::\fl,\hc) \kcons k, \cstack) & \ostep
+                        & \configa{e}{\envext{\env}{x}{v}}{\cstacka{[]}{\ostacka{(\fl,\hc) \kcons k}{\cstack}}} \\
       \textsc{RetToC}   & (v, \_, [([],(h,\emptyset))], \cstack) & \ostep
                         & \configa{v}{\env}{\cstack}
                         & \text{if } h = \{\caseval{x}{x}\} \\
       \textsc{RetFib} & (v, \_, ([],(h,\env)) \kcons k, \cstack) & \ostep
                         & \configa{e}{\envext{\env}{x}{v}}{\ostacka{k}{\cstack}}
                         & \text{if } \{\caseval{x}{e}\} \in h \\
-      \textsc{CallO}    & (v, \_, (\oclos{x}{e}{\env}::\fl,\hc) \kcons k, \cstack) & \ostep
-                        & \configa{e}{\envext{\env}{x}{v}}{\ostacka{(\fl,\hc) \kcons k}{\cstack}} \\
-      \textsc{ExtCall}  & (v, \_, (\cclos{x}{e}{\env}::\fl,\hc) \kcons k, \cstack) & \ostep
-                        & \configa{e}{\envext{\env}{x}{v}}{\cstacka{[]}{\ostacka{(\fl,\hc) \kcons k}{\cstack}}} \\
-      \textsc{Resume}   & (v, \_, (\ffun{k}::\ffun{\oclos{x}{e}{\env}}::\fl,\hc) \kcons k, \cstack) & \ostep
-                        & \configa{e}{\envext{\env}{x}{v}}{\ostacka{k ~@~ ((\fl,\hc) \kcons k')}{\cstack}} \\
+
       \textsc{Handle}   & (\handle{e}{h}, \env, k, \cstack) & \ostep
                         & \configa{e}{\env}{\ostacka{([],(h,\env)) \kcons k}{\cstack}} \\
-      \textsc{EffUnHn}  & (v, \_, [\ffun{\effval{l}{k}}::\fl,(h,\env)], \cstack) & \ostep
-                        & \configa{e}{\emptyset}{\ostacka{k ~@~ [(\fl,(h,\env))]}{\cstack}}
-                        & \text{if } \{\caseeff{l}{\_}{\_}{\_}\} \notin h \\
-                  & & & & \text{and } {e = \throw{\textsf{unhandled}}{0}} \\
+      \textsc{ExHn}     & (v, \_, (\ffun{\exnval{l}}::\_,(h,\env)) \kcons k', \cstack) & \ostep
+                        & \configa{e}{\envext{\env}{x}{v}}{\ostacka{k'}{\cstack}}
+                        & \text{if } \{\caseexn{l}{x}{e}\} \in h \\
+      \textsc{ExFwdC}   & (v, \env, [\ffun{\exnval{l}}::\_,(h,\_)], \cstacka{\fl'}{\ostack}) & \ostep
+                        & \configa{v}{\env}{\cstacka{\ffun{\exnval{l}}::\fl'}{\ostack}}
+                        & \text{if } \{\caseexn{l}{\_}{\_}\} \notin h \\
+      \textsc{ExFwdFib} & (v, \env, (\ffun{\exnval{l}}::\_,(h,\_)) \kcons (\fl',\hc') \kcons k', \cstack) & \ostep
+                        & \configa{v}{\env}{\ostacka{(\ffun{\exnval{l}}::\fl',\hc') \kcons k'}{\cstack}}
+                        & \text{if } \{\caseexn{l}{\_}{\_}\} \notin h \\
+
       \textsc{EffHn}    & (v, \_, (\ffun{\effval{l}{k}}::\fl,(h,\env)) \kcons k', \cstack) & \ostep
                         & \configa{e}{\env[r \mapsto k''][x \mapsto v]}{\ostacka{k'}{\cstack}}
                         & \text{if } \{\caseeff{l}{x}{r}{e}\} \in h \\
@@ -871,15 +876,13 @@ primitive to avoid executing code on the resumption path.
                         & \configa{v}{\env'}{\ostacka{(\ffun{\effval{l}{k''}}::\fl',\hc') \kcons k'}{\cstack}}
                         & \text{if } \{\caseeff{l}{\_}{\_}{\_}\} \notin h \\
                   & & & & \text{and } k'' = k ~@~ [(\fl,(h,\env))] \\
-      \textsc{ExFwdC}   & (v, \env, [\ffun{\exnval{l}}::\_,(h,\_)], \cstacka{\fl'}{\ostack}) & \ostep
-                        & \configa{v}{\env}{\cstacka{\ffun{\exnval{l}}::\fl'}{\ostack}}
-                        & \text{if } \{\caseexn{l}{\_}{\_}\} \notin h \\
-      \textsc{ExHn}     & (v, \_, (\ffun{\exnval{l}}::\_,(h,\env)) \kcons k', \cstack) & \ostep
-                        & \configa{e}{\envext{\env}{x}{v}}{\ostacka{k'}{\cstack}}
-                        & \text{if } \{\caseexn{l}{x}{e}\} \in h \\
-      \textsc{ExFwdFib} & (v, \env, (\ffun{\exnval{l}}::\_,(h,\_)) \kcons (\fl',\hc') \kcons k', \cstack) & \ostep
-                        & \configa{v}{\env}{\ostacka{(\ffun{\exnval{l}}::\fl',\hc') \kcons k'}{\cstack}}
-                        & \text{if } \{\caseexn{l}{\_}{\_}\} \notin h \\
+
+      \textsc{EffUnHn}  & (v, \_, [\ffun{\effval{l}{k}}::\fl,(h,\env)], \cstack) & \ostep
+                        & \configa{e}{\emptyset}{\ostacka{k ~@~ [(\fl,(h,\env))]}{\cstack}}
+                        & \text{if } \{\caseeff{l}{\_}{\_}{\_}\} \notin h \\
+                  & & & & \text{and } {e = \throw{\textsf{unhandled}}{0}} \\
+      \textsc{Resume}   & (v, \_, (\ffun{k}::\ffun{\oclos{x}{e}{\env}}::\fl,\hc) \kcons k', \cstack) & \ostep
+                        & \configa{e}{\envext{\env}{x}{v}}{\ostacka{k ~@~ ((\fl,\hc) \kcons k')}{\cstack}} \\
     \end{array}
   \end{smathpar}
   \subcaption{OCaml Reductions -- $(\term, \env, k, \cstack) \ostep \config$.}
@@ -912,21 +915,21 @@ alternating sequence of OCaml and C stack segments. The program state is
 captured as configuration $\config \coloneqq \configa{\tau}{\env}{\stack}$ with
 the current term $\tau$ under evaluation, its environment $\env$ and the
 current stack $\stack$. The term is either an expression $e$ or a value $v$.
-The value are integer constants $n$, continuations $k$, closure
-$\clos{x}{e}{\env}$, effect being performed ($\effval{l}{k}$) and exception
+The values are integer constants $n$, continuations $k$, closures
+$\clos{x}{e}{\env}$, effects being performed ($\effval{l}{k}$) and exceptions
 being raised ($\exnval{l}$). The environment is a map from variables to values.
 
 The stack $\stack$ is either a C stack ($\cstack$) or an OCaml stack
 ($\ostack$). Every C stack $\cstacka{\fl}{\ostack}$ consists of a list of
 frames $\fl$, and the OCaml stack $\ostack$ under it. Every OCaml stack is
-either empty $\ostackemp$ or non-empty $\ostacka{k}{\cstack}$ with the C stack
-$\cstack$ under it. Thus, the program stack is an alternating sequence of C and
-OCaml stacks terminating with an empty OCaml stack $\ostackemp$. The frame list
-$\fl$ is composed of individual frames $r$, which is one of an argument frame
-$\farg{e}{\env}$ with the expression $e$ at the argument position of an
-application with its environment $\env$, a function frame $\ffun{v}$ with the
-value $v$ at the function position of an application, and frames for evaluating
-the arguments of an arithmetic expression.
+either empty $\ostackemp$ or non-empty $\ostacka{k}{\cstack}$ with the current
+continuation $k$ and the C stack $\cstack$ under it. Thus, the program stack is
+an alternating sequence of C and OCaml stacks terminating with an empty OCaml
+stack $\ostackemp$. The frame list $\fl$ is composed of individual frames $r$,
+which is one of an argument frame $\farg{e}{\env}$ with the expression $e$ at
+the argument position of an application with its environment $\env$, a function
+frame $\ffun{v}$ with the value $v$ at the function position of an application,
+and frames for evaluating the arguments of an arithmetic expression.
 
 Continuations $k$ are either empty $[]$ or non-empty sequence of \emph{fibers}.
 A fiber $\fiber \coloneqq (\fl,\hc)$ is a list of frames $\fl$ and a handler
@@ -961,15 +964,16 @@ the enclosing OCaml stack. \textsc{ExnFwdO} forwards a raised exception to the
 enclosing OCaml stack, unwinding the rest of the frames. This captures the
 semantics of raising OCaml exceptions from C.
 
-\textbf{\textit{OCaml reductions.}} In OCaml (Figure~\ref{sem:ostep}), reductions
-always occur on the top-most fiber in the current stack. \textsc{AdminO}
-performs administrative reductions. \textsc{CallO} evaluates an OCaml function
-on the current stack. \textsc{ExtCall} captures the behaviour of external
-calls, which are evaluated on an empty C stack. \textsc{RetToC} returns a value
-to the enclosing C stack. In this case, we have exactly one fiber on the stack,
-and this was created in the rule \textsc{Callback}, whose handler has identity
-return case alone and the environment is empty. \textsc{RetFib} returns value
-from a fiber to the previous one, evaluating the body of the return case.
+\textbf{\textit{OCaml reductions.}} In OCaml (Figure~\ref{sem:ostep}),
+reductions always occur on the top-most fiber in the current stack.
+\textsc{AdminO} performs administrative reductions. \textsc{CallO} evaluates an
+OCaml function on the current stack. \textsc{ExtCall} captures the behaviour of
+external calls, which are evaluated on an empty C stack with the current OCaml
+stack as its tail. \textsc{RetToC} returns a value to the enclosing C stack. In
+this case, we have exactly one fiber on the stack, and this was created in the
+rule \textsc{Callback}, whose handler has identity return case alone and the
+environment is empty. \textsc{RetFib} returns value from a fiber to the
+previous one, evaluating the body of the return case.
 
 The rule \textsc{Handle} installs a handler by pushing a fiber with no frames
 and the given handler. The rule \textsc{ExHn} handles an exception, if the
@@ -982,17 +986,18 @@ handler does not handle it.
 
 The rule \textsc{EffHn} captures the handling of effects when the current
 handler has a matching effect case. We evaluate the body of the matching case,
-and bind the continuation parameter |r| to the captured continuation. Observe
-that the captured continuation |k''| includes the current handler. Intuitively,
-the handler wraps around captured continuation. This gives Multicore OCaml
-effect handlers deep handler semantics~\cite{Hillerstrom20}. \textsc{EffFwd} forwards the
-effect to the outer fiber, and extends the captured continuation |k''| in the
-process. Recall that we do not capture C frames as part of a continuation. To
-this end, \textsc{EffUnHn} models unhandled effect. If the effect bubbles up to
-the top fiber, which we know does not have an effect case (see
-\textsc{Callback} rule), we raise \textsc{unhandled} exception at the point
-where the corresponding effect was performed. This is achieved by appending the
-captured continuation to the front of the current continuation.
+and bind the continuation parameter |r| to the captured continuation |k''|.
+Observe that the captured continuation |k''| includes the current handler.
+Intuitively, the handler wraps around captured continuation. This gives
+Multicore OCaml effect handlers deep handler semantics~\cite{Hillerstrom20}.
+\textsc{EffFwd} forwards the effect to the outer fiber, and extends the
+captured continuation |k''| in the process. Recall that we do not capture C
+frames as part of a continuation. To this end, \textsc{EffUnHn} models
+unhandled effect. If the effect bubbles up to the top fiber, which we know does
+not have an effect case (see \textsc{Callback} rule), we raise
+\textsc{unhandled} exception at the point where the corresponding effect was
+performed. This is achieved by appending the captured continuation to the front
+of the current continuation.
 
 Observe that |continue| and |discontinue| are not part of the expressions. They
 are encoded as follows: $\textsf{continue} ~k ~e = (k ~(\olam{x}{x})) ~e$ and
@@ -1015,6 +1020,7 @@ Multicore OCaml. Multicore OCaml currently only supports the x86-64 backend on
 Linux, but our design does not preclude other backends. We assume x86-64
 architecture in the sequel.
 
+\vspace{-2mm}
 \subsection{Exceptions}
 
 The implementation follows the operational semantics, but has a few key
@@ -1028,6 +1034,7 @@ compatibility. This differs from other research languages with effect
 handlers~\cite{Hillerstrom20,Frank,Eff}, which implement exceptions using
 effects (by ignoring the continuation argument in the handler).
 
+\vspace{-2mm}
 \subsection{Heap-allocated fibers}
 
 \begin{figure*}
@@ -1086,30 +1093,32 @@ speeding up fiber allocation~\cite{Farvardin20}. In our experiments, we
 observed that directly using |mimalloc|~\cite{Leijen19} outperforms a stack
 cache.
 
-Figure~\ref{fig:fiber} shows the layout of a fiber in Multicore
-OCaml. At the bottom of the stack, we have the |handler_info|, which contains
-the pointer to parent fiber, and the closures for the value, exception and
-effect cases. The closures are created by the translation described in
+Figure~\ref{fig:fiber} shows the layout of a fiber in Multicore OCaml. At the
+bottom of the stack, we have the |handler_info|, which contains the pointer to
+parent fiber, and the closures for the value, exception and effect cases. The
+closures are created by the translation described in
 \S\ref{sec:static_semantics}; Multicore OCaml supports exception patterns in
 addition to effect patterns in the same handler. This is followed by a context
 block needed for DWARF and GC bookkeeping with callbacks. Then, there is a
-top-level handler that invokes the exception handler |clos_hexn| after
-switching to the parent fiber. This is followed by the |pc| of the code that
-invokes the value handler |clos_hval| after switching to the parent stack. The
-stack is laid out such that when the computation in the handler returns,
-control goes to the value handler.
+top-level exception handler frame that forwards exceptions to the parent fiber.
+When the exceptions are caught by this handler, the control switches to the
+parent stack, and the exception handler closure |clos_hexn| is invoked. This is
+followed by the |pc| of the code that returns values to the parent
+fiber. This stack is laid out such that when the handled computation returns,
+the control switches to the parent fiber and the value handler |clos_hval|
+is invoked.
 
-We have the variable-sized area for the OCaml frames next. Since we want the
-fibers to be as small as possible, this area is initially 16 words in length.
-When the stack pointer |rsp| becomes less than the stack threshold (maintained
-in the |Caml_state| table), the stack is said to have overflown. On stack
-overflow, we copy the whole fiber to a new area with double the size. In
-Multicore OCaml, we introduce stack overflow checks into the function prologue
-of OCaml functions. In our evaluation of real world OCaml programs, we observed
-that most function calls are to leaf functions with small frame size. In order
-to take advantage of this fact, we introduce a small red zone at the top of the
-stack. The compiler elides the stack overflow check for leaf functions whose
-frame size is less than the size of the red zone.
+Next, we have the variable-sized area for the OCaml frames. In order to keep
+fibers small, this area is initially 16 words in length. When the stack pointer
+|rsp| becomes less than the stack threshold (maintained in the |Caml_state|
+table), the stack is said to have overflown. On stack overflow, we copy the
+whole fiber to a new area with double the size. In Multicore OCaml, we
+introduce stack overflow checks into the function prologue of OCaml functions.
+In our evaluation of real world OCaml programs, we observed that most function
+calls are to leaf functions with small frame size. In order to take advantage
+of this fact, we introduce a small red zone at the top of the stack. The
+compiler elides the stack overflow check for leaf functions whose frame size is
+less than the size of the red zone.
 
 Finally, we have the saved exception pointer, which points to the top-most
 exception frame, and the saved stack pointer, which points to the top of the
@@ -1118,17 +1127,17 @@ stack pointer of the current stack and loading the same on the target stack.
 Since OCaml does not generate pointers into the stack, the two |fiber_info|
 fields are the only ones that need to be updated when fibers are moved.
 
+\vspace{-2mm}
 \subsection{External calls and callbacks}
 
 Since C functions do not have stack overflow checks, we have to execute the
 external calls in the system stack. Calling a C function from OCaml involves
-saving the stack pointer in the current fiber, saving the allocation pointer in
-the |Caml_state|, updating |rsp| to the top of system stack (maintained in
-|Caml_state|), and calling the C function. The actions are reversed when
-returning from the external call. For C functions that take arguments on the
-stack, the arguments must be copied to the C stack from the OCaml stack where
-they are laid out. In the vast majority of external calls, we perform only a
-few additional instructions over stock OCaml.
+saving the stack pointer in the current fiber, saving the allocation pointer
+value in |r15| in the |Caml_state|, updating |rsp| to the top of system stack
+(maintained in |Caml_state|), and calling the C function. The actions are
+reversed when returning from the external call. For C functions that take
+arguments on the stack, the arguments must be copied to the C stack from the
+OCaml stack.
 
 When we first enter OCaml from C, a new fiber is allocated for the main OCaml
 stack. Since callbacks may be frequent in OCaml programs that use finalisers,
@@ -1142,15 +1151,16 @@ before calling and after returning from |c_to_ocaml| function, respectively.
 Thanks to the fiber representation, external calls and callbacks remain
 competitive with stock OCaml.
 
+\vspace{-2mm}
 \subsection{Effect handlers}
 \label{sec:effimpl}
 
 In order to illustrate the implementation of handling effects, consider the
 example presented in Figure~\ref{code:effimpl}. The layout of the program state
 as the program executes is captured in Figure~\ref{fig:fiber_handler}. The code
-performs |E| which is handled in the outer-most handler, and is immediately
-resumed. The arrows between the fibers are parent pointers. At position |p1|,
-|rsp| is at the top of the fiber |f|.
+performs effect |E| which is handled in the outer-most handler, and is
+immediately resumed. The arrows between the fibers are parent pointers. At
+position |p1|, |rsp| is at the top of the fiber |f|.
 
 When the effect |E| performed, we allocate a continuation object |ke| in the
 heap that points to the current fiber |f|, set fiber |f|'s parent pointer to
@@ -1193,24 +1203,24 @@ traditionally the stack pointer before entering this function. Hence, on x86-64,
 where the return address is pushed on the stack on call, the return address is
 at |CFA - 8|.
 
-One challenge is to encode in DWARF directives the CFA when stacks are switched
-at effect handlers, callbacks and external calls. When starting to run on a new
-fiber, we insert DWARF bytecode to follow the |parent_fiber| pointer and
-dereference the |saved_sp| to get the CFA (|saved_sp + 8|). During callbacks
-into OCaml, we save the current system stack pointer in the |context block| in
-Figure~\ref{fig:fiber} to identify the CFA in the C stack. DWARF unwinding for
-external calls is implemented by following a link to the current OCaml stack
-pointer. With these changes, we get the same backtrace for the \texttt{meander}
-program from \S\ref{sec:unwind}, modulo runtime system functions due to effect
-handlers.
+The goal is to encode the CFA using DWARF directives when stacks are switched.
+Recall that stack switching occurs in effect handlers, external calls and
+callbacks. When starting to run on a new fiber, we insert DWARF bytecode to
+follow the |parent_fiber| pointer and dereference the |saved_sp| to get the CFA
+(|saved_sp + 8|). During callbacks into OCaml, we save the current system stack
+pointer in the |context block| in Figure~\ref{fig:fiber} to identify the CFA in
+the C stack. DWARF unwinding for external calls is implemented by following a
+link to the current OCaml stack pointer. With these changes, we get the same
+backtrace for the \texttt{meander} program from \S\ref{sec:unwind}, modulo
+runtime system functions due to effect handlers.
 
-We have utilized a DWARF verification tool~\cite{Bastian19} with extensions to
-handle PIE and additional DWARF primitives to flag possible errors in the hand
-written DWARF directives where we have altered the OCaml assembler to implement
-effects. In three places additional manual verification was required; two were
-where the stack is intentionally switched between fibers and one was where the
-return to the parent stack on child stack completion could not track stack
-resizes and intermediate effect handler frames.
+We have utilized the DWARF verification tool from~\cite{Bastian19} to flag
+possible errors in the hand written DWARF directives where we have altered the
+OCaml assembler to implement effect handlers. In three places additional manual
+verification was required; two were where the stack is intentionally switched
+between fibers and one was where the control returns to the parent fiber which
+happened to be resized due to effect handler invocation, which the tool could
+not track.
 
 Even with correct DWARF unwind information, using DWARF to record call stack
 information in |perf| only captures the call stack of the current fiber in
@@ -1237,8 +1247,9 @@ and ignores the result:
 Gc.finalise (fun k ->
   try ignore (discontinue k Unwind) with _ -> ()) k
 \end{lstlisting}
-However, Multicore OCaml does not enforce this behaviour in order to avoid
-installing a finaliser every time a continuation is captured.
+However, Multicore OCaml does not enforce this behaviour in order to avoid the
+costs associated with installing a finaliser every time a continuation is
+captured.
 
 For stack walking during GC, the only change necessary was to make the runtime
 aware of fiber layout and how to follow the parent pointers. The stack map
@@ -1277,13 +1288,13 @@ the default red zone size in Multicore OCaml is 16 words.
 The complete results are presented in the supplementary material, which we
 summarise here. On average (geometric mean of the normalized values against
 |stock| as the baseline), the multicore variants were \textbf{less than 1\%
-slower}. The outliers (on either ends) were due to the difference in the
-allocator and the GC between stock and Multicore OCaml. The biggest impact was
-the increase in the code size for OCaml code due to stack overflow checks.
-Compared to |stock|, the code size for OCaml code 19\% (30\%) more for |MC| and
-|MC+RedZone32| (|MC+RedZone0|). The result shows that our red zone is effective
-at reducing the code size, but further work is required to bring it closer to
-|stock|.
+slower} than |stock|. The outliers (on either ends) were due to the difference
+in the allocator and the GC between stock and Multicore OCaml. The biggest
+impact was the increase in the code size for OCaml code due to stack overflow
+checks. Compared to |stock|, the code size for OCaml code 19\% (30\%) more for
+|MC| and |MC+RedZone32| (|MC+RedZone0|). The result shows that our red zone is
+effective at reducing the code size, but further work is required to bring it
+closer to |stock|.
 
 \begin{table}
 \caption{Micro benchmarks without effects. Each entry is the percentage
@@ -1399,20 +1410,20 @@ available in the supplementary material. We evaluate the performance of
 traversing a complete binary tree of depth 25 using this generator. This
 involves $2^{26}$ stack switches in total. For comparison, we also implemented
 a hand-written, selective CPSed~\cite{Nielson01},
-defunctionalised~\cite{Danvy01} version (|cps|) and a
-concurrency monad (|monad|) version of the generator for the tree. Both |cps|
-and |monad| versions are specialised to the binary tree, and come with the
-usual caveats of not using the stack for function calls. We observed that the
-|cps| version was the fastest thanks to specialisation and hand optimisation.
-|MC| version was only 2.76$\times$ slower than |cps| while being a generic
+defunctionalised~\cite{Danvy01} version (|cps|) and a concurrency monad
+(|monad|) version of the generator for the tree. Both |cps| and |monad|
+versions are specialised to the binary tree, and come with the usual caveats of
+not using the stack for function calls. We observed that the |cps| version was
+the fastest thanks to specialisation and hand optimisation. |MC| version was
+only 2.76$\times$ slower than |cps| while being a generic
 solution, whereas the |monad| version was 8.69$\times$ slower than |cps|.
 
-\textbf{\textit{Chameneos.}} Chameneos~\cite{Chameneos} is a concurrency game aimed at
-measuring context switching and synchronization overheads. Our implementation
-uses |MVars| for synchronization. We compare effect handler (|MC|), concurrency
-monad (|monad|) and Lwt, a widely used concurrency programming library for
-OCaml (|lwt|) versions. We observed that |MC| was the fastest, and |monad|
-(|lwt|) was 1.67$\times$ (4.29$\times$) slower than |MC|.
+\textbf{\textit{Chameneos.}} Chameneos~\cite{Chameneos} is a concurrency game
+aimed at measuring context switching and synchronization overheads. Our
+implementation uses |MVars| for synchronization. We compare effect handler
+(|MC|), concurrency monad (|monad|) and Lwt, a widely used concurrency
+programming library for OCaml (|lwt|) versions. We observed that |MC| was the
+fastest, and |monad| (|lwt|) was 1.67$\times$ (4.29$\times$) slower than |MC|.
 
 \textbf{\textit{Web server.}} As one of our primary goals of adding effect
 handlers to OCaml is to support direct-style concurrency, we implement a
