@@ -699,13 +699,13 @@ type ('a,'b) handler =
 val match_with: 'a comp -> ('a,'b) handler -> 'b
 \end{lstlisting}
 We introduce an extensible variant type~\cite{ExtVariants} |'a eff| of effect
-values, which when performed using the |perform| primitive returns a |'a|
+values, which when performed using the |perform| primitive returns an |'a|
 value. Constructors for the value of type |'a eff| are declared using the
 effect declarations. For example, the declaration |effect E : string -> int|
 is syntactic sugar for adding a new constructor to the variant type
 |type _ eff += E : string -> int eff|. We introduce the type
-|('a,'b) continuation| of delimited continuations which expect a |'a| value for
-resumption and return |'b| value. The continuations may be continued with a
+|('a,'b) continuation| of delimited continuations which expect an |'a| value for
+resumption and return a |'b| value. The continuations may be continued with a
 suitably typed value or discontinued with an exception.
 
 For handling the effects, our implementation extends OCaml's |match ... with|
@@ -732,7 +732,7 @@ The handler has a return case |retc| of type |'a -> 'b|. The effect case |effc|
 handles effects of type |'c eff| with |('c,'b) continuation| and returns a
 value of type |'b|. The last case in |effc| \emph{reperforms} any unmatched
 effect to the outer handler and returns the value and exceptions back to the
-original performer. In the implementation, reperfom is implemented as a
+original performer. In the implementation, reperform is implemented as a
 primitive to avoid executing code on the resumption path.
 
 \begin{figure*}
@@ -980,7 +980,7 @@ on an empty C stack with the current OCaml stack as its tail. \textsc{RetToC}
 returns a value to the enclosing C stack. In this case, we have exactly one
 fiber on the stack, and this was created in the rule \textsc{Callback}, whose
 handler has identity return case alone and the environment is empty.
-\textsc{RetFib} returns value from a fiber to the previous one, evaluating the
+\textsc{RetFib} returns the value from a fiber to the previous one, evaluating the
 body of the return case.
 
 The rule \textsc{Handle} installs a handler by pushing a fiber with no frames
@@ -1001,8 +1001,8 @@ Multicore OCaml effect handlers deep handler semantics~\cite{Hillerstrom20}.
 \textsc{EffFwd} forwards the effect to the outer fiber, and extends the
 captured continuation |k''| in the process. Recall that we do not capture C
 frames as part of a continuation. To this end, \textsc{EffUnHn} models
-unhandled effect. If the effect bubbles up to the top fiber, which we know does
-not have an effect case (see \textsc{Callback} rule), we raise
+unhandled effect. If the effect bubbles up to the top fiber --- which we know does
+not have an effect case (see \textsc{Callback} rule) --- we raise
 \textsc{Unhandled} exception at the point where the corresponding effect was
 performed. This is achieved by appending the captured continuation to the front
 of the current continuation.
