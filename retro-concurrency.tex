@@ -1433,13 +1433,13 @@ fastest, and |monad| (|lwt|) was 1.67$\times$ (4.29$\times$) slower than |MC|.
 \textbf{\textit{Web server.}} As one of our primary goals of adding effect
 handlers to OCaml is to support direct-style concurrency, we implement a
 full-fledged HTTP/1.1 web server using effect handlers (|MC|). We use effect
-handlers to implement a user-level threading library, which spawns a thread per
-request. We use \texttt{httpaf} library~\cite{httpaf} for HTTP handling, and
+handlers to implement a user-level threading library that spawns a thread per
+request. We use \texttt{httpaf}~\cite{httpaf} for HTTP handling, and
 \texttt{libev}~\cite{libev} for the eventloop. We compare our implementation
 against an Lwt version (|lwt|) which also uses \texttt{httpaf} and
-\texttt{libev}. Unlike using effect handlers, Lwt version is written in monadic
-style, and does not have a notion of thread per request. For comparison, we
-also include a Go 1.13 version (|go|) that uses
+\texttt{libev}. Unlike using effect handlers, the Lwt version is written in monadic
+style and does not have a notion of thread per request. For comparison, we
+also include a Go 1.13 version (|go|) that uses the
 \texttt{net/http}~\cite{nethttp} package. As both the OCaml versions are single
 threaded, the Go benchmark is run with \texttt{GOMAXPROCS=1}.
 
