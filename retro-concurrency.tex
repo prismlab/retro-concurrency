@@ -421,16 +421,13 @@ We have implemented effect handlers in a multicore extension of the OCaml
 programming language. We call our implementation \textbf{Multicore OCaml} to
 distinguish it from stock OCaml.
 
-The rest of the paper is organized as follows. The next section describes the
-details of stock OCaml program stack. In \S\ref{sec:refine}, we refine the
-design further focussing on retrofitting effect handlers into a mainstream
-\emph{systems} language. \S\ref{sec:semantics} presents the compilation scheme
-and operational semantics semantics for Multicore OCaml effect handlers.
-\S\ref{sec:impl} discusses the compiler and the runtime system support for
-implementing effect handlers. \S\ref{sec:eval} presents extensive performance
-evaluation of effect handlers against the goals set in \S\ref{sec:req}.
-\S\ref{sec:related} and \S\ref{sec:conc} present the related work and the
-conclusions.
+The remainder of the paper continues with a description of the stock OCaml program stack (\S\ref{sec:stack}). We then refine the
+design further by focussing on retrofitting effect handlers into a mainstream
+\emph{systems} language (\S\ref{sec:refine}), followed by the compilation scheme
+and operational semantics semantics for Multicore OCaml effect handlers (\S\ref{sec:semantics}).  We then discuss the compiler and runtime system support for
+implementing effect handlers (\S\ref{sec:impl}), and present extensive performance
+evaluation of effect handlers (\S\ref{sec:eval}) against our design goals (\S\ref{sec:req}).
+Finally, we discuss the related work (\S\ref{sec:related}) and conclude (\S\ref{sec:conc}).
 
 \section{Background: OCaml Stacks}
 \label{sec:stack}
@@ -937,7 +934,7 @@ the argument position of an application with its environment $\env$, a function
 frame $\ffun{v}$ with the value $v$ at the function position of an application,
 and frames for evaluating the arguments of an arithmetic expression.
 
-Continuations $k$ are either empty $[]$ or non-empty sequence of \emph{fibers}.
+Continuations $k$ are either empty $[]$ or a non-empty sequence of \emph{fibers}.
 A fiber $\fiber \coloneqq (\fl,\hc)$ is a list of frames $\fl$ and a handler
 closure $\hc \coloneqq (h,\env)$, which is a pair of handler $h$ and its
 environment $\env$.
