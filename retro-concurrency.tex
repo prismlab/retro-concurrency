@@ -1496,8 +1496,7 @@ library~\cite{Kiselyov12} to embed Eff language in OCaml. Indeed, Forester et
 al.~\cite{Forster19} showed that in an untyped setting, effect handlers,
 monadic reflection and delimited control can macro-express each other.
 
-Similarly to~\cite{Leijen14, Kiselyov12}, Multicore OCaml uses the call stack for
-implementing continuations, but our continuations are one-shot. Bruggeman et
+Multicore OCaml uses the call stack for implementing continuations (as do~\cite{Leijen14, Kiselyov12}), but with one-shot continuations. Bruggeman et
 al.~\cite{Bruggeman96} show how to implement one-shot continuations efficiently
 using segmented stacks in Scheme. Farvardin et al.~\cite{Farvardin20} perform a
 comprehensive evaluation of various implementation strategies for continuations
@@ -1533,8 +1532,7 @@ back into a context. |dynamic-wind| is not quite sufficient for resource
 clean up~\cite{Kiselyov,Sitaram03} as returning exits must be distinguished
 from non-returning ones, and resource cleanup is only necessary during
 non-returning exits.
-
-In Multicore OCaml, we build on the existing defensive coding practices against
+Multicore OCaml builds on the existing defensive coding practices against
 exceptions to clean up resources on non-returning exits. Our continuations are
 assumed to be resumed exactly once using |continue| or |discontinue|. As a
 result, when a computation performs an effect, we are guaranteed that the
@@ -1558,10 +1556,15 @@ implementing effect handlers.
 \section{Conclusions}
 \label{sec:conc}
 
-We presented the motivation, design and implementation of effect handlers
-specifically aimed at retrofitting them onto OCaml with tool compatibility,
-negligible overheads for existing OCaml programs and good performance for those
-that use effect handlers. Our evaluation shows that this is indeed the case.
+We have presented the design and implementation of effect handlers
+aimed at retrofitting them onto the large body of existing OCaml
+code.  Our design walks the tightrope of maintaining
+compatibility (e.g. for profiling and debuggers and negligible overheads for existing 
+programs) and also demonstrating good performance and usability for new OCaml
+code that takes advantage of effect handlers. Our implementation in Multicore OCaml
+deviates from previous categorisations~\cite{Farvardin20} and our evaluation shows
+that we have achieved our goal of balancing compatibility with the introduction
+of effect handlers for mainstream OCaml programming.
 
 \clearpage
 
