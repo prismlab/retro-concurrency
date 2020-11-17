@@ -1509,8 +1509,9 @@ Kawahara et al.~\cite{Kawahara20} implement one-shot effect handlers using
 coroutines as a macro-expressible translation, and present an embedding in Lua
 and Ruby. Lua provides asymmetric coroutines~\cite{Lua} where each coroutine
 uses its own stack similar to how each handled computation runs in its own
-fiber in Multicore OCaml. Lua does not allow coroutines to include C frames, as in
-Multicore OCaml. 
+fiber in Multicore OCaml.
+%Lua does not allow coroutines to include C frames, as in
+%Multicore OCaml.  - avsm/kc not quite, see https://coco.luajit.org/index.html
 %It is useful to note that Lua is an interpreted
 %language, unlike OCaml, and DWARF unwind tables are not a concern in Lua.
 
