@@ -6,7 +6,7 @@ type exp =
   | EApp : exp * exp -> exp
   | EAbs : lam_kind * string * exp -> exp
   | EArith : (int->int->int) * exp * exp -> exp
-  | EHandle : exp * handler -> exp
+  | EMatchWith : exp * handler -> exp
   | ERaise : string * exp -> exp
   | EPerform : string * exp -> exp
 
@@ -80,7 +80,7 @@ exception Stuck
 
 let empty_continuation = [[], (HValue ("x", EVar "x"), empty_env)]
 
-let step0 t fs =
+let admin_step t fs =
   match t,fs with
   (* Constant *)
   | E (EConst n, r), fs -> Some (V (VInt n), fs)
@@ -135,7 +135,7 @@ let ostep t (k:continuation) cs =
       Some (E (e, extend_env r x v), O (OS (k @ ((fs,h)::k'), cs)))
 
   (* Install handler *)
-  | E (EHandle (e, h), r), k -> Some (E (e, r), O (OS (([],(h,r))::k, cs)))
+  | E (EMatchWith (e, h), r), k -> Some (E (e, r), O (OS (([],(h,r))::k, cs)))
 
   (* Perform operation *)
   | V v, [FFun (VEff (l, k))::fs,h] ->
@@ -164,7 +164,7 @@ let ostep t (k:continuation) cs =
 
   (* Other local operations *)
   | _, (fs,h)::k ->
-      begin match step0 t fs with
+      begin match admin_step t fs with
       | Some (t',fs') -> Some (t',O (OS ((fs',h)::k, cs)))
       | None -> raise Stuck (* No further reduction *)
       end
@@ -197,7 +197,7 @@ let cstep t fs osopt =
 
   (* Other local operations *)
   | _, fs ->
-      begin match step0 t fs with
+      begin match admin_step t fs with
       | Some (t',fs') -> Some (t', C (CS (fs', osopt)))
       | None -> raise Stuck (* No further reduction *)
       end
@@ -246,7 +246,7 @@ let case_eff l v k e r = HEffect (l, v, k, e, r)
 
 let case_exn l v e r = HExn (l, v, e, r)
 
-let handle e h = EHandle (e, h)
+let handle e h = EMatchWith (e, h)
 
 let raise_ l e = ERaise (l, e)
 
@@ -321,3 +321,5 @@ let run () =
   if not (int_state_to_string (eval ex6) = "42") then failwith "ex6 failed";
   try ignore (eval ex7); failwith "ex7 failed" with Stuck -> ();
   try ignore (eval ex8); failwith "ex8 failed" with Stuck -> ()
+
+let _ = run ()

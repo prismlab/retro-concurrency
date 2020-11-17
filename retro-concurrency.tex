@@ -896,7 +896,9 @@ primitive to avoid executing code on the resumption path.
 \subsection{Dynamic semantics}
 
 We present an operational semantics for a core language of effect handlers that
-faithfully captures the semantics of the Multicore OCaml implementation.
+faithfully captures the semantics of the Multicore OCaml implementation. An
+executable version of the semantics implemented as an OCaml interpreter along
+with examples is included in the supplementary material.
 
 \textbf{\textit{Syntax.}} Our expressions (Figure~\ref{sem:syntax}) consists of
 integer constants ($n$), variables ($x$), abstraction ($\lam{x}{x}$),
@@ -1010,9 +1012,6 @@ administrative reductions \textsc{Resume1} and \textsc{Resume2} to evaluate the
 arguments to |continue| and |discontinue|. The rule \textsc{Resume} appends the
 given continuation to the front of the current continuation, and evaluates the
 body of the closure.
-
-The traces of example programs are included in the supplementary material along
-with an executable version of the semantics implemented in OCaml.
 
 \section{Implementation}
 \label{sec:impl}
@@ -1568,53 +1567,6 @@ that use effect handlers. Our evaluation shows that this is indeed the case.
 
 \section*{Supplementary Material}
 \setcounter{figure}{0}
-
-\subsection*{Dynamic Semantics -- Examples}
-
-\begin{definition}[Initial configuration]
-	Given an expression $e$, we define the initial configuration $\textsf{init}(e)$
-	to be $\configa{e}{\emptyset}{\cstacka{[]}{\bullet}}$.
-\end{definition}
-
-Intuitively, the initial environment is empty and the initial stack is an empty
-C stack.
-
-\begin{definition}[Final configuration]
-	Given a configuration $\config$, we say that the configuration is final
-	(written $\textsf{final}(\config)$) if ~$\config =
-	\configa{v}{\env}{\cstacka{[]}{\bullet}}$~ for some value $v$ and environment
-	$\env$.
-\end{definition}
-
-Given a configuration $\config = \configa{\term}{\env}{\stack}$, we define
-$\textsf{term}(\config)$ to be $\tau$. We define the relation $\multistep$ as
-the transitive reflexive closure of the top-level reduction relation $\step$.
-
-\subsubsection*{Example 1}
-
-Let
-
-\begin{smathpar}
-	\begin{array}{rcll}
-		e & = & (\olam{x}{ & \kw{match} ~\perform{E}{~0}~ \kw{with} \\
-			&   &            & \mid \caseexn{\textsf{Unhandled}}{x}{42} \\
-			&   &            & \mid \caseval{v}{v}})~0
-	\end{array}
-\end{smathpar}
-
-then $init(e) \multistep ~\config \wedge final(\config) \wedge term(\config) =
-42$.
-
-\begin{proof}
-	$init(e) = \configa{e}{\emptyset}{\cstacka{[]}{\bullet}}$
-
-	By \textsc{StepC}, \textsc{AdminC}, \textsc{App1},
-
-\begin{array}{rcll}
-	configa{e}{\emptyset}{\cstacka{[]}{\bullet}} \\
-	\step \\
-
-\end{proof}
 
 \subsection*{No effect macro benchmarks}
 
