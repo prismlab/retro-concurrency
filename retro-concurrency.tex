@@ -1286,7 +1286,7 @@ code that does not use effect handlers. Our macro benchmark suite consists of
 |regexredux2|), numerical analysis (|grammatrix|, |LU_decomposition|) and
 simulations (|nbody|, |game_of_life|). In addition to Stock (|stock|) and
 Multicore OCaml (|MC|), we also ran the benchmarks on Multicore OCaml with no
-red zone (|MC+RedZone0|) in the fiber (all OCaml functions will have stack
+red zone (|MC+RedZone0|) in the fiber (all OCaml functions will have a stack
 overflow check) and a red zone size of 32 words (|MC+RedZone32|). Recall that
 the default red zone size in Multicore OCaml is 16 words (\S\ref{sec:hafibers}).
 
