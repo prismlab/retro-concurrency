@@ -1595,7 +1595,7 @@ of effect handlers for mainstream OCaml programming.
 Figure~\ref{res:macro} presents the performance of macro benchmarks that do not
 use effects. The aim is to quantify the impact of the addition of effect
 handlers to the language on code that does not use effect handlers. The |MC| is
-Multicore OCaml with default red zone size (16 words). |MC+RedZone0| uses red
+Multicore OCaml with the default red zone size (16 words). |MC+RedZone0| uses red
 zone size of 0; every OCaml function has a stack overflow check. |MC+RedZone32|
 uses a red zone size of 32 words.
 
@@ -1603,9 +1603,11 @@ uses a red zone size of 32 words.
 
 Languages with effect handlers typically allow continuations to be resumed more
 than once to enable use cases such as backtracking search and probabilistic
-programming (Uber's Pyro langauge~\cite{Pyro}). Multicore OCaml has an
+programming (Uber's Pyro language~\cite{Pyro}). Multicore OCaml has an
 experimental feature for explicitly cloning continuations, which makes a copy
-of each of its constituent fibers. Multi-shot continuations are difficult to
+of each of its constituent fibers.
+
+Multi-shot continuations are difficult to
 reason about in the presence of linear resources such as file descriptors.
 Recall that OCaml programs are written with the expectation that function calls
 return \emph{exactly-once} either normally or exceptionally. With multi-shot
