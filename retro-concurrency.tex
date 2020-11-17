@@ -40,6 +40,7 @@
 \crefformat{section}{§#2#1#3}
 \newtheorem{theorem}{Theorem}
 \newtheorem{definition}[theorem]{Definition}
+\newtheorem{example}[theorem]{Example}
 
 \newenvironment{nop}{}{}
 \newenvironment{smathpar}{
@@ -151,6 +152,7 @@
 \newcommand{\ostep}{\xrightarrow{o}}
 \newcommand{\cstep}{\xrightarrow{c}}
 \newcommand{\step}{\rightarrow}
+\newcommand{\multistep}{\rightarrow\!\!*}
 
 \begin{document}
 
@@ -880,7 +882,7 @@ primitive to avoid executing code on the resumption path.
       \textsc{EffUnHn}  & (v, \_, [\ffun{\effval{l}{k}}::\fl,(h,\env)], \cstack) & \ostep
                         & \configa{e}{\emptyset}{\ostacka{k ~@~ [(\fl,(h,\env))]}{\cstack}}
                         & \text{if } \{\caseeff{l}{\_}{\_}{\_}\} \notin h \\
-                  & & & & \text{and } {e = \throw{\textsf{unhandled}}{0}} \\
+                  & & & & \text{and } {e = \throw{\textsf{Unhandled}}{0}} \\
       \textsc{Resume}   & (v, \_, (\ffun{k}::\ffun{\oclos{x}{e}{\env}}::\fl,\hc) \kcons k', \cstack) & \ostep
                         & \configa{e}{\envext{\env}{x}{v}}{\ostacka{k ~@~ ((\fl,\hc) \kcons k')}{\cstack}} \\
     \end{array}
@@ -995,7 +997,7 @@ captured continuation |k''| in the process. Recall that we do not capture C
 frames as part of a continuation. To this end, \textsc{EffUnHn} models
 unhandled effect. If the effect bubbles up to the top fiber, which we know does
 not have an effect case (see \textsc{Callback} rule), we raise
-\textsc{unhandled} exception at the point where the corresponding effect was
+\textsc{Unhandled} exception at the point where the corresponding effect was
 performed. This is achieved by appending the captured continuation to the front
 of the current continuation.
 
@@ -1567,6 +1569,75 @@ that use effect handlers. Our evaluation shows that this is indeed the case.
 \section*{Supplementary Material}
 \setcounter{figure}{0}
 
+\subsection*{Dynamic Semantics -- Examples}
+
+\begin{definition}[Initial configuration]
+	Given an expression $e$, we define the initial configuration $\textsf{init}(e)$
+	to be $\configa{e}{\emptyset}{\cstacka{[]}{\bullet}}$.
+\end{definition}
+
+Intuitively, the initial environment is empty and the initial stack is an empty
+C stack.
+
+\begin{definition}[Final configuration]
+	Given a configuration $\config$, we say that the configuration is final
+	(written $\textsf{final}(\config)$) if ~$\config =
+	\configa{v}{\env}{\cstacka{[]}{\bullet}}$~ for some value $v$ and environment
+	$\env$.
+\end{definition}
+
+Given a configuration $\config = \configa{\term}{\env}{\stack}$, we define
+$\textsf{term}(\config)$ to be $\tau$. We define the relation $\multistep$ as
+the transitive reflexive closure of the top-level reduction relation $\step$.
+
+\subsubsection*{Example 1}
+
+Let
+
+\begin{smathpar}
+	\begin{array}{rcll}
+		e & = & (\olam{x}{ & \kw{match} ~\perform{E}{~0}~ \kw{with} \\
+			&   &            & \mid \caseexn{\textsf{Unhandled}}{x}{42} \\
+			&   &            & \mid \caseval{v}{v}})~0
+	\end{array}
+\end{smathpar}
+
+then $init(e) \multistep ~\config \wedge final(\config) \wedge term(\config) =
+42$.
+
+\begin{proof}
+	$init(e) = \configa{e}{\emptyset}{\cstacka{[]}{\bullet}}$
+
+	By \textsc{StepC}, \textsc{AdminC}, \textsc{App1},
+
+\begin{array}{rcll}
+	configa{e}{\emptyset}{\cstacka{[]}{\bullet}} \\
+	\step \\
+
+\end{proof}
+
+\subsection*{No effect macro benchmarks}
+
+\begin{figure*}
+	\begin{minipage}{\linewidth}
+	\includegraphics[width=\linewidth]{sandmark-notebook/sandmark_time}
+	\subcaption{Normalized time of macro benchmarks. Baseline is Stock OCaml,
+		whose running time in seconds in given in parenthesis.}
+	\includegraphics[width=\linewidth]{sandmark-notebook/sandmark_codesize}
+	\subcaption{Normalized OCaml code size of macro benchmarks. Baseline is Stock
+		OCaml, whose size in bytes given in parenthesis.}
+	\end{minipage}
+	\caption{Macro benchmark performance on code that does not use effects.}
+	\label{res:macro}
+\end{figure*}
+
+Figure~\ref{res:macro} presents the performance of macro benchmarks that do not
+use effects. The aim is to quantify the impact of the addition of effect
+handlers to the language on code that does not use effect handlers. The |MC| is
+Multicore OCaml with default red zone size (16 words). |MC+RedZone0| uses red
+zone size of 0; every OCaml function has a stack overflow check. |MC+RedZone32|
+uses a red zone size of 32 words.
+
 \subsection*{Experimental support for multi-shot continuations}
 
 Languages with effect handlers typically allow continuations to be resumed more
@@ -1613,24 +1684,5 @@ the presence of multi-shot continuations, compiler optimisations need to be
 made aware of the effects of a function. We leave proper support for multi-shot
 continuations to future work.
 
-\subsection*{No effect macro benchmarks}
-
-\begin{figure*}
-	\begin{minipage}{\linewidth}
-	\includegraphics[width=\linewidth]{sandmark-notebook/sandmark_time}
-	\subcaption{Normalized time of macro benchmarks. Baseline is Stock OCaml, whose running time in seconds in given in parenthesis.}
-	\includegraphics[width=\linewidth]{sandmark-notebook/sandmark_codesize}
-	\subcaption{Normalized OCaml code size of macro benchmarks. Baseline is Stock OCaml, whose size in bytes given in parenthesis.}
-	\end{minipage}
-	\caption{Macro benchmark performance on code that does not use effects.}
-	\label{res:macro}
-\end{figure*}
-
-Figure~\ref{res:macro} presents the performance of macro benchmarks that do not
-use effects. The aim is to quantify the impact of the addition of effect
-handlers to the language on code that does not use effect handlers. The |MC| is
-Multicore OCaml with default red zone size (16 words). |MC+RedZone0| uses red
-zone size of 0; every OCaml function has a stack overflow check. |MC+RedZone32|
-uses a red zone size of 32 words.
 
 \end{document}
