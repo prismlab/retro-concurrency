@@ -1511,8 +1511,9 @@ coroutines as a macro-expressible translation, and present an embedding in Lua
 and Ruby. Lua provides asymmetric coroutines~\cite{Lua} where each coroutine
 uses its own stack similar to how each handled computation runs in its own
 fiber in Multicore OCaml. Lua does not allow coroutines to include C frames, as in
-Multicore OCaml. It is useful to note that Lua is an interpreted
-language, unlike OCaml, and DWARF unwind tables are not a concern in Lua.
+Multicore OCaml. 
+%It is useful to note that Lua is an interpreted
+%language, unlike OCaml, and DWARF unwind tables are not a concern in Lua.
 
 Multicore OCaml is not the first language to support stack inspection in the
 presence of non-local control operators. Chez Scheme supports continuation
@@ -1528,10 +1529,10 @@ The interaction of non-local control flow and resources has been studied
 extensively. Scheme uses |dynamic-wind|~\cite{R5RS}, which is a generalisation of
 Common Lisp |unwind-protect|~\cite{Steele90}, which ensures de-allocation (and
 re-allocation) of resources every time the non-local control leaves and enters
-back into a context. |dynamic-wind| is not quite what one wants for resource
-clean up~\cite{Kiselyov,Sitaram03}. The main challenge is distinguishing
-returning exits from non-returning ones. Resource clean up needs to occur only
-during non-returning exit.
+back into a context. |dynamic-wind| is not quite sufficient for resource
+clean up~\cite{Kiselyov,Sitaram03} as returning exits must be distinguished
+from non-returning ones, and resource cleanup is only necessary during
+non-returning exits.
 
 In Multicore OCaml, we build on the existing defensive coding practices against
 exceptions to clean up resources on non-returning exits. Our continuations are
