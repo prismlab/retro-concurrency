@@ -1258,16 +1258,16 @@ captured.
 
 For stack walking during GC, the only change necessary was to make the runtime
 aware of fiber layout and how to follow the parent pointers. The stack map
-generation and scanning each frame for roots remains the same. Sivaramakrishnan
-et al.~\cite{Sivaramakrishnan20} present the challenges and solutions for
-integrating fibers with the concurrent mark-and-sweep GC of Multicore OCaml.
+generation and scanning each frame for roots remains the same. The
+challenges and solutions for integrating fibers with the concurrent
+mark-and-sweep GC of Multicore OCaml have been discussed previously~\cite{Sivaramakrishnan20}.
 
 \section{Evaluation}
 \label{sec:eval}
 
 In this section, we evaluate the performance of Multicore OCaml effect handlers
 against the performance requirements set in \S\ref{sec:req}. Multicore OCaml is
-an extension of 4.10.0 OCaml compiler with support for shared memory
+an extension of the 4.10.0 OCaml compiler with support for shared memory
 parallelism and effect handlers. These results were obtained on 2-socket,
 Intel\textregistered Xeon\textregistered Gold 5120 x86-64 server, with 28
 physical cores (14 cores on each socket), and 2 hardware threads per core. Each
