@@ -1094,9 +1094,8 @@ one-shot continuations.
 
 Fibers are allocated on the heap using |malloc| and are |free|d when no longer
 necessary. We do not use a \emph{stack cache} of recently freed stacks for
-speeding up fiber allocation~\cite{Farvardin20}. In our experiments, we
-observed that directly using |mimalloc|~\cite{Leijen19} outperforms a stack
-cache.
+speeding up fiber allocation~\cite{Farvardin20} as we
+observed in our evaluation (\S\ref{sec:eval}) that directly using |mimalloc|~\cite{Leijen19} outperforms a stack cache.
 
 Figure~\ref{fig:fiber} shows the layout of a fiber in Multicore OCaml. At the
 bottom of the stack, we have the |handler_info|, which contains the pointer to
@@ -1113,15 +1112,15 @@ fiber. This stack is laid out such that when the handled computation returns,
 the control switches to the parent fiber and the value handler |clos_hval|
 is invoked.
 
-Next, we have the variable-sized area for the OCaml frames. In order to keep
-fibers small, this area is initially 16 words in length. When the stack pointer
-|rsp| becomes less than the stack threshold (maintained in the |Caml_state|
-table), the stack is said to have overflown. On stack overflow, we copy the
+Next, we have the variable-sized area for the OCaml frames, known as the red zone.
+In order to keep fibers small, this area is initially 16 words in length.
+When the stack pointer |rsp| becomes less than the stack threshold
+(maintained in the |Caml_state| table), the stack is said to have overflown.
+On stack overflow, we copy the
 whole fiber to a new area with double the size. In Multicore OCaml, we
 introduce stack overflow checks into the function prologue of OCaml functions.
-In our evaluation of real world OCaml programs, we observed that most function
-calls are to leaf functions with small frame size. In order to take advantage
-of this fact, we introduce a small red zone at the top of the stack. The
+In our evaluation of real world OCaml programs ((\S\ref{sec:eval}) we observed that most function
+calls are to leaf functions with a small frame size. We introduce a small red zone at the top of the stack to take advantage of this fact. The
 compiler elides the stack overflow check for leaf functions whose frame size is
 less than the size of the red zone.
 
@@ -1328,7 +1327,7 @@ each iteration. |extcall| and |callback| perform 100 million external calls and
 callbacks to identity functions. The other micro benchmarks are highly
 recursive programs and were taken from ~\cite{Farvardin20}. For micro benchmarks,
 we observed that padding tightloops with a few |nop| instructions, which
-changes the loop alignment, makes the code upto 15\% faster. Hence, the
+changes the loop alignment, makes the code up to 15\% faster. Hence, the
 difference in running times under 15\% may not be statistically significant.
 
 The results show that exceptions are no more expensive in |MC| compared to
