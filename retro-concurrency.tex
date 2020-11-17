@@ -1041,6 +1041,7 @@ effects (by ignoring the continuation argument in the handler).
 
 \vspace{-2mm}
 \subsection{Heap-allocated fibers}
+\label{sec:hafibers}
 
 \begin{figure*}
 \begin{minipage}{0.35\linewidth}
@@ -1287,7 +1288,7 @@ simulations (|nbody|, |game_of_life|). In addition to Stock (|stock|) and
 Multicore OCaml (|MC|), we also ran the benchmarks on Multicore OCaml with no
 red zone (|MC+RedZone0|) in the fiber (all OCaml functions will have stack
 overflow check) and a red zone size of 32 words (|MC+RedZone32|). Recall that
-the default red zone size in Multicore OCaml is 16 words.
+the default red zone size in Multicore OCaml is 16 words (\S\ref{sec:hafibers}).
 
 The complete results are presented in the supplementary material, which we
 summarise here. On average (geometric mean of the normalized values against
