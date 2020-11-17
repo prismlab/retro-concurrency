@@ -739,6 +739,7 @@ original performer. In the implementation, reperfom is implemented as a
 primitive to avoid executing code on the resumption path.
 
 \begin{figure*}
+\vspace{-2mm}
 \begin{minipage}{\linewidth}
   \begin{minipage}[t]{0.49\linewidth}
   \begin{smathpar}
@@ -857,16 +858,17 @@ primitive to avoid executing code on the resumption path.
       \textsc{RetFib} & (v, \_, ([],(h,\env)) \kcons k, \cstack) & \ostep
                         & \configa{e}{\envext{\env}{x}{v}}{\ostacka{k}{\cstack}}
                         & \text{if } \{\caseval{x}{e}\} \in h \\
+									& & & & \text{and } k \neq [] \\
 
       \textsc{Handle}   & (\handle{e}{h}, \env, k, \cstack) & \ostep
                         & \configa{e}{\env}{\ostacka{([],(h,\env)) \kcons k}{\cstack}} \\
-      \textsc{ExHn}     & (v, \_, (\ffun{\exnval{l}}::\_,(h,\env)) \kcons k', \cstack) & \ostep
+      \textsc{ExnHn}     & (v, \_, (\ffun{\exnval{l}}::\_,(h,\env)) \kcons k', \cstack) & \ostep
                         & \configa{e}{\envext{\env}{x}{v}}{\ostacka{k'}{\cstack}}
                         & \text{if } \{\caseexn{l}{x}{e}\} \in h \\
-      \textsc{ExFwdC}   & (v, \env, [\ffun{\exnval{l}}::\_,(h,\_)], \cstacka{\fl'}{\ostack}) & \ostep
+      \textsc{ExnFwdC}   & (v, \env, [\ffun{\exnval{l}}::\_,(h,\_)], \cstacka{\fl'}{\ostack}) & \ostep
                         & \configa{v}{\env}{\cstacka{\ffun{\exnval{l}}::\fl'}{\ostack}}
                         & \text{if } \{\caseexn{l}{\_}{\_}\} \notin h \\
-      \textsc{ExFwdFib} & (v, \env, (\ffun{\exnval{l}}::\_,(h,\_)) \kcons (\fl',\hc') \kcons k', \cstack) & \ostep
+      \textsc{ExnFwdFib} & (v, \env, (\ffun{\exnval{l}}::\_,(h,\_)) \kcons (\fl',\hc') \kcons k', \cstack) & \ostep
                         & \configa{v}{\env}{\ostacka{(\ffun{\exnval{l}}::\fl',\hc') \kcons k'}{\cstack}}
                         & \text{if } \{\caseexn{l}{\_}{\_}\} \notin h \\
 
@@ -940,23 +942,26 @@ A fiber $\fiber \coloneqq (\fl,\hc)$ is a list of frames $\fl$ and a handler
 closure $\hc \coloneqq (h,\env)$, which is a pair of handler $h$ and its
 environment $\env$.
 
-\textbf{\textit{Top-level reductions.}} The initial configuration for an expression
-$e$ is $\configa{e}{\emptyset}{\cstacka{[]}{\bullet}}$, where the environment
-and the stack are empty. The top-level reductions (Figure ~\ref{sem:toplevel})
-can be performed by either by taking a C step $\cstep$ or an OCaml step
-$\ostep$.
+\subsubsection{Top-level reductions}
 
-\textbf{\textit{C reductions.}} We can take a C step (Figure~\ref{sem:cstep}) by
-taking an administrative reduction step $\rightsquigarrow$. The administrative
-reductions are common to both C and OCaml. The rules \textsc{Var},
-\textsc{Arith1}, \textsc{Arith2}, \textsc{App1}, \textsc{App2} and
-\textsc{App3} are standard. \textsc{Arith3} performs the arithmetic operation
-on the integers ($\llbracket n_1 \odot n_2 \rrbracket$). \textsc{Raise} pushes
-an function frame with exception value to indicate that an exception is being
-raised. Similarly, \textsc{Perform} pushes a function frame with an effect
-value with an empty continuation $[[],(\{\caseval{x}{x}\},\emptyset)]$ with no
-captured frames and an empty handler with an identity return case alone. We
-shall return to \textsc{Resume1} and \textsc{Resume2} later.
+The initial configuration for an expression $e$ is
+$\configa{e}{\emptyset}{\cstacka{[]}{\bullet}}$, where the environment and the
+stack are empty. The top-level reductions (Figure ~\ref{sem:toplevel}) can be
+performed by either by taking a C step $\cstep$ or an OCaml step $\ostep$.
+
+\subsubsection{C reductions}
+
+We can take a C step (Figure~\ref{sem:cstep}) by taking an administrative
+reduction step $\rightsquigarrow$. The administrative reductions are common to
+both C and OCaml. The rules \textsc{Var}, \textsc{Arith1}, \textsc{Arith2},
+\textsc{App1}, \textsc{App2} and \textsc{App3} are standard. \textsc{Arith3}
+performs the arithmetic operation on the integers ($\llbracket n_1 \odot n_2
+\rrbracket$). \textsc{Raise} pushes an function frame with exception value to
+indicate that an exception is being raised. Similarly, \textsc{Perform} pushes
+a function frame with an effect value with an empty continuation
+$[[],(\{\caseval{x}{x}\},\emptyset)]$ with no captured frames and an empty
+handler with an identity return case alone. We shall return to \textsc{Resume1}
+and \textsc{Resume2} later.
 
 Continuing with the rest of the C reduction steps, \textsc{CallC} captures the
 behaviour of calling a C function. Since the program is currently executing C,
@@ -968,24 +973,26 @@ the enclosing OCaml stack. \textsc{ExnFwdO} forwards a raised exception to the
 enclosing OCaml stack, unwinding the rest of the frames. This captures the
 semantics of raising OCaml exceptions from C.
 
-\textbf{\textit{OCaml reductions.}} In OCaml (Figure~\ref{sem:ostep}),
-reductions always occur on the top-most fiber in the current stack.
-\textsc{AdminO} performs administrative reductions. \textsc{CallO} evaluates an
-OCaml function on the current stack. \textsc{ExtCall} captures the behaviour of
-external calls, which are evaluated on an empty C stack with the current OCaml
-stack as its tail. \textsc{RetToC} returns a value to the enclosing C stack. In
-this case, we have exactly one fiber on the stack, and this was created in the
-rule \textsc{Callback}, whose handler has identity return case alone and the
-environment is empty. \textsc{RetFib} returns value from a fiber to the
-previous one, evaluating the body of the return case.
+\subsubsection{OCaml reductions}
+
+In OCaml (Figure~\ref{sem:ostep}), reductions always occur on the top-most
+fiber in the current stack. \textsc{AdminO} performs administrative reductions.
+\textsc{CallO} evaluates an OCaml function on the current stack.
+\textsc{ExtCall} captures the behaviour of external calls, which are evaluated
+on an empty C stack with the current OCaml stack as its tail. \textsc{RetToC}
+returns a value to the enclosing C stack. In this case, we have exactly one
+fiber on the stack, and this was created in the rule \textsc{Callback}, whose
+handler has identity return case alone and the environment is empty.
+\textsc{RetFib} returns value from a fiber to the previous one, evaluating the
+body of the return case.
 
 The rule \textsc{Handle} installs a handler by pushing a fiber with no frames
-and the given handler. The rule \textsc{ExHn} handles an exception, if the
+and the given handler. The rule \textsc{ExnHn} handles an exception, if the
 current handler has a matching exception case, unwinding the current fiber. The
-rule \textsc{ExFwdC} forwards the exception to C. Here, there is exactly one
+rule \textsc{ExnFwdC} forwards the exception to C. Here, there is exactly one
 fiber on the current stack, and the handler does not have a matching exception
 case, which we know is the case (see \textsc{Callback} rule). The rule
-\textsc{ExFwdFib} forwards the exception to the next fiber if the current
+\textsc{ExnFwdFib} forwards the exception to the next fiber if the current
 handler does not handle it.
 
 The rule \textsc{EffHn} captures the handling of effects when the current

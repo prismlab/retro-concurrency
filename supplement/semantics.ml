@@ -82,87 +82,98 @@ let empty_continuation = [[], (HValue ("x", EVar "x"), empty_env)]
 
 let admin_step t fs =
   match t,fs with
-  (* Constant *)
+  (* Const -- no corresponding rule in the paper *)
   | E (EConst n, r), fs -> Some (V (VInt n), fs)
 
-  (* Variable *)
+  (* Var *)
   | E (EVar x, r), fs ->
       begin match r x with
       | None -> raise Stuck (* unbound variable; open term? *)
       | Some v -> Some (V v, fs)
       end
 
-  (* Arithmetic *)
+  (* Arith1 *)
   | E (EArith (f, e1, e2), r), fs -> Some (E (e1, r), FArith1 (f, e2, r)::fs)
+  (* Arith2 *)
   | V (VInt n1), FArith1 (f, e2, r2)::fs -> Some (E (e2, r2), FArith2(f,n1)::fs)
+  (* Arith3 *)
   | V (VInt n2), FArith2 (f, n1)::fs -> Some (V (VInt (f n1 n2)), fs)
 
-  (* Function Application *)
+  (* App1 *)
   | E (EApp (f, x), r), fs -> Some (E (f, r), FArg (x, r)::fs)
+  (* App2 *)
   | E (EAbs (k, x, e), r), fs -> Some (V (VClos (EAbs (k, x, e), r)), fs)
+  (* App3 *)
   | V (VClos (e, v)), FArg (x, r2)::fs -> Some (E (x, r2), FFun (VClos (e, v))::fs)
 
-  (* Continuation resumption *)
+  (* Resume1 *)
   | V (VCont k), FArg (e1, r1)::FArg (e2, r2)::fs ->
       Some (E (e1, r1), FFun (VCont k)::FArg (e2, r2)::fs)
+  (* Resume2 *)
   | V (VClos (e1, r1)), FFun (VCont k)::FArg (e2, r2)::fs ->
       Some (E (e2, r2), FFun (VCont k)::FFun(VClos (e1, r1))::fs)
 
-  (* Perform operation *)
+  (* Perform *)
   | E (EPerform (l, e), r), fs -> Some (E (e, r), FFun (VEff (l, empty_continuation))::fs)
 
-  (* Raise exception *)
+  (* Raise *)
   | E (ERaise (l, e), r), fs -> Some (E (e, r), FFun (VExn l)::fs)
 
   | _ -> None
 
 let ostep t (k:continuation) cs =
   match t, k with
-  (* Return *)
-  | V v, [[],_h] -> Some (V v, C cs) (* Return from OCaml to C *)
-  | V v, ([],(h,r))::k' ->  (* Handler value return case *)
+  (* CallO *)
+  | V v, (FFun (VClos (EAbs (Olam, x, e), r))::fs,h)::k ->
+      Some (E (e, extend_env r x v), O (OS ((fs,h)::k, cs)))
+  (* ExtCall *)
+  | V v, (FFun (VClos (EAbs (Clam, x, e), r))::fs,h)::k ->
+      Some (E (e, extend_env r x v), C (CS ([], Some (OS ((fs,h)::k, cs)))))
+
+  (* RetToC *)
+  | V v, [[],_h] -> Some (V v, C cs)
+  (* RetFib *)
+  | V v, ([],(h,r))::k' ->
       let x,e = get_return_case h in
       Some (E (e, extend_env r x v), O (OS (k', cs)))
 
-  (* Function Application *)
-  | V v, (FFun (VClos (EAbs (Olam, x, e), r))::fs,h)::k ->
-      Some (E (e, extend_env r x v), O (OS ((fs,h)::k, cs)))
-  | V v, (FFun (VClos (EAbs (Clam, x, e), r))::fs,h)::k -> (* External call *)
-      Some (E (e, extend_env r x v), C (CS ([], Some (OS ((fs,h)::k, cs)))))
-
-  (* Continuation resumption *)
-  | V v, (FFun (VCont k)::FFun(VClos (EAbs (Olam, x, e), r))::fs,h)::k' ->
-      Some (E (e, extend_env r x v), O (OS (k @ ((fs,h)::k'), cs)))
-
-  (* Install handler *)
+  (* Handle *)
   | E (EMatchWith (e, h), r), k -> Some (E (e, r), O (OS (([],(h,r))::k, cs)))
 
-  (* Perform operation *)
+  (* EffUnHn *)
   | V v, [FFun (VEff (l, k))::fs,h] ->
       (* Outermost handler has only the value case *)
       Some (E (ERaise ("Unhandled_effect", EConst 0), empty_env), O (OS (k @ ([fs,h]), cs)))
   | V v, (FFun (VEff (l, k))::fs,(h,r))::(fs',h')::k' ->
       begin match get_effect_case h l with
+      (* EffHn *)
       | Some (x,kv,e) ->
           let new_r = extend_env (extend_env r kv (VCont (k @ [fs,(h,r)]))) x v in
           Some (E (e, new_r), O (OS ((fs',h')::k', cs)))
+      (* EffFwd *)
       | None -> Some (V v, O (OS ((FFun (VEff (l, k @ [fs,(h,r)]))::fs',h')::k', cs)))
       end
 
-   (* Raise exception *)
+   (* ExFwdC *)
    | V v, [FFun (VExn l)::fs,h] ->
       (* Outermost handler has only the value case *)
       let CS (fs,osopt) = cs in
       Some (V v, C (CS (FFun (VExn l)::fs, osopt)))
    | V v, ((FFun (VExn l)::fs,(h,r))::(fs',h')::k') ->
+       (* ExHn *)
        begin match get_exn_case h l with
        | Some (x,e) ->
            let new_r = extend_env r x v in
            Some (E (e, new_r), O (OS ((fs',h')::k', cs)))
+       (* ExFwdFib *)
        | None -> Some (V v, O (OS ((FFun (VExn l)::fs',h')::k', cs)))
        end
 
-  (* Other local operations *)
+  (* Resume *)
+  | V v, (FFun (VCont k)::FFun(VClos (EAbs (Olam, x, e), r))::fs,h)::k' ->
+      Some (E (e, extend_env r x v), O (OS (k @ ((fs,h)::k'), cs)))
+
+  (* AdminO *)
   | _, (fs,h)::k ->
       begin match admin_step t fs with
       | Some (t',fs') -> Some (t',O (OS ((fs',h)::k, cs)))
@@ -172,20 +183,21 @@ let ostep t (k:continuation) cs =
 
 let cstep t fs osopt =
   match t, fs with
-  (* Return value from C to OCaml *)
+  (* RetToO *)
   | V v, [] ->
       begin match osopt with
       | None -> None
       | Some os -> Some (V v, O os)
       end
 
-  (* Function Application *)
-  | V v, FFun (VClos (EAbs (Olam, x, e), r2))::fs -> (* callback *)
+  (* Callback *)
+  | V v, FFun (VClos (EAbs (Olam, x, e), r2))::fs ->
       Some (E (e, extend_env r2 x v), O (OS (empty_continuation, CS (fs, osopt))))
+  (* CallC *)
   | V v, FFun (VClos (EAbs (Clam, x, e), r2))::fs ->
       Some (E (e, extend_env r2 x v), C (CS (fs, osopt)))
 
-  (* Raise exception *)
+  (* ExnFwdO *)
   | V v, FFun (VExn l)::fs ->
       begin match osopt with
       | Some (OS ((fs,h)::k, cs)) ->
@@ -195,7 +207,7 @@ let cstep t fs osopt =
           raise Stuck
       end
 
-  (* Other local operations *)
+  (* AdminC *)
   | _, fs ->
       begin match admin_step t fs with
       | Some (t',fs') -> Some (t', C (CS (fs', osopt)))
@@ -204,8 +216,10 @@ let cstep t fs osopt =
 
 let step (term,stack) =
   match stack with
-  | O (OS (k, cs)) -> ostep term k cs
+  (* StepC *)
   | C (CS (fs, osopt)) -> cstep term fs osopt
+  (* StepO *)
+  | O (OS (k, cs)) -> ostep term k cs
 
 let s st = match step st with
            | None -> failwith "unexpected"
@@ -268,16 +282,16 @@ let callback e = app [olam "x" e; c 0]
 (******************************************************************************)
 
 let ex1 = olam "x" (var "x")
-(* Expect [fun x -> x] for [eval ex1] in utop *)
+(* Expect [fun x -> x] for [eval ex1] *)
 
 let ex2 = app [olam "x" (var "x"); olam "y" (var "y")]
-(* Expect [fun y -> y] for [eval ex2] in utop*)
+(* Expect [fun y -> y] for [eval ex2]*)
 
 let ex3 = callback (
             handle (perform "x" (c 0))
             (case_exn "Unhandled_effect" "v" (c 42)
             (case_val "impossible" (var "impossible"))))
-(* Expect [42] for [int_state_to_string (eval ex3)] in utop *)
+(* Expect [42] for [int_state_to_string (eval ex3)] *)
 
 let inc_handler e =
   handle e
@@ -285,26 +299,26 @@ let inc_handler e =
   (case_val "x" (var "x")))
 
 let ex4 = callback (inc_handler (perform "Inc" (c 0)))
-(* Expect [1] for [int_state_to_string (eval ex4) in utop] *)
+(* Expect [1] for [int_state_to_string (eval ex4)] *)
 
 let ex5 = callback (inc_handler (perform "Inc" (c 0) + perform "Inc" (c 1)))
-(* Expect [3] for [int_state_to_string (eval ex5) in utop] *)
+(* Expect [3] for [int_state_to_string (eval ex5)] *)
 
 let ex6 = callback (
             handle (perform "eff" (c 0))
             (case_eff "eff" "v" "k" (discontinue "k" "exn" (c 42))
             ((case_exn "exn" "v'" (var "v'"))
             (case_val "_" (var "_")))))
-(* Expect [42] for [int_state_to_string (eval ex6) in utop] *)
+(* Expect [42] for [int_state_to_string (eval ex6)] *)
 
 
 let ex7 = handle (c 0)
           (case_eff "eff" "v" "k" (var "v")
           (case_val "v" (var "v")))
-(* Expect [exception Stuck] for [eval ex7] in utop. Handlers cannot be installed in C. *)
+(* Expect [exception Stuck] for [eval ex7]. Handlers cannot be installed in C. *)
 
 let ex8 = perform "eff" (c 0)
-(* Expect [exception Stuck] for [eval ex8] in utop. Effects cannot be performed in C. *)
+(* Expect [exception Stuck] for [eval ex8]. Effects cannot be performed in C. *)
 
 let run () =
   begin match eval ex1 with
