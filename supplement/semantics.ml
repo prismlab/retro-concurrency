@@ -80,127 +80,172 @@ exception Stuck
 
 let empty_continuation = [[], (HValue ("x", EVar "x"), empty_env)]
 
-let admin_step t fs =
+let admin_step ?(log=false) t fs =
   match t,fs with
   (* Const -- no corresponding rule in the paper *)
-  | E (EConst n, r), fs -> Some (V (VInt n), fs)
+  | E (EConst n, r), fs ->
+      if log then print_string "Const ";
+      Some (V (VInt n), fs)
 
   (* Var *)
   | E (EVar x, r), fs ->
       begin match r x with
       | None -> raise Stuck (* unbound variable; open term? *)
-      | Some v -> Some (V v, fs)
+      | Some v ->
+          if log then print_string "Var ";
+          Some (V v, fs)
       end
 
   (* Arith1 *)
-  | E (EArith (f, e1, e2), r), fs -> Some (E (e1, r), FArith1 (f, e2, r)::fs)
+  | E (EArith (f, e1, e2), r), fs ->
+      if log then print_string "Arith1 ";
+      Some (E (e1, r), FArith1 (f, e2, r)::fs)
   (* Arith2 *)
-  | V (VInt n1), FArith1 (f, e2, r2)::fs -> Some (E (e2, r2), FArith2(f,n1)::fs)
+  | V (VInt n1), FArith1 (f, e2, r2)::fs ->
+      if log then print_string "Arith2 ";
+      Some (E (e2, r2), FArith2(f,n1)::fs)
   (* Arith3 *)
-  | V (VInt n2), FArith2 (f, n1)::fs -> Some (V (VInt (f n1 n2)), fs)
+  | V (VInt n2), FArith2 (f, n1)::fs ->
+      if log then print_string "Arith3 ";
+      Some (V (VInt (f n1 n2)), fs)
 
   (* App1 *)
-  | E (EApp (f, x), r), fs -> Some (E (f, r), FArg (x, r)::fs)
+  | E (EApp (f, x), r), fs ->
+      if log then print_string "App1 ";
+      Some (E (f, r), FArg (x, r)::fs)
   (* App2 *)
-  | E (EAbs (k, x, e), r), fs -> Some (V (VClos (EAbs (k, x, e), r)), fs)
+  | E (EAbs (k, x, e), r), fs ->
+      if log then print_string "App2 ";
+      Some (V (VClos (EAbs (k, x, e), r)), fs)
   (* App3 *)
-  | V (VClos (e, v)), FArg (x, r2)::fs -> Some (E (x, r2), FFun (VClos (e, v))::fs)
+  | V (VClos (e, v)), FArg (x, r2)::fs ->
+      if log then print_string "App3 ";
+      Some (E (x, r2), FFun (VClos (e, v))::fs)
 
   (* Resume1 *)
   | V (VCont k), FArg (e1, r1)::FArg (e2, r2)::fs ->
+      if log then print_string "Resume1 ";
       Some (E (e1, r1), FFun (VCont k)::FArg (e2, r2)::fs)
   (* Resume2 *)
   | V (VClos (e1, r1)), FFun (VCont k)::FArg (e2, r2)::fs ->
+      if log then print_string "Resume2 ";
       Some (E (e2, r2), FFun (VCont k)::FFun(VClos (e1, r1))::fs)
 
   (* Perform *)
-  | E (EPerform (l, e), r), fs -> Some (E (e, r), FFun (VEff (l, empty_continuation))::fs)
+  | E (EPerform (l, e), r), fs ->
+      if log then print_string "Perform ";
+      Some (E (e, r), FFun (VEff (l, empty_continuation))::fs)
 
   (* Raise *)
-  | E (ERaise (l, e), r), fs -> Some (E (e, r), FFun (VExn l)::fs)
+  | E (ERaise (l, e), r), fs ->
+      if log then print_string "Raise ";
+      Some (E (e, r), FFun (VExn l)::fs)
 
   | _ -> None
 
-let ostep t (k:continuation) cs =
+let ostep ?(log=false) t (k:continuation) cs =
   match t, k with
   (* CallO *)
   | V v, (FFun (VClos (EAbs (Olam, x, e), r))::fs,h)::k ->
+      if log then print_string "CallO ";
       Some (E (e, extend_env r x v), O (OS ((fs,h)::k, cs)))
   (* ExtCall *)
   | V v, (FFun (VClos (EAbs (Clam, x, e), r))::fs,h)::k ->
+      if log then print_string "ExtCall ";
       Some (E (e, extend_env r x v), C (CS ([], Some (OS ((fs,h)::k, cs)))))
 
   (* RetToC *)
-  | V v, [[],_h] -> Some (V v, C cs)
+  | V v, [[],_h] ->
+      if log then print_string "RetToC ";
+      Some (V v, C cs)
   (* RetFib *)
   | V v, ([],(h,r))::k' ->
+      if log then print_string "RetFib ";
       let x,e = get_return_case h in
       Some (E (e, extend_env r x v), O (OS (k', cs)))
 
   (* Handle *)
-  | E (EMatchWith (e, h), r), k -> Some (E (e, r), O (OS (([],(h,r))::k, cs)))
+  | E (EMatchWith (e, h), r), k ->
+      if log then print_string "Handle ";
+      Some (E (e, r), O (OS (([],(h,r))::k, cs)))
 
   (* EffUnHn *)
   | V v, [FFun (VEff (l, k))::fs,h] ->
       (* Outermost handler has only the value case *)
+      if log then print_string "EffUnHn ";
       Some (E (ERaise ("Unhandled_effect", EConst 0), empty_env), O (OS (k @ ([fs,h]), cs)))
   | V v, (FFun (VEff (l, k))::fs,(h,r))::(fs',h')::k' ->
       begin match get_effect_case h l with
       (* EffHn *)
       | Some (x,kv,e) ->
+          if log then print_string "EffHn ";
           let new_r = extend_env (extend_env r kv (VCont (k @ [fs,(h,r)]))) x v in
           Some (E (e, new_r), O (OS ((fs',h')::k', cs)))
       (* EffFwd *)
-      | None -> Some (V v, O (OS ((FFun (VEff (l, k @ [fs,(h,r)]))::fs',h')::k', cs)))
+      | None ->
+          if log then print_string "EffFwd ";
+          Some (V v, O (OS ((FFun (VEff (l, k @ [fs,(h,r)]))::fs',h')::k', cs)))
       end
 
-   (* ExFwdC *)
+   (* ExnFwdC *)
    | V v, [FFun (VExn l)::fs,h] ->
       (* Outermost handler has only the value case *)
       let CS (fs,osopt) = cs in
+      if log then print_string "ExnFwdC ";
       Some (V v, C (CS (FFun (VExn l)::fs, osopt)))
    | V v, ((FFun (VExn l)::fs,(h,r))::(fs',h')::k') ->
-       (* ExHn *)
+       (* ExnHn *)
        begin match get_exn_case h l with
        | Some (x,e) ->
            let new_r = extend_env r x v in
+           if log then print_string "ExnHn ";
            Some (E (e, new_r), O (OS ((fs',h')::k', cs)))
-       (* ExFwdFib *)
-       | None -> Some (V v, O (OS ((FFun (VExn l)::fs',h')::k', cs)))
+       (* ExnFwdFib *)
+       | None ->
+           if log then print_string "ExnFwdFib ";
+           Some (V v, O (OS ((FFun (VExn l)::fs',h')::k', cs)))
        end
 
   (* Resume *)
   | V v, (FFun (VCont k)::FFun(VClos (EAbs (Olam, x, e), r))::fs,h)::k' ->
+      if log then print_string "Resume ";
       Some (E (e, extend_env r x v), O (OS (k @ ((fs,h)::k'), cs)))
 
   (* AdminO *)
   | _, (fs,h)::k ->
-      begin match admin_step t fs with
-      | Some (t',fs') -> Some (t',O (OS ((fs',h)::k, cs)))
+      begin match admin_step ~log t fs with
+      | Some (t',fs') ->
+          if log then print_string "AdminO ";
+          Some (t',O (OS ((fs',h)::k, cs)))
       | None -> raise Stuck (* No further reduction *)
       end
   | _, [] -> raise Stuck
 
-let cstep t fs osopt =
+let cstep ?(log=false) t fs osopt =
   match t, fs with
   (* RetToO *)
   | V v, [] ->
       begin match osopt with
       | None -> None
-      | Some os -> Some (V v, O os)
+      | Some os ->
+          if log then print_string "RetToO ";
+          Some (V v, O os)
       end
 
   (* Callback *)
   | V v, FFun (VClos (EAbs (Olam, x, e), r2))::fs ->
+      if log then print_string "Callback ";
       Some (E (e, extend_env r2 x v), O (OS (empty_continuation, CS (fs, osopt))))
   (* CallC *)
   | V v, FFun (VClos (EAbs (Clam, x, e), r2))::fs ->
+      if log then print_string "CallC ";
       Some (E (e, extend_env r2 x v), C (CS (fs, osopt)))
 
   (* ExnFwdO *)
   | V v, FFun (VExn l)::fs ->
       begin match osopt with
       | Some (OS ((fs,h)::k, cs)) ->
+          if log then print_string "ExnFwdO ";
           Some (V v, O (OS ((FFun (VExn l)::fs,h)::k, cs)))
       | _ -> (* no handler *)
           print_string ("Unhandled exception: " ^ l ^ "\n");
@@ -209,30 +254,44 @@ let cstep t fs osopt =
 
   (* AdminC *)
   | _, fs ->
-      begin match admin_step t fs with
-      | Some (t',fs') -> Some (t', C (CS (fs', osopt)))
+      begin match admin_step ~log t fs with
+      | Some (t',fs') ->
+          if log then print_string "AdminC ";
+          Some (t', C (CS (fs', osopt)))
       | None -> raise Stuck (* No further reduction *)
       end
 
-let step (term,stack) =
+let step ?(log=false) (term,stack) =
   match stack with
   (* StepC *)
-  | C (CS (fs, osopt)) -> cstep term fs osopt
+  | C (CS (fs, osopt)) ->
+      let r = cstep ~log term fs osopt in
+      begin match r with
+      | Some _ -> if log then print_endline "StepC"
+      | _ -> ()
+      end;
+      r
   (* StepO *)
-  | O (OS (k, cs)) -> ostep term k cs
+  | O (OS (k, cs)) ->
+      let r = ostep ~log term k cs in
+      begin match r with
+      | Some _ -> if log then print_endline "StepO"
+      | _ -> ()
+      end;
+      r
 
 let s st = match step st with
            | None -> failwith "unexpected"
            | Some st -> st
 
-let rec eval_st s =
-  match step s with
+let rec eval_st ?(log=false) s =
+  match step ~log s with
   | None -> s
-  | Some s' -> eval_st s'
+  | Some s' -> eval_st ~log s'
 
 let init e = E (e, empty_env), C (CS ([], None))
 
-let eval e = eval_st (init e)
+let eval ~log e = eval_st ~log (init e)
 
 (******************************************************************************)
 (* Helper Functions *)
@@ -320,20 +379,20 @@ let ex7 = handle (c 0)
 let ex8 = perform "eff" (c 0)
 (* Expect [exception Stuck] for [eval ex8]. Effects cannot be performed in C. *)
 
-let run () =
-  begin match eval ex1 with
+let run ?(log=false) () =
+  begin match eval ~log ex1 with
   | V (VClos (EAbs (Olam, "x", (EVar "x")), _)), _ -> ()
   | _ -> failwith "ex1 failed"
   end;
-  begin match eval ex2 with
+  begin match eval ~log ex2 with
   | V (VClos (EAbs (Olam, "y", (EVar "y")), _)), _ -> ()
   | _ -> failwith "ex2 failed"
   end;
-  if not (int_state_to_string (eval ex3) = "42") then failwith "ex3 failed";
-  if not (int_state_to_string (eval ex4) = "1") then failwith "ex4 failed";
-  if not (int_state_to_string (eval ex5) = "3") then failwith "ex5 failed";
-  if not (int_state_to_string (eval ex6) = "42") then failwith "ex6 failed";
-  try ignore (eval ex7); failwith "ex7 failed" with Stuck -> ();
-  try ignore (eval ex8); failwith "ex8 failed" with Stuck -> ()
+  if not (int_state_to_string (eval ~log ex3) = "42") then failwith "ex3 failed";
+  if not (int_state_to_string (eval ~log ex4) = "1") then failwith "ex4 failed";
+  if not (int_state_to_string (eval ~log ex5) = "3") then failwith "ex5 failed";
+  if not (int_state_to_string (eval ~log ex6) = "42") then failwith "ex6 failed";
+  try ignore (eval ~log ex7); failwith "ex7 failed" with Stuck -> ();
+  try ignore (eval ~log ex8); failwith "ex8 failed" with Stuck -> ()
 
 let _ = run ()
