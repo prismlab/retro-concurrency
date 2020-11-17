@@ -1020,10 +1020,10 @@ body of the closure.
 \section{Implementation}
 \label{sec:impl}
 
-In this section, we present the implementation details of effect handlers in
-Multicore OCaml. Multicore OCaml currently only supports the x86-64 backend on
-Linux, but our design does not preclude other backends. We assume x86-64
-architecture in the sequel.
+We now present the implementation details of effect handlers in
+Multicore OCaml. We assume an x86\_64 architecture for the remainder of this paper
+-- although  Multicore OCaml currently only supports the x86\_64 backend on
+Linux, our design is intended to support other CPUs and OSs.
 
 \vspace{-2mm}
 \subsection{Exceptions}
