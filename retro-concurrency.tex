@@ -1246,7 +1246,7 @@ descriptors.
 
 We consider well-behaved Multicore OCaml programs to resume their continuations
 \emph{exactly once}. This can be enforced by installing a finaliser on every
-captured continuation that |discontinue|s the continuation during finalisation
+captured continuation that calls |discontinue| on the continuation during finalisation
 and ignores the result:
 \begin{lstlisting}
 Gc.finalise (fun k ->
