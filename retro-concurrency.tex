@@ -1370,12 +1370,12 @@ In the |monad| version, we use a |fork| to invoke the non-tail call and use an
 
 The results are presented in Table~\ref{tab:micro_noperform}. They show that
 using effect handlers (concurrency monad) is 13.77$\times$ (67.09$\times$) more
-expensive than the idiomatic implementation using non-tail calls. Concurrency
+expensive than the idiomatic implementation using non-tail calls. The concurrency
 monad suffers due to the heap allocation of continuation frames (which need to
-be GCed), where as effect handlers benefit from stack allocation of the frames.
-Our concurrency monad, and indeed monadic concurrency libraries such as
-Lwt~\cite{lwt} and Async~\cite{async}, also have other downsides; due to the
-lack of stack, exceptions, backtraces, and DWARF unwinding are no longer
+be GCed), whereas effect handlers benefit from stack allocation of the frames.
+Our concurrency monad (and other monadic concurrency libraries such as
+Lwt~\cite{lwt} and Async~\cite{async}) also have other downsides -- due to the
+lack of a stack, exceptions, backtraces, and DWARF unwinding are no longer
 useful.
 
 We note that a compiler that uses CPS IR will be faster than the concurrency
