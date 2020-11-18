@@ -343,9 +343,9 @@ requirements:
 
 \if{0}
 \begin{enumerate}[label=R\arabic*]
-  \item \textbf{Backwards compatibility} A well-behaved OCaml program does not
-    break under an OCaml extended with effect handlers. OCaml code that does not
-    use effect handlers will pay negligible performance cost.
+	\item \textbf{Backwards compatibility} A well-behaved OCaml program does not
+		break under OCaml extended with effect handlers. OCaml code that does not
+		use effect handlers will pay negligible performance cost.
   \item \textbf{Tool compatibility} OCaml with effect handlers produce
     well-formed backtraces, and remains compatible with program analysis tools
     such as debuggers and profilers that inspect the stack using DWARF stack
@@ -824,9 +824,9 @@ primitive to avoid executing code on the resumption path.
       \textsc{AdminC}   & (\term,\env,\fl,\ostack) & \cstep
                         & \configa{\term'}{\env'}{\cstacka{\fl'}{\ostack}}
                         & \text{if } (\term,\env,\fl) \rightsquigarrow (\term',\env',\fl') \\
-      \textsc{CallC}    & (v, \_, \cclos{x}{e}{\env}::\fl, \ostack) & \cstep
+			\textsc{CallC}    & (v, \_, \ffun{\cclos{x}{e}{\env}}::\fl, \ostack) & \cstep
                         & \configa{e}{\envext{\env}{x}{v}}{\cstacka{\fl}{\ostack}} \\
-      \textsc{Callback} & (v, \_, \oclos{x}{e}{\env}::\fl, \ostack) & \cstep
+			\textsc{Callback} & (v, \_, \ffun{\oclos{x}{e}{\env}}::\fl, \ostack) & \cstep
                         & \configa{e}{\envext{\env}{x}{v}}{\ostacka{k}{\cstacka{\fl}{\ostack}}}
                         & \text{if } k = [[],(\{\caseval{x}{x}\},\emptyset)] \\
       \textsc{RetToO}   & (v,\env,[],\ostacka{k}{\cstack}) & \cstep
@@ -845,9 +845,9 @@ primitive to avoid executing code on the resumption path.
       \textsc{AdminO}   & (\term,\env,(\fl,\hc) \kcons k,\cstack) & \ostep
                         & \configa{\term'}{\env'}{\ostacka{(\fl',\hc) \kcons k}{\cstack}}
                         & \text{if } (\term,\env,\fl) \rightsquigarrow (\term',\env',\fl') \\
-      \textsc{CallO}    & (v, \_, (\oclos{x}{e}{\env}::\fl,\hc) \kcons k, \cstack) & \ostep
+			\textsc{CallO}    & (v, \_, (\ffun{\oclos{x}{e}{\env}}::\fl,\hc) \kcons k, \cstack) & \ostep
                         & \configa{e}{\envext{\env}{x}{v}}{\ostacka{(\fl,\hc) \kcons k}{\cstack}} \\
-      \textsc{ExtCall}  & (v, \_, (\cclos{x}{e}{\env}::\fl,\hc) \kcons k, \cstack) & \ostep
+			\textsc{ExtCall}  & (v, \_, (\ffun{\cclos{x}{e}{\env}}::\fl,\hc) \kcons k, \cstack) & \ostep
                         & \configa{e}{\envext{\env}{x}{v}}{\cstacka{[]}{\ostacka{(\fl,\hc) \kcons k}{\cstack}}} \\
       \textsc{RetToC}   & (v, \_, [([],(h,\emptyset))], \cstack) & \ostep
                         & \configa{v}{\env}{\cstack}
@@ -899,7 +899,8 @@ faithfully captures the semantics of the Multicore OCaml implementation. An
 executable version of the semantics implemented as an OCaml interpreter along
 with examples is included in the supplementary material.
 
-\textbf{\textit{Syntax.}} Our expressions (Figure~\ref{sem:syntax}) consists of
+
+\subsubsection{Syntax} Our expressions (Figure~\ref{sem:syntax}) consists of
 integer constants ($n$), variables ($x$), abstraction ($\lam{x}{x}$),
 application ($e~e$), arithmetic expressions ($e \odot e$) where $\odot$ ranges
 over $\{+,-,*,/\}$, raising exceptions ($\throw{l}{e}$), performing effects
@@ -934,11 +935,12 @@ the argument position of an application with its environment $\env$, a function
 frame $\ffun{v}$ with the value $v$ at the function position of an application,
 and frames for evaluating the arguments of an arithmetic expression.
 
-Continuations $k$ are either empty $[]$ or a non-empty sequence of \emph{fibers}.
-A fiber $\fiber \coloneqq (\fl,\hc)$ is a list of frames $\fl$ and a handler
+Continuations $k$ are either empty $[]$ or a non-empty list of \emph{fibers}. A
+fiber $\fiber \coloneqq (\fl,\hc)$ is a list of frames $\fl$ and a handler
 closure $\hc \coloneqq (h,\env)$, which is a pair of handler $h$ and its
-environment $\env$.
+environment $\env$. We use the infix operator $@$ for appending two lists.
 
+\vspace{-1mm}
 \subsubsection{Top-level reductions}
 
 The initial configuration for an expression $e$ is
@@ -946,6 +948,7 @@ $\configa{e}{\emptyset}{\cstacka{[]}{\bullet}}$, where the environment and the
 stack are empty. The top-level reductions (Figure ~\ref{sem:toplevel}) can be
 performed by either by taking a C step $\cstep$ or an OCaml step $\ostep$.
 
+\vspace{-1mm}
 \subsubsection{C reductions}
 
 We can take a C step (Figure~\ref{sem:cstep}) by taking an administrative
@@ -970,6 +973,7 @@ the enclosing OCaml stack. \textsc{ExnFwdO} forwards a raised exception to the
 enclosing OCaml stack, unwinding the rest of the frames. This captures the
 semantics of raising OCaml exceptions from C.
 
+\vspace{-1mm}
 \subsubsection{OCaml reductions}
 
 In OCaml (Figure~\ref{sem:ostep}), reductions always occur on the top-most
@@ -1025,7 +1029,7 @@ Multicore OCaml. We assume an x86\_64 architecture for the remainder of this pap
 -- although  Multicore OCaml currently only supports the x86\_64 backend on
 Linux, our design is intended to support other CPUs and OSs.
 
-\vspace{-2mm}
+%\vspace{-2mm}
 \subsection{Exceptions}
 
 The implementation follows the operational semantics, but has a few key
@@ -1039,7 +1043,7 @@ compatibility. This differs from other research languages with effect
 handlers~\cite{Hillerstrom20,Frank,Eff}, which implement exceptions using
 effects (by ignoring the continuation argument in the handler).
 
-\vspace{-2mm}
+%\vspace{-2mm}
 \subsection{Heap-allocated fibers}
 \label{sec:hafibers}
 
@@ -1132,7 +1136,7 @@ stack pointer of the current stack and loading the same on the target stack.
 Since OCaml does not generate pointers into the stack, the two |fiber_info|
 fields are the only ones that need to be updated when fibers are moved.
 
-\vspace{-2mm}
+%\vspace{-2mm}
 \subsection{External calls and callbacks}
 
 Since C functions do not have stack overflow checks, we have to execute the
@@ -1156,7 +1160,7 @@ before calling and after returning from |c_to_ocaml| function, respectively.
 Thanks to the fiber representation, external calls and callbacks remain
 competitive with stock OCaml.
 
-\vspace{-2mm}
+%\vspace{-2mm}
 \subsection{Effect handlers}
 \label{sec:effimpl}
 
@@ -1227,7 +1231,7 @@ between fibers and one was where the control returns to the parent fiber which
 happened to be resized due to effect handler invocation, which the tool could
 not track.
 
-Even with correct DWARF unwind information, using DWARF to record call stack
+Despite the correct DWARF unwind information, using DWARF to record call stack
 information in |perf| only captures the call stack of the current fiber in
 Multicore OCaml. Since stack unwinding using DWARF is slow due to bytecode
 interpretation overhead, |perf| dumps the (user) call stack when
@@ -1275,7 +1279,7 @@ core runs at 2.20GHz and has 32 KB of L1 data cache, 32 KB of L1 instruction
 cache and 1MB of L2 cache. The cores on a socket share a 19.25 MB L3 cache. The
 server has 64GB of main memory and runs Ubuntu 18.04.
 
-\vspace{-3mm}
+%\vspace{-3mm}
 \subsection{No effects benchmarks}
 
 In this section, we measure the impact of the addition of effect handlers on
@@ -1341,7 +1345,7 @@ this. Callback performance is less important than external calls, which are far
 more numerous. As seen previously, these results however do not affect macro
 benchmark performance.
 
-\vspace{-3mm}
+%\vspace{-3mm}
 \subsection{No perform benchmarks}
 
 \begin{table}
@@ -1383,7 +1387,7 @@ monad implementation due to optimisations to reduce the heap allocation of
 continuation frames. But Farvardin et al.~\cite{Farvardin20} show that CPS with
 optimisations is still slower than using the call stack.
 
-\vspace{-3mm}
+%\vspace{-3mm}
 \subsection{Concurrent benchmarks}
 
 Next we look at benchmarks that utilize non-local control flow using effect
@@ -1476,7 +1480,7 @@ feature to dump the backtrace of all the user-level threads in the web server.
 Such a feature is provided by Go~\cite{gopprof}, but not possible with OCaml
 concurrency libraries such as Async and Lwt which lack the notion of a thread.
 
-\vspace{-3.5mm}
+%\vspace{-3.5mm}
 \section{Related Work}
 \label{sec:related}
 
@@ -1496,14 +1500,15 @@ library~\cite{Kiselyov12} to embed Eff language in OCaml. Indeed, Forester et
 al.~\cite{Forster19} showed that in an untyped setting, effect handlers,
 monadic reflection and delimited control can macro-express each other.
 
-Multicore OCaml uses the call stack for implementing continuations (as do~\cite{Leijen14, Kiselyov12}), but with one-shot continuations. Bruggeman et
+Multicore OCaml uses the call stack for implementing continuations (as
+do~\cite{Leijen14, Kiselyov12}), but with one-shot continuations. Bruggeman et
 al.~\cite{Bruggeman96} show how to implement one-shot continuations efficiently
 using segmented stacks in Scheme. Farvardin et al.~\cite{Farvardin20} perform a
 comprehensive evaluation of various implementation strategies for continuations
 on modern hardware. Multicore OCaml stacks do not neatly fit the description of
-one of these implementation strategies -- they are best described as using the resize
-strategy from Farvardin et al. for each of the fibers, which are in turn linked
-to represent the current stack and the captured continuations.
+one of these implementation strategies -- they are best described as using the
+resize strategy from Farvardin et al. for each of the fibers, which are in turn
+linked to represent the current stack and the captured continuations.
 
 Kawahara et al.~\cite{Kawahara20} implement one-shot effect handlers using
 coroutines as a macro-expressible translation, and present an embedding in Lua
@@ -1560,7 +1565,7 @@ implementing effect handlers.
 We have presented the design and implementation of effect handlers
 aimed at retrofitting them onto the large body of existing OCaml
 code.  Our design walks the tightrope of maintaining
-compatibility (e.g. for profiling and debuggers and negligible overheads for existing 
+compatibility (e.g. for profiling and debuggers and negligible overheads for existing
 programs) and also demonstrating good performance and usability for new OCaml
 code that takes advantage of effect handlers. Our implementation in Multicore OCaml
 deviates from previous categorisations~\cite{Farvardin20} and our evaluation shows
@@ -1580,24 +1585,25 @@ of effect handlers for mainstream OCaml programming.
 \subsection*{No effect macro benchmarks}
 
 \begin{figure*}
-	\begin{minipage}{\linewidth}
-	\includegraphics[width=\linewidth]{sandmark-notebook/sandmark_time}
-	\subcaption{Normalized time of macro benchmarks. Baseline is Stock OCaml,
+	\includegraphics[angle=90,scale=0.44]{sandmark-notebook/sandmark_time}
+	\caption{Normalized time of macro benchmarks. Baseline is Stock OCaml,
 		whose running time in seconds in given in parenthesis.}
-	\includegraphics[width=\linewidth]{sandmark-notebook/sandmark_codesize}
-	\subcaption{Normalized OCaml code size of macro benchmarks. Baseline is Stock
-		OCaml, whose size in bytes given in parenthesis.}
-	\end{minipage}
-	\caption{Macro benchmark performance on code that does not use effects.}
-	\label{res:macro}
+	\label{res:macro_time}
 \end{figure*}
 
-Figure~\ref{res:macro} presents the performance of macro benchmarks that do not
-use effects. The aim is to quantify the impact of the addition of effect
-handlers to the language on code that does not use effect handlers. The |MC| is
-Multicore OCaml with the default red zone size (16 words). |MC+RedZone0| uses red
-zone size of 0; every OCaml function has a stack overflow check. |MC+RedZone32|
-uses a red zone size of 32 words.
+\begin{figure*}
+	\includegraphics[angle=90,scale=0.44]{sandmark-notebook/sandmark_codesize}
+	\caption{Normalized OCaml code size of macro benchmarks. Baseline is Stock
+		OCaml, whose size in bytes given in parenthesis.}
+	\label{res:macro_size}
+\end{figure*}
+
+Figures~\ref{res:macro_time} and \ref{res:macro_size} present the performance
+of macro benchmarks that do not use effects. The aim is to quantify the impact
+of the addition of effect handlers to the language on code that does not use
+effect handlers. The |MC| is Multicore OCaml with the default red zone size (16
+words). |MC+RedZone0| uses red zone size of 0; every OCaml function has a stack
+overflow check. |MC+RedZone32| uses a red zone size of 32 words.
 
 \subsection*{Experimental support for multi-shot continuations}
 
