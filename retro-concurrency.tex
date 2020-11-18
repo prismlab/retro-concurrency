@@ -1032,7 +1032,7 @@ Multicore OCaml. We assume an x86\_64 architecture for the remainder of this pap
 -- although  Multicore OCaml currently only supports the x86\_64 backend on
 Linux, our design is intended to support other CPUs and OSs.
 
-%\vspace{-2mm}
+\vspace{-2mm}
 \subsection{Exceptions}
 
 The implementation follows the operational semantics, but has a few key
@@ -1046,7 +1046,7 @@ compatibility. This differs from other research languages with effect
 handlers~\cite{Hillerstrom20,Frank,Eff}, which implement exceptions using
 effects (by ignoring the continuation argument in the handler).
 
-%\vspace{-2mm}
+\vspace{-2mm}
 \subsection{Heap-allocated fibers}
 \label{sec:hafibers}
 
@@ -1102,8 +1102,9 @@ one-shot continuations.
 
 Fibers are allocated on the heap using |malloc| and are |free|d when no longer
 necessary. We do not use a \emph{stack cache} of recently freed stacks for
-speeding up fiber allocation~\cite{Farvardin20} as we
-observed in our evaluation (\S\ref{sec:eval}) that directly using |mimalloc|~\cite{Leijen19} outperforms a stack cache.
+speeding up fiber allocation~\cite{Farvardin20} as we observed in our
+evaluation (\S\ref{sec:eval}) that directly using |mimalloc|~\cite{Leijen19}
+outperforms a stack cache.
 
 Figure~\ref{fig:fiber} shows the layout of a fiber in Multicore OCaml. At the
 bottom of the stack, we have the |handler_info|, which contains the pointer to
@@ -1120,17 +1121,20 @@ fiber. This stack is laid out such that when the handled computation returns,
 the control switches to the parent fiber and the value handler |clos_hval|
 is invoked.
 
-Next, we have the variable-sized area for the OCaml frames, known as the red zone.
-In order to keep fibers small, this area is initially 16 words in length.
-When the stack pointer |rsp| becomes less than the stack threshold
-(maintained in the |Caml_state| table), the stack is said to have overflown.
-On stack overflow, we copy the
-whole fiber to a new area with double the size. In Multicore OCaml, we
+Next, we have the variable-sized area for the OCaml frames. In order to keep
+fibers small, this area is initially 16 words in length. When the stack pointer
+|rsp| becomes less than the \emph{stack threshold} (maintained in the
+|Caml_state| table), the stack is said to have overflown. On stack overflow, we
+copy the whole fiber to a new area with double the size. In Multicore OCaml, we
 introduce stack overflow checks into the function prologue of OCaml functions.
-In our evaluation of real world OCaml programs ((\S\ref{sec:eval}) we observed that most function
-calls are to leaf functions with a small frame size. We introduce a small red zone at the top of the stack to take advantage of this fact. The
-compiler elides the stack overflow check for leaf functions whose frame size is
-less than the size of the red zone.
+
+In our evaluation of real world OCaml programs (\S\ref{sec:eval}), we observed
+that most function calls are to leaf functions with small frame sizes. Can we
+eliminate the stack overflow checks for these functions? To this end, we
+introduce a small, fixed-sized red zone at the top of the stack. The compiler
+elides the stack overflow check for leaf functions whose frame size is less
+than the size of the red zone. The default size of the red zone in Multicore
+OCaml is 16 words.
 
 Finally, we have the saved exception pointer, which points to the top-most
 exception frame, and the saved stack pointer, which points to the top of the
@@ -1139,7 +1143,7 @@ stack pointer of the current stack and loading the same on the target stack.
 Since OCaml does not generate pointers into the stack, the two |fiber_info|
 fields are the only ones that need to be updated when fibers are moved.
 
-%\vspace{-2mm}
+\vspace{-2mm}
 \subsection{External calls and callbacks}
 
 Since C functions do not have stack overflow checks, we have to execute the
@@ -1163,7 +1167,7 @@ before calling and after returning from |c_to_ocaml| function, respectively.
 Thanks to the fiber representation, external calls and callbacks remain
 competitive with stock OCaml.
 
-%\vspace{-2mm}
+\vspace{-2mm}
 \subsection{Effect handlers}
 \label{sec:effimpl}
 
@@ -1196,6 +1200,7 @@ appropriate closure to either |continue| or |discontinue| the continuation
 (position |p3|). We perform standard tail-call optimisation so that resumptions
 at tail positions do not build up stack.
 
+\vspace{-3mm}
 \subsection{Stack unwinding}
 
 The challenge with DWARF stack unwinding is to make it aware of the
@@ -1241,6 +1246,7 @@ interpretation overhead, |perf| dumps the (user) call stack when
 sampled~\cite{Bastian19}. This only includes the frames from the current fiber.
 This is a limitation of |perf| and not of our stack layout.
 
+\vspace{-2mm}
 \subsection{Garbage collection}
 
 Recall that OCaml programs are written with the expectation that function calls
@@ -1269,6 +1275,7 @@ generation and scanning each frame for roots remains the same. The
 challenges and solutions for integrating fibers with the concurrent
 mark-and-sweep GC of Multicore OCaml have been discussed previously~\cite{Sivaramakrishnan20}.
 
+\vspace{-2mm}
 \section{Evaluation}
 \label{sec:eval}
 
@@ -1282,7 +1289,7 @@ core runs at 2.20GHz and has 32 KB of L1 data cache, 32 KB of L1 instruction
 cache and 1MB of L2 cache. The cores on a socket share a 19.25 MB L3 cache. The
 server has 64GB of main memory and runs Ubuntu 18.04.
 
-%\vspace{-3mm}
+\vspace{-3mm}
 \subsection{No effects benchmarks}
 
 In this section, we measure the impact of the addition of effect handlers on
@@ -1301,12 +1308,17 @@ The complete results are presented in the supplementary material, which we
 summarise here. On average (geometric mean of the normalized values against
 |stock| as the baseline), the multicore variants were \textbf{less than 1\%
 slower} than |stock|. The outliers (on either ends) were due to the difference
-in the allocator and the GC between stock and Multicore OCaml. The biggest
-impact was the increase in the code size for OCaml code due to stack overflow
-checks. Compared to |stock|, the code size for OCaml code is 19\% more for |MC|
-and |MC+RedZone32|, and 30\% more for |MC+RedZone0|. The result shows that our
-red zone is effective at reducing the code size, but further work is required
-to bring it closer to |stock|.
+in the allocator and the GC between stock and Multicore OCaml.
+
+The biggest impact was the increase in the code size due to stack overflow
+checks. We define code size as the sum of the sizes of all the OCaml text
+sections in the compiled binary file. The code size metric excludes data, debug
+symbols, the runtime (implemented in C) and other C libraries. Compared to
+|stock|, the code size for OCaml code is 19\% more for |MC| and |MC+RedZone32|,
+and 30\% more for |MC+RedZone0|. The result shows that our 16-word red zone is
+effective at reducing the code size compared to having no red zone, whereas the
+32-word red zone does not noticeably reduce the code size further. Further work
+is required to bring the code size closer to |stock|.
 
 \begin{table}
 \caption{Micro benchmarks without effects. Each entry is the percentage
@@ -1348,7 +1360,7 @@ this. Callback performance is less important than external calls, which are far
 more numerous. As seen previously, these results however do not affect macro
 benchmark performance.
 
-%\vspace{-3mm}
+\vspace{-3mm}
 \subsection{No perform benchmarks}
 
 \begin{table}
@@ -1390,7 +1402,7 @@ monad implementation due to optimisations to reduce the heap allocation of
 continuation frames. But Farvardin et al.~\cite{Farvardin20} show that CPS with
 optimisations is still slower than using the call stack.
 
-%\vspace{-3mm}
+\vspace{-3mm}
 \subsection{Concurrent benchmarks}
 
 Next we look at benchmarks that utilize non-local control flow using effect
@@ -1483,7 +1495,7 @@ feature to dump the backtrace of all the user-level threads in the web server.
 Such a feature is provided by Go~\cite{gopprof}, but not possible with OCaml
 concurrency libraries such as Async and Lwt which lack the notion of a thread.
 
-%\vspace{-3.5mm}
+\vspace{-2mm}
 \section{Related Work}
 \label{sec:related}
 
@@ -1541,6 +1553,7 @@ back into a context. |dynamic-wind| is not quite sufficient for resource
 clean up~\cite{Kiselyov,Sitaram03} as returning exits must be distinguished
 from non-returning ones, and resource cleanup is only necessary during
 non-returning exits.
+
 Multicore OCaml builds on the existing defensive coding practices against
 exceptions to clean up resources on non-returning exits. Our continuations are
 assumed to be resumed exactly once using |continue| or |discontinue|. As a
@@ -1555,25 +1568,23 @@ Thus, the linear use of continuations enabled by the |discontinue| primitive
 ensures backwards compatibility of legacy OCaml systems code under non-local
 control flow introduced by effect handlers. Leijen~\cite{Leijen18} explicitly
 extends effect handlers with |initially| and |finally| clauses in Koka for
-resource safety.
+resource safety. Sivaramakrishnan et al.~\cite{TFP17} describe the interaction
+of effect handlers and asynchronous exceptions. This is orthogonal to the
+contributions of this paper. Our focus is the compiler and runtime system
+support for implementing effect handlers.
 
-Sivaramakrishnan et al.~\cite{TFP17} describe the interaction of effect
-handlers and asynchronous exceptions. This is orthogonal to the contributions
-of this paper. Our focus is the compiler and runtime system support for
-implementing effect handlers.
-
+\vspace{-2mm}
 \section{Conclusions}
 \label{sec:conc}
 
-We have presented the design and implementation of effect handlers
-aimed at retrofitting them onto the large body of existing OCaml
-code.  Our design walks the tightrope of maintaining
-compatibility (e.g. for profiling and debuggers and negligible overheads for existing
-programs) and also demonstrating good performance and usability for new OCaml
-code that takes advantage of effect handlers. Our implementation in Multicore OCaml
-deviates from previous categorisations~\cite{Farvardin20} and our evaluation shows
-that we have achieved our goal of balancing compatibility with the introduction
-of effect handlers for mainstream OCaml programming.
+We have presented the design and implementation of effect handlers aimed at
+retrofitting them onto the large body of existing OCaml code.  Our design walks
+the tightrope of maintaining compatibility (e.g. for profiling and debuggers
+and negligible overheads for existing programs) and also demonstrating good
+performance and usability for new OCaml code that takes advantage of effect
+handlers. Our evaluation shows that we have achieved our goal of balancing
+compatibility with the introduction of effect handlers for mainstream OCaml
+programming.
 
 \clearpage
 
@@ -1601,12 +1612,17 @@ of effect handlers for mainstream OCaml programming.
 	\label{res:macro_size}
 \end{figure*}
 
-Figures~\ref{res:macro_time} and \ref{res:macro_size} present the performance
-of macro benchmarks that do not use effects. The aim is to quantify the impact
-of the addition of effect handlers to the language on code that does not use
-effect handlers. The |MC| is Multicore OCaml with the default red zone size (16
-words). |MC+RedZone0| uses red zone size of 0; every OCaml function has a stack
-overflow check. |MC+RedZone32| uses a red zone size of 32 words.
+Figures~\ref{res:macro_time} and \ref{res:macro_size} present the impact on
+macro benchmarks that do not use effects using the Multicore OCaml compiler
+which supports effect handlers. The aim is to quantify the impact of the
+addition of effect handlers to the language on code that does not use effect
+handlers. We define code size as the sum of the sizes of all the text sections
+in the binary generated by compiling the OCaml code. Thus, the code size metric
+excludes data, debug symbols, the runtime (implemented in C) and other
+statically linked C libraries. The |MC| is Multicore OCaml with the default red
+zone size (16 words). |MC+RedZone0| uses red zone size of 0; every OCaml
+function has a stack overflow check. |MC+RedZone32| uses a red zone size of 32
+words.
 
 \subsection*{Experimental support for multi-shot continuations}
 
