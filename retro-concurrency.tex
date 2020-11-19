@@ -1101,10 +1101,8 @@ unnecessary and inefficient. Instead, Multicore OCaml optimises fibers for
 one-shot continuations.
 
 Fibers are allocated on the heap using |malloc| and are |free|d when no longer
-necessary. We do not use a \emph{stack cache} of recently freed stacks for
-speeding up fiber allocation~\cite{Farvardin20} as we observed in our
-evaluation (\S\ref{sec:eval}) that directly using |mimalloc|~\cite{Leijen19}
-outperforms a stack cache.
+necessary. Similar to Farvardin et al.~\cite{Farvardin20}, we use a \emph{stack
+cache} of recently freed stacks in order to speed up allocation.
 
 Figure~\ref{fig:fiber} shows the layout of a fiber in Multicore OCaml. At the
 bottom of the stack, we have the |handler_info|, which contains the pointer to
@@ -1259,8 +1257,8 @@ descriptors.
 
 We consider well-behaved Multicore OCaml programs to resume their continuations
 \emph{exactly once}. This can be enforced by installing a finaliser on every
-captured continuation that calls |discontinue| on the continuation during finalisation
-and ignores the result:
+captured continuation that calls |discontinue| on the continuation during
+finalisation and ignores the result:
 \begin{lstlisting}
 Gc.finalise (fun k ->
   try ignore (discontinue k Unwind) with _ -> ()) k
@@ -1369,8 +1367,8 @@ do not affect macro benchmark performance.
 {
 \begin{tabular}{r c c c c c}
 	& \textbf{ack} & \textbf{fib} & \textbf{motzkin} & \textbf{sudan} & \textbf{tak} \\ \hline
-	\texttt{MC} 	 	& 10.57 & 15.76 & 16.96 & 12.88 & 13.64 \\
-	\texttt{monad} 	& 42.79 & 69.77 & 348.69 & 33.29 & 39.24 \\ \hline
+	\texttt{MC} 	 	& 12.25 & 12.05 & 11.44 & 6.74 & 8.9 \\
+	\texttt{monad} 	& 348.69 & 69.77 & 39.24 & 33.29 & 42.79 \\ \hline
 \end{tabular}
 }
 \label{tab:micro_noperform}
@@ -1387,7 +1385,7 @@ In the |monad| version, we use a |fork| to invoke the non-tail call and use an
 |MVar| to collect its result.
 
 The results are presented in Table~\ref{tab:micro_noperform}. They show that
-using effect handlers (concurrency monad) is 13.77$\times$ (67.09$\times$) more
+using effect handlers (concurrency monad) is 10.02$\times$ (67.09$\times$) more
 expensive than the idiomatic implementation using non-tail calls. The concurrency
 monad suffers due to the heap allocation of continuation frames (which need to
 be GCed), whereas effect handlers benefit from stack allocation of the frames.
@@ -1420,7 +1418,7 @@ freeing the fiber. We measured the time taken to execute these sequences using
 |perf| support for cycle-accurate tracing on modern Intel processors. We
 executed 10 iterations of the code, with 3 warm-up runs. We observed that the
 sequences \texttt{a-b}, \texttt{b-c}, \texttt{c-d} and \texttt{d-e} took
-\textbf{48ns, 10ns, 13ns and 19ns}, respectively. For reference, the idle
+\textbf{23ns, 5ns, 11ns and 7ns}, respectively. For reference, the idle
 memory load latency for the local NUMA node is 93.2ns as measured using the
 Intel MLC tool~\cite{mlc}.
 
