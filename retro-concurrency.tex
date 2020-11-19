@@ -1106,8 +1106,8 @@ cache} of recently freed stacks in order to speed up allocation.
 
 Figure~\ref{fig:fiber} shows the layout of a fiber in Multicore OCaml. At the
 bottom of the stack, we have the |handler_info|, which contains the pointer to
-parent fiber, and the closures for the value, exception and effect cases. The
-closures are created by the translation described in
+the parent fiber, and the closures for the value, exception and effect cases.
+The closures are created by the translation described in
 \S\ref{sec:static_semantics}; Multicore OCaml supports exception patterns in
 addition to effect patterns in the same handler. This is followed by a context
 block needed for DWARF and GC bookkeeping with callbacks. Then, there is a
@@ -1176,7 +1176,7 @@ performs effect |E| which is handled in the outer-most handler, and is
 immediately resumed. The arrows between the fibers are parent pointers. At
 position |p1|, |rsp| is at the top of the fiber |f|.
 
-When the effect |E| performed, we allocate a continuation object |ke| in the
+When the effect |E| is performed, we allocate a continuation object |ke| in the
 heap that points to the current fiber |f|, set fiber |f|'s parent pointer to
 |NULL|, and evaluate the continuation closure |clos_heffect| on the parent
 fiber |e| with the effect |E| and the continuation |ke| as arguments. Since the
@@ -1280,7 +1280,7 @@ mark-and-sweep GC of Multicore OCaml have been discussed previously~\cite{Sivara
 In this section, we evaluate the performance of Multicore OCaml effect handlers
 against the performance requirements set in \S\ref{sec:req}. Multicore OCaml is
 an extension of the 4.10.0 OCaml compiler with support for shared memory
-parallelism and effect handlers. These results were obtained on 2-socket,
+parallelism and effect handlers. These results were obtained on a 2-socket,
 Intel\textregistered Xeon\textregistered Gold 5120 x86-64 server, with 28
 physical cores (14 cores on each socket), and 2 hardware threads per core. Each
 core runs at 2.20GHz and has 32 KB of L1 data cache, 32 KB of L1 instruction
@@ -1298,7 +1298,7 @@ code that does not use effect handlers. Our macro benchmark suite consists of
 |regexredux2|), numerical analysis (|grammatrix|, |LU_decomposition|) and
 simulations (|nbody|, |game_of_life|). In addition to Stock (|stock|) and
 Multicore OCaml (|MC|), we also ran the benchmarks on Multicore OCaml with no
-red zone (|MC+RedZone0|) in the fiber (all OCaml functions will have a stack
+red zone (|MC+RedZone0|) in the fibers (all OCaml functions will have a stack
 overflow check) and a red zone size of 32 words (|MC+RedZone32|). Recall that
 the default red zone size in Multicore OCaml is 16 words (\S\ref{sec:hafibers}).
 
@@ -1339,13 +1339,13 @@ work is required to bring OTSS closer to |stock|.
 We also present micro benchmarks results in Table~\ref{tab:micro_noeffect}.
 Since micro benchmarks magnify micro-architectural optimisations, we also
 report the number of instructions executed (obtained using |perf|) along with
-time. |exnval| perform 100 million iterations of installing exception handlers
-and returning with value. |exnraise| is similar, but raises an exception in
+time. |exnval| performs 100 million iterations of installing exception handlers
+and returning with a value. |exnraise| is similar, but raises an exception in
 each iteration. |extcall| and |callback| perform 100 million external calls and
 callbacks to identity functions. The other micro benchmarks are highly
 recursive programs and were taken from ~\cite{Farvardin20}. For micro benchmarks,
-we observed that padding tightloops with a few |nop| instructions, which
-changes the loop alignment, makes the code up to 15\% faster. Hence, the
+we observed that padding tight loops with a few |nop| instructions, which
+changes the loop alignment, can make the code up to 15\% faster. Hence, the
 difference in running times under 15\% may not be statistically significant.
 
 The results show that exceptions are no more expensive in |MC| compared to
@@ -1380,7 +1380,7 @@ handlers compared to a non-tail function call. To this end, we surround the
 non-tail calls in the recursive micro benchmarks with an effect handler. These
 programs do not |perform| effects. We also include a version of the same
 benchmarks implemented using concurrency monad~\cite{Claessen99} (|monad|) as a
-proxy for CPS versions. Recall that OCaml compiler does not use CPS in its IR.
+proxy for CPS versions. Recall that the OCaml compiler does not use CPS in its IR.
 In the |monad| version, we use a |fork| to invoke the non-tail call and use an
 |MVar| to collect its result.
 
@@ -1388,10 +1388,10 @@ The results are presented in Table~\ref{tab:micro_noperform}. They show that
 using effect handlers (concurrency monad) is 10.02$\times$ (67.09$\times$) more
 expensive than the idiomatic implementation using non-tail calls. The concurrency
 monad suffers due to the heap allocation of continuation frames (which need to
-be GCed), whereas effect handlers benefit from stack allocation of the frames.
-Our concurrency monad (and other monadic concurrency libraries such as
-Lwt~\cite{lwt} and Async~\cite{async}) also have other downsides -- due to the
-lack of a stack, exceptions, backtraces, and DWARF unwinding are no longer
+be garbage collected), whereas effect handlers benefit from stack allocation of
+the frames. Our concurrency monad (and other monadic concurrency libraries such
+as Lwt~\cite{lwt} and Async~\cite{async}) also have other downsides -- due to
+the lack of a stack, exceptions, backtraces, and DWARF unwinding are no longer
 useful.
 
 We note that a compiler that uses CPS IR will be faster than the concurrency
@@ -1454,7 +1454,7 @@ request. We use \texttt{httpaf}~\cite{httpaf} for HTTP handling, and
 \texttt{libev}~\cite{libev} for the eventloop. We compare our implementation
 against an Lwt version (|lwt|) which also uses \texttt{httpaf} and
 \texttt{libev}. Unlike using effect handlers, the Lwt version is written in monadic
-style and does not have a notion of thread per request. For comparison, we
+style and does not have the notion of a thread per request. For comparison, we
 also include a Go 1.13 version (|go|) that uses the
 \texttt{net/http}~\cite{nethttp} package. As both the OCaml versions are single
 threaded, the Go benchmark is run with \texttt{GOMAXPROCS=1}.
@@ -1508,7 +1508,7 @@ copying. Since C allows pointers into the stack, care is taken to ensure that
 when continuations are resumed, the constituent frames are restored to the same
 memory addresses as at the time of capture. Kiselyov et al.~\cite{Kiselyov18}
 use an implementation of multi-prompt delimited continuations as an OCaml
-library~\cite{Kiselyov12} to embed Eff language in OCaml. Indeed, Forester et
+library~\cite{Kiselyov12} to embed the Eff language in OCaml. Indeed, Forester et
 al.~\cite{Forster19} showed that in an untyped setting, effect handlers,
 monadic reflection and delimited control can macro-express each other.
 
