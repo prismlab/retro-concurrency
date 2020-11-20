@@ -1570,7 +1570,7 @@ of effect handlers and asynchronous exceptions. This is orthogonal to the
 contributions of this paper. Our focus is the compiler and runtime system
 support for implementing effect handlers.
 
-%\vspace{-3mm}
+\vspace{-3mm}
 \section{Conclusions}
 \label{sec:conc}
 
@@ -1580,10 +1580,11 @@ programs), while unlocking the full power of non-local control flow constructs.
 Our evaluation shows that we have achieved our goal: we retain compatibility
 with a surprisingly low performance overhead for sequential code that preserves
 the spirit of ``fast exceptions'' that has always characterised OCaml
-programming. We believe that the introduction of lightweight fibers to support
-effect handlers into OCaml -- along with a parallel
-runtime~\cite{Sivaramakrishnan20} -- will open OCaml to highly task-parallel
-applications with minimal hit to sequential performance.
+programming. We believe that the introduction of effect handlers into OCaml
+implemented using lightweight fibers, along with a parallel
+runtime~\cite{Sivaramakrishnan20}, will open OCaml to highly scalable
+concurrent and task-parallel applications with minimal hit to sequential
+performance.
 
 \clearpage
 
