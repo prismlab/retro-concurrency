@@ -1024,10 +1024,10 @@ body of the closure.
 \section{Implementation}
 \label{sec:impl}
 
-We now present the implementation details of effect handlers in
-Multicore OCaml. We assume an x86\_64 architecture for the remainder of this paper
--- although  Multicore OCaml currently only supports the x86\_64 backend on
-Linux, our design is intended to support other CPUs and OSs.
+We now present the implementation details of effect handlers in Multicore
+OCaml. We assume an x86\_64 architecture for the remainder of this paper.
+Although Multicore OCaml currently only supports the x86\_64 backend on Linux,
+our design does not preclude other CPUs and OSs.
 
 \vspace{-2mm}
 \subsection{Exceptions}
@@ -1129,10 +1129,6 @@ introduce a small, fixed-sized red zone at the top of the stack. The compiler
 elides the stack overflow check for leaf functions whose frame size is less
 than the size of the red zone. The default size of the red zone in Multicore
 OCaml is 16 words.
-
-%It is useful to note that stack overflow is a rare operation
-%and the CPU branch predictor will correctly predict the branch with high
-%accuracy.
 
 Finally, we have the saved exception pointer, which points to the top-most
 exception frame, and the saved stack pointer, which points to the top of the
@@ -1418,8 +1414,8 @@ freeing the fiber. We measured the time taken to execute these sequences using
 |perf| support for cycle-accurate tracing on modern Intel processors. We
 executed 10 iterations of the code, with 3 warm-up runs. We observed that the
 sequences \texttt{a-b}, \texttt{b-c}, \texttt{c-d} and \texttt{d-e} took
-\textbf{23ns, 5ns, 11ns and 7ns}, respectively. For reference, the idle
-memory load latency for the local NUMA node is 93.2ns as measured using the
+\textbf{23 ns, 5 ns, 11 ns and 7 ns}, respectively. For reference, the idle
+memory load latency for the local NUMA node is 93.2 ns as measured using the
 Intel MLC tool~\cite{mlc}.
 
 \textbf{\textit{Generators.}} Generators allow data structures to be traversed on
@@ -1463,11 +1459,13 @@ threaded, the Go benchmark is run with \texttt{GOMAXPROCS=1}.
 	\begin{minipage}{0.49\linewidth}
 		\centering
 		\includegraphics[width=0.9\linewidth]{http-benchmarks/throughput.pdf}
+		\vspace{-2mm}
 		\subcaption{Throughput}
 		\label{grf:throughput}
 	\end{minipage}
 	\begin{minipage}{0.49\linewidth}
 		\includegraphics[width=0.9\linewidth]{http-benchmarks/latency.pdf}
+		\vspace{-2mm}
 		\subcaption{Tail latency}
 		\label{grf:latency}
 	\end{minipage}
@@ -1570,7 +1568,7 @@ of effect handlers and asynchronous exceptions. This is orthogonal to the
 contributions of this paper. Our focus is the compiler and runtime system
 support for implementing effect handlers.
 
-\vspace{-2mm}
+\vspace{-3mm}
 \section{Conclusions}
 \label{sec:conc}
 
@@ -1592,6 +1590,54 @@ programming.
 
 \section*{Supplementary Material}
 \setcounter{figure}{0}
+
+\if{0}
+\subsection*{Dynamic Semantics}
+
+\begin{definition}[Initial configuration]
+	Given an expression $e$, we define the initial configuration $\textsf{init}(e)$
+	to be $\configa{e}{\emptyset}{\cstacka{[]}{\bullet}}$.
+\end{definition}
+
+Intuitively, the initial environment is empty and the initial stack is an empty
+C stack.
+
+\begin{definition}[Final value configuration]
+	Given a configuration $\config$, we say that the configuration is the final
+	value configuration (written $\textsf{finalval}(\config)$) if ~$\config =
+	\configa{v}{\env}{\cstacka{[]}{\bullet}}$~ for some value $v$ and environment
+	$\env$.
+\end{definition}
+
+\begin{definition}[Final exception configuration]
+	Given a configuration $\config$, we say that the configuration is the final
+	exception configuration (written $\textsf{finalexn}(\config)$) if ~$\config
+	= \configa{v}{\env}{\cstacka{\ffun{\exnval{l}}::\fl}{\bullet}}$~ for some
+	value $v$, label $l$, frame list $\fl$ and environment $\env$.
+\end{definition}
+
+Given a configuration $\config = \configa{\term}{\env}{\stack}$, we define
+$\textsf{term}(\config)$ to be $\tau$. We define the relation $\multistep$ as
+the transitive reflexive closure of the top-level reduction relation $\step$.
+
+\subsubsection*{Example 1}
+
+Let
+
+\begin{smathpar}
+	\begin{array}{rcll}
+		e & = & (\olam{x}{ & \kw{match} ~\perform{E}{~0}~ \kw{with} \\
+			&   &            & \mid \caseexn{\textsf{Unhandled}}{x}{42} \\
+			&   &            & \mid \caseval{v}{v}})~0
+	\end{array}
+\end{smathpar}
+
+then $init(e) \multistep ~\config \wedge final(\config) \wedge term(\config) =
+42$.
+
+\begin{proof}
+\end{proof}
+\fi
 
 \subsection*{No effect macro benchmarks}
 
@@ -1621,9 +1667,9 @@ overflow check. |MC+RedZone32| uses a red zone size of 32 words.
 
 Languages with effect handlers typically allow continuations to be resumed more
 than once to enable use cases such as backtracking search and probabilistic
-programming (Uber's Pyro language~\cite{Pyro}). Multicore OCaml has an
-experimental feature for explicitly cloning continuations, which makes a copy
-of each of its constituent fibers.
+programming (for example, see Uber's Pyro language~\cite{Pyro}). Multicore
+OCaml has an experimental feature for explicitly cloning continuations, which
+makes a copy of each of its constituent fibers.
 
 Multi-shot continuations are difficult to
 reason about in the presence of linear resources such as file descriptors.
