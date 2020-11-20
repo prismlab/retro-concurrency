@@ -240,9 +240,9 @@ let (/) n d = Div (Val (Z n), Val (Z d))
 
 Line 4 declares an effect |DivBy0| that is parameterised by an integer, which
 when performed returns the result of division-by-zero. If the denominator of
-the division is 0, then we perform the |DivBy0| effect with the numerator value
-(line 12) so that the context may decide the return value. We obtain the |iOS|
-semantics by wrapping the evaluator with this handler:
+the division is |0|, then we perform the |DivBy0| effect with the numerator
+value (line 12) so that the context may decide the return value. We obtain the
+|iOS| semantics by wrapping the evaluator with this handler:
 \begin{lstlisting}
 let ios e = match eval e with
 | v -> v (* value case *)
@@ -312,18 +312,16 @@ ML~\cite{MaPLe, Fluet10, Sivaramakrishnan14}.
 OCaml currently does not support any non-local control flow mechanisms other
 than exceptions. This makes it particularly challenging to implement the
 delimited continuations necessary for effect handlers without sacrificing the
-desirable properties of OCaml. One standard way of implementing continuations is
-to use continuation-passing style (CPS) in the compiler's intermediate
-representation (IR)~\cite{Leijen14}.
-%If the compiler were to use CPS, then
-%reifying continuations in the source language is relatively straight-forward.
-OCaml does not use a CPS IR, and changing the compiler to utilise a CPS IR
-would be an enormous undertaking that would affect the
-performance profile of existing OCaml applications due to increased memory allocations as
-continuation closures get allocated on the heap~\cite{Farvardin20}. Moreover,
-with CPS, stack unwinding is meaningless and hence, we would lose compatibility
-with tools that inspect the program stack. Hence, we choose not to use CPS
-translation and represent continuations as call stacks.
+desirable properties of OCaml. One standard way of implementing continuations
+is to use continuation-passing style (CPS) in the compiler's intermediate
+representation (IR)~\cite{Leijen14}. OCaml does not use a CPS IR, and changing
+the compiler to utilise a CPS IR would be an enormous undertaking that would
+affect the performance profile of existing OCaml applications due to increased
+memory allocations as continuation closures get allocated on the
+heap~\cite{Farvardin20}. Moreover, with CPS, stack unwinding is meaningless and
+hence, we would lose compatibility with tools that inspect the program stack.
+Hence, we choose not to use CPS translation and represent continuations as call
+stacks.
 
 The search for an expressive effect system that guarantees that all the effects
 performed in the program are handled (\emph{effect safety}) in the presence of
@@ -395,10 +393,10 @@ Our work is also timely. The WebAssembly~\cite{Hass17} community group is
 considering effect handlers as one of the mechanisms for supporting
 concurrency, asynchronous I/O and generators~\cite{WasmProposal}. Project
 Loom~\cite{loom} is an OpenJDK project that adds virtual threads and delimited
-continuations to Java. The Swift roadmap~\cite{swift} includes
-direct-style asynchronous programming and structured concurrency as milestones.
-We believe that our design choices will inform similar choices to be made in the
-other industrial-strength languages.
+continuations to Java. The Swift roadmap~\cite{swift} includes direct-style
+asynchronous programming and structured concurrency as milestones. We believe
+that our design choices will inform similar choices to be made in other
+industrial-strength languages.
 
 \subsection{Contributions}
 
@@ -539,14 +537,14 @@ OCaml does not use the C calling convention. In particular, there are no
 callee-saved registers in OCaml. In the |x86-64| backend, the OCaml runtime
 makes use of two C callee-saved registers for supporting OCaml execution. The
 register |r15| holds the \emph{allocation pointer} into the minor heap used for
-bump pointer allocation, and |r14| holds a reference to the |Caml_state| table
-of global variables used by the runtime. This makes external calls extremely
-fast in OCaml. If the external function does not allocate in the OCaml heap,
-then it can be called directly and no bookkeeping is necessary. For external
-functions which allocate in the OCaml heap, the cached allocation pointer is
-saved to |Caml_state| before the external call and it is restored on return.
-Similarly, callbacks into OCaml are also cheap: these involve loading the
-arguments in the right registers and calling the OCaml function. OCaml
+bump pointer allocation, and |r14| holds a reference to the |Caml_state|, a
+table of global variables used by the runtime. This makes external calls
+extremely fast in OCaml. If the external function does not allocate in the
+OCaml heap, then it can be called directly and no bookkeeping is necessary. For
+external functions which allocate in the OCaml heap, the cached allocation
+pointer is saved to |Caml_state| before the external call and it is restored on
+return. Similarly, callbacks into OCaml are also cheap: these involve loading
+the arguments in the right registers and calling the OCaml function. OCaml
 callbacks are relatively common as the garbage collector (GC) finalisation
 functions are executed as OCaml callbacks.
 
@@ -902,8 +900,7 @@ faithfully captures the semantics of the Multicore OCaml implementation. An
 executable version of the semantics implemented as an OCaml interpreter along
 with examples is included in the supplementary material.
 
-
-\subsubsection{Syntax} Our expressions (Figure~\ref{sem:syntax}) consists of
+\subsubsection{Syntax} Our expressions (Figure~\ref{sem:syntax}) consist of
 integer constants ($n$), variables ($x$), abstraction ($\lam{x}{x}$),
 application ($e~e$), arithmetic expressions ($e \odot e$) where $\odot$ ranges
 over $\{+,-,*,/\}$, raising exceptions ($\throw{l}{e}$), performing effects
@@ -1098,11 +1095,10 @@ Captured continuations are copies of the original fibers and resuming the
 continuation copies the fibers and leaves the continuation as it is. In our use
 cases, continuations will be resumed at-most once, and copying fibers is
 unnecessary and inefficient. Instead, Multicore OCaml optimises fibers for
-one-shot continuations.
-
-Fibers are allocated on the heap using |malloc| and are |free|d when no longer
-necessary. Similar to Farvardin et al.~\cite{Farvardin20}, we use a \emph{stack
-cache} of recently freed stacks in order to speed up allocation.
+one-shot continuations. Fibers are allocated on the heap using |malloc| and are
+|free|d when no longer necessary. Similar to Farvardin et
+al.~\cite{Farvardin20}, we use a \emph{stack cache} of recently freed stacks in
+order to speed up allocation.
 
 Figure~\ref{fig:fiber} shows the layout of a fiber in Multicore OCaml. At the
 bottom of the stack, we have the |handler_info|, which contains the pointer to
@@ -1134,6 +1130,10 @@ elides the stack overflow check for leaf functions whose frame size is less
 than the size of the red zone. The default size of the red zone in Multicore
 OCaml is 16 words.
 
+%It is useful to note that stack overflow is a rare operation
+%and the CPU branch predictor will correctly predict the branch with high
+%accuracy.
+
 Finally, we have the saved exception pointer, which points to the top-most
 exception frame, and the saved stack pointer, which points to the top of the
 stack. Switching between fibers only involves saving the exception and the
@@ -1141,7 +1141,7 @@ stack pointer of the current stack and loading the same on the target stack.
 Since OCaml does not generate pointers into the stack, the two |fiber_info|
 fields are the only ones that need to be updated when fibers are moved.
 
-\vspace{-2mm}
+\vspace{-3mm}
 \subsection{External calls and callbacks}
 
 Since C functions do not have stack overflow checks, we have to execute the
@@ -1165,7 +1165,7 @@ before calling and after returning from |c_to_ocaml| function, respectively.
 Thanks to the fiber representation, external calls and callbacks remain
 competitive with stock OCaml.
 
-\vspace{-2mm}
+\vspace{-3mm}
 \subsection{Effect handlers}
 \label{sec:effimpl}
 
@@ -1343,9 +1343,9 @@ time. |exnval| performs 100 million iterations of installing exception handlers
 and returning with a value. |exnraise| is similar, but raises an exception in
 each iteration. |extcall| and |callback| perform 100 million external calls and
 callbacks to identity functions. The other micro benchmarks are highly
-recursive programs and were taken from ~\cite{Farvardin20}. For micro benchmarks,
-we observed that padding tight loops with a few |nop| instructions, which
-changes the loop alignment, can make the code up to 15\% faster. Hence, the
+recursive programs and were taken from ~\cite{Farvardin20}. For micro
+benchmarks, we observed that padding tight loops with a few |nop| instructions,
+which changes the loop alignment, makes the code up to 15\% faster. Hence, the
 difference in running times under 15\% may not be statistically significant.
 
 The results show that exceptions are no more expensive in |MC| compared to
@@ -1435,7 +1435,7 @@ defunctionalised~\cite{Danvy01} version (|cps|) and a concurrency monad
 (|monad|) version of the generator for the tree. Both |cps| and |monad|
 versions are specialised to the binary tree, and come with the usual caveats of
 not using the stack for function calls. We observed that the |cps| version was
-the fastest thanks to specialisation and hand optimisation. |MC| version was
+the fastest, thanks to specialisation and hand optimisation. |MC| version was
 only 2.76$\times$ slower than |cps| while being a generic
 solution, whereas the |monad| version was 8.69$\times$ slower than |cps|.
 
