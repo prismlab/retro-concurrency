@@ -1574,14 +1574,16 @@ support for implementing effect handlers.
 \section{Conclusions}
 \label{sec:conc}
 
-We have presented the design and implementation of effect handlers aimed at
-retrofitting them onto the large body of existing OCaml code. Our design walks
-the tightrope of maintaining compatibility (e.g. for profiling and debuggers
-and negligible overheads for existing programs) and also demonstrating good
-performance and usability for new OCaml code that takes advantage of effect
-handlers. Our evaluation shows that we have achieved our goal of balancing
-compatibility with the introduction of effect handlers for mainstream OCaml
-programming.
+Our design for effect handlers in OCaml walks the tightrope of maintaining
+compatibility (for profiling, debuggers and negligible overheads for existing
+programs), while unlocking the full power of non-local control flow constructs.
+Our evaluation shows that we have achieved our goal: we retain compatibility
+with a surprisingly low performance overhead for sequential code that preserves
+the spirit of ``fast exceptions'' that has always characterised OCaml
+programming. We believe that the introduction of first-class fibres and effects
+into OCaml -- along with a parallel runtime~\cite{Sivaramakrishnan20} -- will
+open OCaml to highly task-parallel applications with minimal hit to sequential
+performance.
 
 \clearpage
 
