@@ -1121,6 +1121,8 @@ fibers small, this area is initially 16 words in length. When the stack pointer
 |Caml_state| table), the stack is said to have overflown. On stack overflow, we
 copy the whole fiber to a new area with double the size. In Multicore OCaml, we
 introduce stack overflow checks into the function prologue of OCaml functions.
+These stack overflow operations are rare and so will be correctly predicted by
+the CPU branch predictor.
 
 In our evaluation of real world OCaml programs (\S\ref{sec:eval}), we observed
 that most function calls are to leaf functions with small frame sizes. Can we
