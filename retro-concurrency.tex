@@ -1374,21 +1374,23 @@ do not affect macro benchmark performance.
 Next, we aim to quantify the overhead of setting up and tearing down effect
 handlers compared to a non-tail function call. To this end, we surround the
 non-tail calls in the recursive micro benchmarks with an effect handler. These
-programs do not |perform| effects. We also include a version of the same
-benchmarks implemented using concurrency monad~\cite{Claessen99} (|monad|) as a
-proxy for CPS versions. Recall that the OCaml compiler does not use CPS in its IR.
-In the |monad| version, we use a |fork| to invoke the non-tail call and use an
-|MVar| to collect its result.
+programs do not |perform| effects. We also implemented the same benchmarks using
+a concurrency monad~\cite{Claessen99} (|monad|) as a proxy for CPS versions.
+Recall that the OCaml compiler does not use CPS in its IR. In the |monad|
+version, we use a |fork| to invoke the non-tail call and use an |MVar| to
+collect its result.
 
 The results are presented in Table~\ref{tab:micro_noperform}. They show that
 using effect handlers (concurrency monad) is 10.02$\times$ (67.09$\times$) more
-expensive than the idiomatic implementation using non-tail calls. The concurrency
-monad suffers due to the heap allocation of continuation frames (which need to
-be garbage collected), whereas effect handlers benefit from stack allocation of
-the frames. Our concurrency monad (and other monadic concurrency libraries such
-as Lwt~\cite{lwt} and Async~\cite{async}) also have other downsides -- due to
-the lack of a stack, exceptions, backtraces, and DWARF unwinding are no longer
-useful.
+expensive than the idiomatic implementation using non-tail calls. The
+concurrency monad suffers due to the heap allocation of continuation frames
+(which need to be garbage collected), whereas effect handlers benefit from stack
+allocation of the frames. For example the number of major collections for the
+\texttt{ack} benchmark is 0 for stock OCaml, 1 for \texttt{MC} and 112 for
+\texttt{monad}. Our concurrency monad (and other monadic concurrency libraries
+such as Lwt~\cite{lwt} and Async~\cite{async}) also have other downsides --
+exceptions, backtraces, and DWARF unwinding are no longer useful due to the lack
+of a stack.
 
 We note that a compiler that uses CPS IR will be faster than the concurrency
 monad implementation due to optimisations to reduce the heap allocation of
@@ -1425,7 +1427,7 @@ built-in primitive. Using effect handlers (|MC|), given any data structure
 derive its generator function (|val next : unit -> 'a option|). The code is
 available in the supplementary material. We evaluate the performance of
 traversing a complete binary tree of depth 25 using this generator. This
-involves $2^{26}$ stack switches in total. For comparison, we also implemented
+involves $2^{26}$ stack switches in total. For comparison, we implemented
 a hand-written, selective CPSed~\cite{Nielson01},
 defunctionalised~\cite{Danvy01} version (|cps|) and a concurrency monad
 (|monad|) version of the generator for the tree. Both |cps| and |monad|
@@ -1433,7 +1435,7 @@ versions are specialised to the binary tree with the usual caveats of
 not using the stack for function calls. We observed that the |cps| version was
 the fastest, thanks to specialisation and hand optimisation. |MC| version was
 only 2.76$\times$ slower than |cps| while being a generic
-solution, whereas the |monad| version was 8.69$\times$ slower than |cps|.
+solution, and the |monad| version was 8.69$\times$ slower than |cps|.
 
 \textbf{\textit{Chameneos.}} Chameneos~\cite{Chameneos} is a concurrency game
 aimed at measuring context switching and synchronization overheads. Our
@@ -1451,7 +1453,7 @@ request. We use \texttt{httpaf}~\cite{httpaf} for HTTP handling, and
 against an Lwt version (|lwt|) which also uses \texttt{httpaf} and
 \texttt{libev}. Unlike using effect handlers, the Lwt version is written in monadic
 style and does not have the notion of a thread per request. For comparison, we
-also include a Go 1.13 version (|go|) that uses the
+include a Go 1.13 version (|go|) that uses the
 \texttt{net/http}~\cite{nethttp} package. As both the OCaml versions are single
 threaded, the Go benchmark is run with \texttt{GOMAXPROCS=1}.
 
