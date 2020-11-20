@@ -1121,8 +1121,8 @@ fibers small, this area is initially 16 words in length. When the stack pointer
 |Caml_state| table), the stack is said to have overflown. On stack overflow, we
 copy the whole fiber to a new area with double the size. In Multicore OCaml, we
 introduce stack overflow checks into the function prologue of OCaml functions.
-These stack overflow operations are rare and so will be correctly predicted by
-the CPU branch predictor.
+These stack overflows are rare and so the overflow checks will be correctly predicted
+by the CPU branch predictor.
 
 In our evaluation of real world OCaml programs (\S\ref{sec:eval}), we observed
 that most function calls are to leaf functions with small frame sizes. Can we
@@ -1271,7 +1271,7 @@ generation and scanning each frame for roots remains the same. The
 challenges and solutions for integrating fibers with the concurrent
 mark-and-sweep GC of Multicore OCaml have been discussed previously~\cite{Sivaramakrishnan20}.
 
-\vspace{-2mm}
+%\vspace{-2mm}
 \section{Evaluation}
 \label{sec:eval}
 
@@ -1384,13 +1384,13 @@ The results are presented in Table~\ref{tab:micro_noperform}. They show that
 using effect handlers (concurrency monad) is 10.02$\times$ (67.09$\times$) more
 expensive than the idiomatic implementation using non-tail calls. The
 concurrency monad suffers due to the heap allocation of continuation frames
-(which need to be garbage collected), whereas effect handlers benefit from stack
-allocation of the frames. For example the number of major collections for the
-\texttt{ack} benchmark is 0 for stock OCaml, 1 for \texttt{MC} and 112 for
-\texttt{monad}. Our concurrency monad (and other monadic concurrency libraries
-such as Lwt~\cite{lwt} and Async~\cite{async}) also have other downsides --
-exceptions, backtraces, and DWARF unwinding are no longer useful due to the lack
-of a stack.
+(which need to be garbage collected), whereas effect handlers benefit from
+stack allocation of the frames. For example, the number of major collections
+for the |ack| benchmark is 0 for stock OCaml, 1 for |MC| and 112 for |monad|.
+Our concurrency monad (and other monadic concurrency libraries such as
+Lwt~\cite{lwt} and Async~\cite{async}) also have other downsides -- exceptions,
+backtraces, and DWARF unwinding are no longer useful due to the lack of a
+stack.
 
 We note that a compiler that uses CPS IR will be faster than the concurrency
 monad implementation due to optimisations to reduce the heap allocation of
@@ -1570,7 +1570,7 @@ of effect handlers and asynchronous exceptions. This is orthogonal to the
 contributions of this paper. Our focus is the compiler and runtime system
 support for implementing effect handlers.
 
-\vspace{-3mm}
+%\vspace{-3mm}
 \section{Conclusions}
 \label{sec:conc}
 
