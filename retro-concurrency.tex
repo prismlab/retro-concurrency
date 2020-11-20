@@ -1276,12 +1276,10 @@ mark-and-sweep GC of Multicore OCaml have been discussed previously~\cite{Sivara
 In this section, we evaluate the performance of Multicore OCaml effect handlers
 against the performance requirements set in \S\ref{sec:req}. Multicore OCaml is
 an extension of the 4.10.0 OCaml compiler with support for shared memory
-parallelism and effect handlers. These results were obtained on a 2-socket,
-Intel\textregistered Xeon\textregistered Gold 5120 x86-64 server, with 28
-physical cores (14 cores on each socket), and 2 hardware threads per core. Each
-core runs at 2.20GHz and has 32 KB of L1 data cache, 32 KB of L1 instruction
-cache and 1MB of L2 cache. The cores on a socket share a 19.25 MB L3 cache. The
-server has 64GB of main memory and runs Ubuntu 18.04.
+parallelism and effect handlers. These results were obtained on a 2-socket
+Intel\textregistered Xeon\textregistered Gold 5120
+x86-64~\cite{IntelXeonGold5120Spec} server running Ubuntu 18.04 with 64GB of main
+memory.
 
 \vspace{-3mm}
 \subsection{No effects benchmarks}
@@ -1573,7 +1571,7 @@ support for implementing effect handlers.
 \label{sec:conc}
 
 We have presented the design and implementation of effect handlers aimed at
-retrofitting them onto the large body of existing OCaml code.  Our design walks
+retrofitting them onto the large body of existing OCaml code. Our design walks
 the tightrope of maintaining compatibility (e.g. for profiling and debuggers
 and negligible overheads for existing programs) and also demonstrating good
 performance and usability for new OCaml code that takes advantage of effect
