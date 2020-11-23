@@ -291,8 +291,10 @@ let run e = match gsearch e with
 \noindent which registers the read operation to be performed asynchronously
 with the continuation as the callback. Subsequently, it resumes the
 user-interface continuation so that the application remains responsive. Observe
-that neither of the handlers needs to be aware of the other.
+that neither the division-by-zero handler nor the I/O handler needs to be aware
+of the other.
 
+\vspace{-1.5mm}
 \subsection{Retrofitting effect handlers}
 
 There are many research languages and libraries built around effect
@@ -319,12 +321,12 @@ desirable properties of OCaml. One standard way of implementing continuations
 is to use continuation-passing style (CPS) in the compiler's intermediate
 representation (IR)~\cite{Leijen14}. OCaml does not use a CPS IR, and changing
 the compiler to utilise a CPS IR would be an enormous undertaking that would
-affect the performance profile of existing OCaml applications due to increased
-memory allocations as continuation closures get allocated on the
+affect the performance profile of existing OCaml applications due to the increased
+memory allocations as the continuation closures get allocated on the
 heap~\cite{Farvardin20}. Moreover, with CPS, stack unwinding is meaningless and
 hence, we would lose compatibility with tools that inspect the program stack.
-Hence, we choose not to use CPS translation and represent continuations as call
-stacks.
+Hence, we choose not to use CPS translation and represent the continuations as
+call stacks.
 
 The search for an expressive effect system that guarantees that all the effects
 performed in the program are handled (\emph{effect safety}) in the presence of
@@ -363,22 +365,22 @@ requirements:
 \end{enumerate}
 \fi
 
-\noindent \textbf{R1: Backwards compatibility.} A well-behaved OCaml program does
-not break under an OCaml that is extended with effect handlers. OCaml code that does not
-use effect handlers will pay negligible performance and memory cost.
+\noindent \textbf{R1: Backwards compatibility.} A well-behaved OCaml program
+does not break under OCaml extended with effect handlers. OCaml code that does
+not use effect handlers will pay negligible performance and memory cost.
 
-\noindent \textbf{R2: Tool compatibility.} OCaml programs with effect handlers produce
-well-formed backtraces and remain compatible with program analysis tools such
-as debuggers and profilers that inspect the stack using DWARF unwind
+\noindent \textbf{R2: Tool compatibility.} OCaml programs with effect handlers
+produce well-formed backtraces and remain compatible with program analysis
+tools such as debuggers and profilers that inspect the stack using DWARF unwind
 tables.
 
 \noindent \textbf{R3: Effect handler efficiency.} The program must accommodate
-millions of continuations at the same time to support
-highly-concurrent applications. Installing effect handlers, capturing and
-resuming continuations must be fast.
+millions of continuations at the same time to support highly-concurrent
+applications. Installing effect handlers, capturing and resuming continuations
+must be fast.
 
-\noindent \textbf{R4: Forwards compatibility.} While this work does not present an
-effect system, the design must be compatible with a future effect system for
+\noindent \textbf{R4: Forwards compatibility.} While this work does not present
+an effect system, the design must be compatible with a future effect system for
 OCaml. As a cornerstone of modularity, we also want blocking I/O code to
 \emph{transparently} be made asynchronous with the help of effect handlers.
 
@@ -419,15 +421,15 @@ Our contributions are to present:
 \end{itemize}
 
 We have implemented effect handlers in a multicore extension of the OCaml
-programming language which we call \textbf{Multicore OCaml} to distinguish
-it from stock OCaml.
+programming language which we call \textbf{Multicore OCaml} to distinguish it
+from stock OCaml.
 
 The remainder of the paper continues with a description of the stock OCaml
 program stack (\S\ref{sec:stack}). We then refine the design further by
 focussing on retrofitting effect handlers into a mainstream \emph{systems}
 language (\S\ref{sec:refine}), followed by the compilation scheme and
 operational semantics for Multicore OCaml effect handlers
-(\S\ref{sec:semantics}).  We then discuss the compiler and runtime system
+(\S\ref{sec:semantics}).  We then discuss the compiler and the runtime system
 support for implementing effect handlers (\S\ref{sec:impl}), and present an
 extensive performance evaluation of effect handlers (\S\ref{sec:eval}) against
 our design goals (\S\ref{sec:req}). Finally, we discuss the related work
@@ -621,9 +623,9 @@ outweighs the relatively fewer mechanisms enabled by this addition in our
 setting.
 
 The interaction of non-local control flow with systems programming is quite
-subtle~\cite{TFP17}. Consider the following function that uses blocking I/O
-functions from the OCaml standard library to copy data from the input channel
-|ic| to the output channel |oc|:
+subtle~\cite{TFP17, Leijen18}. Consider the following function that uses
+blocking I/O functions from the OCaml standard library to copy data from the
+input channel |ic| to the output channel |oc|:
 \begin{lstlisting}
 let rec copy ic oc =
   try output_string oc ((input_line ic) ^ "\n");
@@ -651,14 +653,15 @@ let input_line ic = perform (In_line ic)
 let output_string oc = perform (Out_str oc)
 \end{lstlisting}
 
-We can then use a top-level I/O handler similar to the introductory example
-(\S\ref{sec:aio}) to discharge the I/O operations asynchronously and resumes
+We can then use a top-level I/O handler, similar to the introductory example
+(\S\ref{sec:aio}), to discharge the I/O operations asynchronously and resume
 with the result. This handles value return cases, but what about the
-exceptional cases |End_of_file| and |Sys_error|? We introduce a |discontinue|
-primitive to resume a continuation by raising an exception. In this example, on
-reaching the end of file, we would discontinue the continuation of the |copy|
-function with |discontinue k End_of_file|, which raises the exception at
-|input_line|, and the open channels will be closed.
+exceptional cases |End_of_file| and |Sys_error|? To this end, we introduce a
+|discontinue| primitive to resume a continuation by raising an exception. In
+this example, on reaching the end of file, we would discontinue the captured
+continuation of the |input_line| function with |discontinue k End_of_file|,
+which raises the exception at |input_line|, and the open channels will be
+closed.
 
 OCaml programs that use resources such as channels are usually written defensively
 with the assumption that calling a function will return \emph{exactly once},
@@ -680,12 +683,11 @@ In this section, we formalise the effect handler design for Multicore OCaml.
 As mentioned earlier, effect handlers in Multicore OCaml do not guarantee
 effect safety, but only guarantee type safety. Programs without matching effect
 handlers are well-typed Multicore OCaml programs. As a result, our static
-semantics is simpler than languages that ensure effect
-safety~\cite{Eff,Hillerstrom20,Leijen14,Effekt,Frank,Biernacki19}. This is
-important for backwards compatibility as our goal is to retrofit effect
-handlers to a language with large legacy codebases. Programs that do not use
-effects remain well-typed, and those that do compose well with those that
-don't.
+semantics is simpler than languages that ensure effect safety~\cite{Eff,
+Hillerstrom20, Leijen14, Effekt, Frank, Biernacki19}. This is important for
+backwards compatibility as our goal is to retrofit effect handlers to a
+language with large legacy codebases; programs that do not use effects remain
+well-typed, and those that do compose well with those that don't.
 
 The static semantics of effect handlers in OCaml is captured succinctly by its
 API:
@@ -708,8 +710,8 @@ value. Constructors for the value of type |'a eff| are declared using the
 effect declarations. For example, the declaration |effect E : string -> int|
 is syntactic sugar for adding a new constructor to the variant type
 |type _ eff += E : string -> int eff|. We introduce the type
-|('a,'b) continuation| of delimited continuations which expect an |'a| value for
-resumption and return a |'b| value. The continuations may be continued with a
+|('a,'b) continuation| of delimited continuations which expects a |'a| value for
+resumption and returns a |'b| value. The continuations may be continued with a
 suitably typed value or discontinued with an exception.
 
 For handling the effects, our implementation extends OCaml's |match ... with|
@@ -900,8 +902,8 @@ primitive to avoid executing code on the resumption path.
 
 We present an operational semantics for a core language of effect handlers that
 faithfully captures the semantics of the Multicore OCaml implementation. An
-executable version of the semantics implemented as an OCaml interpreter along
-with examples is included in the supplementary material.
+executable version of the semantics, implemented as an OCaml interpreter, along
+with examples, is included in the supplementary material.
 
 \subsubsection{Syntax} Our expressions (Figure~\ref{sem:syntax}) consist of
 integer constants ($n$), variables ($x$), abstraction ($\lam{x}{x}$),
@@ -914,7 +916,7 @@ or more exception cases ($\caseexn{l}{x}{e}$) with label $l$, parameter $x$ and
 body $e$, and zero or more effect cases ($\caseeff{l}{x}{k}{e}$) with label
 $l$, parameter $x$, continuation $k$ and body $e$.
 
-The operational semantics is an extension of a CEK machine
+The operational semantics is an extension of the CEK machine
 semantics~\cite{Felleisen86} for effect handlers, following the abstract
 machine semantics of Hillerstrom et al.~\cite{Hillerstrom20}. The key
 difference from Hillerstrom et al. is that our stacks are composed of
@@ -927,8 +929,8 @@ $\clos{x}{e}{\env}$, effects being performed ($\effval{l}{k}$) and exceptions
 being raised ($\exnval{l}$). The environment is a map from variables to values.
 
 The stack $\stack$ is either a C stack ($\cstack$) or an OCaml stack
-($\ostack$). Every C stack $\cstacka{\fl}{\ostack}$ consists of a list of
-frames $\fl$, and the OCaml stack $\ostack$ under it. Every OCaml stack is
+($\ostack$). The C stack $\cstacka{\fl}{\ostack}$ consists of a list of
+frames $\fl$, and the OCaml stack $\ostack$ under it. The OCaml stack is
 either empty $\ostackemp$ or non-empty $\ostacka{k}{\cstack}$ with the current
 continuation $k$ and the C stack $\cstack$ under it. Thus, the program stack is
 an alternating sequence of C and OCaml stacks terminating with an empty OCaml
@@ -938,7 +940,7 @@ the argument position of an application with its environment $\env$, a function
 frame $\ffun{v}$ with the value $v$ at the function position of an application,
 and frames for evaluating the arguments of an arithmetic expression.
 
-Continuations $k$ are either empty $[]$ or a non-empty list of \emph{fibers}. A
+A continuation $k$ is either empty $[]$ or a non-empty list of \emph{fibers}. A
 fiber $\fiber \coloneqq (\fl,\hc)$ is a list of frames $\fl$ and a handler
 closure $\hc \coloneqq (h,\env)$, which is a pair of handler $h$ and its
 environment $\env$. We use the infix operator $@$ for appending two lists.
