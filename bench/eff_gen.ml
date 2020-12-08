@@ -9,14 +9,14 @@ end = struct
   let gen : type a. a S.t -> (unit -> a option) = fun l ->
     let module M = struct effect Yield : a -> unit end in
     let open M in
-    let rec r = ref (fun () ->
+    let rec step = ref (fun () ->
       match S.iter (fun v -> perform (Yield v)) l with
       | () -> None
       | effect (Yield v) k ->
-          r := (fun () -> continue k ());
+          step := (fun () -> continue k ());
           Some v)
     in
-    fun () -> !r ()
+    fun () -> !step ()
 end
 
 type 'a tree =

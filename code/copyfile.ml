@@ -3,11 +3,14 @@ let output_file = try Sys.argv.(2) with _ -> failwith "no output file"
 
 effect E : 'a -> unit
 
-let rec copy ic oc =
-  try
+let copy ic oc =
+  let rec loop () =
     let l = input_line ic in
     output_string oc (l ^ "\n");
-    copy ic oc
-  with _ -> (close_in ic; close_out oc)
+    loop ()
+  in
+  try loop () with
+  | End_of_file  -> close_in ic; close_out oc
+  | e -> close_in ic; close_out oc; raise e
 
 let _ = copy (open_in input_file) (open_out output_file)
