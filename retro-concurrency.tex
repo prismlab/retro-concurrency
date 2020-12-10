@@ -627,11 +627,14 @@ subtle~\cite{TFP17, Leijen18}. Consider the following function that uses
 blocking I/O functions from the OCaml standard library to copy data from the
 input channel |ic| to the output channel |oc|:
 \begin{lstlisting}
-let rec copy ic oc =
-  try output_string oc ((input_line ic) ^ "\n");
-      copy ic oc
-  with End_of_file -> close_in ic; close_out oc
-	   | e -> close_in ic; close_out oc; raise e
+let copy ic oc =
+  let rec loop () =
+	  output_string oc ((input_line ic) ^ "\n");
+		loop ()
+	in
+	try loop () with
+  | End_of_file -> close_in ic; close_out oc
+	| e -> close_in ic; close_out oc; raise e
 \end{lstlisting}
 The function |input_line| raises an |End_of_file| exception on reaching the end
 of input, which is handled by the exception handler which closes the channels.
@@ -648,9 +651,9 @@ them up in functions with the same signature as the one from the standard
 library:
 \begin{lstlisting}
 effect In_line : in_channel -> string
-effect Out_str : out_channel -> string -> unit
+effect Out_str : out_channel * string -> unit
 let input_line ic = perform (In_line ic)
-let output_string oc = perform (Out_str oc)
+let output_string oc s = perform (Out_str (oc, s))
 \end{lstlisting}
 
 We can then use a top-level I/O handler, similar to the introductory example
@@ -1100,10 +1103,10 @@ Captured continuations are copies of the original fibers and resuming the
 continuation copies the fibers and leaves the continuation as it is. In our use
 cases, continuations will be resumed at-most once, and copying fibers is
 unnecessary and inefficient. Instead, Multicore OCaml optimises fibers for
-one-shot continuations. Fibers are allocated on the heap using |malloc| and are
-|free|d when no longer necessary. Similar to Farvardin et
-al.~\cite{Farvardin20}, we use a \emph{stack cache} of recently freed stacks in
-order to speed up allocation.
+one-shot continuations. Fibers are allocated on the C heap using |malloc| and
+are |free|d when the handled computation returns with a value or an exception.
+Similar to Farvardin et al.~\cite{Farvardin20}, we use a \emph{stack cache} of
+recently freed stacks in order to speed up allocation.
 
 Figure~\ref{fig:fiber} shows the layout of a fiber in Multicore OCaml. At the
 bottom of the stack, we have the |handler_info|, which contains the pointer to
@@ -1180,8 +1183,8 @@ immediately resumed. The arrows between the fibers are parent pointers. At
 position |p1|, |rsp| is at the top of the fiber |f|.
 
 When the effect |E| is performed, we allocate a continuation object |ke| in the
-heap that points to the current fiber |f|, set fiber |f|'s parent pointer to
-|NULL|, and evaluate the continuation closure |clos_heffect| on the parent
+OCaml heap that points to the current fiber |f|, set fiber |f|'s parent pointer
+to |NULL|, and evaluate the continuation closure |clos_heffect| on the parent
 fiber |e| with the effect |E| and the continuation |ke| as arguments. Since the
 first handler does not handle effect |E|, the effect is \emph{reperformed}
 (\S\ref{sec:static_semantics}) by appending the fiber |e| to the tail of
@@ -1190,16 +1193,16 @@ current continuation closure on the parent fiber |main| with |E| and |ke| as
 arguments, which handles |E| (position |p2|). Thus, \emph{continuations are
 captured without copying frames}. Since every handler closure is evaluated
 until a matching one is found, the time taken to handle an effect is linear in
-the number of handlers. We observed that the handler stack is shallow in
-real programs.
+the number of handlers. We observed that the handler stack is shallow in real
+programs.
 
 When the continuation is resumed, we overwrite the value of |ke| to |NULL| to
 enforce at-most once semantics. Resuming a continuation involves traversing the
 linked-list of fibers and making the last fiber point to the current fiber.
 Just as in the operational semantics, the implementation invokes the
 appropriate closure to either |continue| or |discontinue| the continuation
-(position |p3|). We perform standard tail-call optimisation so that resumptions
-at tail positions do not build up stack.
+(position |p3|). We perform tail-call optimisation so that resumptions at tail
+positions do not build up stack.
 
 \vspace{-3mm}
 \subsection{Stack unwinding}
@@ -1513,7 +1516,7 @@ copying. C allows pointers into the stack, so care is taken to ensure that
 when continuations are resumed, the constituent frames are restored to the same
 memory addresses as at the time of capture. Kiselyov et al.~\cite{Kiselyov18}
 use an implementation of multi-prompt delimited continuations as an OCaml
-library~\cite{Kiselyov12} to embed the Eff language in OCaml. Indeed, Forester et
+library~\cite{Kiselyov12} to embed the Eff language in OCaml. Indeed, Forster et
 al.~\cite{Forster19} showed that in an untyped setting, effect handlers,
 monadic reflection and delimited control can macro-express each other.
 
