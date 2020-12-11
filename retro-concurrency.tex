@@ -208,10 +208,11 @@ continuations~\cite{Danvy90} that enables non-local control-flow mechanisms
 such as resumable exceptions, coroutines, generators and asynchronous I/O to be
 composably expressed. For example, consider the task of handling
 division-by-zero in a calculator application. Different calculators handle
-division-by-zero differently. In the iOS 13 Calculator (|iOS|), |0/0| returns
-|Error|. In the Google search calculator (|gsearch|) |0/0| returns |Error|, but
-for |n!=0| the |n/0| returns |Infinity| with the same sign as |n|. How do we
-capture all these different behaviours without changing the evaluator?
+division-by-zero differently. In the iOS 13 Calculator (|iOS|),
+division-by-zero returns |Error|. In the Google search calculator (|gsearch|)
+|0/0| returns |Error|, but for |n!=0| the |n/0| returns |Infinity| with the
+same sign as |n|. How do we capture all these different behaviours without
+changing the evaluator?
 
 Common Lisp Conditions~\cite{Steele90} are an elegant way to solve this
 problem. Unlike exceptions where the library decides whether an error is fatal
@@ -298,21 +299,21 @@ of the other.
 \subsection{Retrofitting effect handlers}
 
 There are many research languages and libraries built around effect
-handlers~\cite{Leijen14,Hillerstrom20,Pyro,Frank,Eff}. Unlike these efforts, our
-goal is to retrofit effect handlers onto the OCaml programming language, which
-has been in continuous use for the past 25 years in large codebases including
-verification tools~\cite{everest,Coq}, mission critical software
+handlers~\cite{Leijen14,Hillerstrom20,Pyro,Frank,Eff}. Unlike these efforts,
+our goal is to retrofit effect handlers onto the OCaml programming language,
+which has been in continuous use for the past 25 years in large codebases
+including verification tools~\cite{everest,Coq}, mission critical software
 systems~\cite{astree} and latency sensitive networked
 applications~\cite{Madhavapeddy13}. OCaml is particularly favoured for its
 competitive yet predictable performance, with a fast foreign-function interface
-(FFI). It has excellent compatibility with program analysis tools such as debuggers
-and profilers that utilise DWARF stack unwind tables~\cite{DWARF} to obtain a
-backtrace. Our primary motivation for adding effect handlers to OCaml is to
-support: {\em (i)} highly concurrent applications such as web servers using a
-natural \emph{direct-style} as opposed to using callbacks; and {\em (ii)} efficient
-nested parallel programs in the vein of Cilk~\cite{Cilk}, OpenMP~\cite{OpenMP},
-X10~\cite{Charles05}, Intel TBB~\cite{IntelTBB}, and variants of Parallel
-ML~\cite{MaPLe, Fluet10, Sivaramakrishnan14}.
+(FFI). It has excellent compatibility with program analysis tools such as
+debuggers and profilers that utilise DWARF stack unwind tables~\cite{DWARF} to
+obtain a backtrace. Our primary motivation for adding effect handlers to OCaml
+is to support: {\em (i)} highly concurrent applications such as web servers
+using a natural \emph{direct-style} as opposed to using callbacks; and {\em
+(ii)} efficient nested parallel programs in the vein of Cilk~\cite{Cilk},
+OpenMP~\cite{OpenMP}, X10~\cite{Charles05}, Intel TBB~\cite{IntelTBB}, and
+variants of Parallel ML~\cite{MaPLe, Fluet10, Sivaramakrishnan14}.
 
 OCaml currently does not support any non-local control flow mechanisms other
 than exceptions. This makes it particularly challenging to implement the
@@ -321,8 +322,8 @@ desirable properties of OCaml. One standard way of implementing continuations
 is to use continuation-passing style (CPS) in the compiler's intermediate
 representation (IR)~\cite{Leijen14}. OCaml does not use a CPS IR, and changing
 the compiler to utilise a CPS IR would be an enormous undertaking that would
-affect the performance profile of existing OCaml applications due to the increased
-memory allocations as the continuation closures get allocated on the
+affect the performance profile of existing OCaml applications due to the
+increased memory allocations as the continuation closures get allocated on the
 heap~\cite{Farvardin20}. Moreover, with CPS, stack unwinding is meaningless and
 hence, we would lose compatibility with tools that inspect the program stack.
 Hence, we choose not to use CPS translation and represent the continuations as
@@ -343,27 +344,6 @@ effect safety for future work.
 
 We motivate our effect handler design based on the following ideal
 requirements:
-
-\if{0}
-\begin{enumerate}[label=R\arabic*]
-	\item \textbf{Backwards compatibility} A well-behaved OCaml program does not
-		break under OCaml extended with effect handlers. OCaml code that does not
-		use effect handlers will pay negligible performance cost.
-  \item \textbf{Tool compatibility} OCaml with effect handlers produce
-    well-formed backtraces, and remains compatible with program analysis tools
-    such as debuggers and profilers that inspect the stack using DWARF stack
-    unwind tables.
-  \item \textbf{Effect handler efficiency} In order to support
-    highly-concurrent applications, the program must accommodate millions of
-    continuations at the same time. Installing effect handlers, capturing and
-    resuming continuations must be fast.
-  \item \textbf{Forwards compatibility} While this work does not present an
-    effect system, the design must be compatible with a future effect system
-    for OCaml. As a cornerstone of modularity, we also want blocking I/O code
-    to \emph{transparently} be made asynchronous with the help of effect
-    handlers.
-\end{enumerate}
-\fi
 
 \noindent \textbf{R1: Backwards compatibility.} A well-behaved OCaml program
 does not break under OCaml extended with effect handlers. OCaml code that does
