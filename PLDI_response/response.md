@@ -58,9 +58,12 @@ continuations and the specialised exception handler in the implementation. The
 executable semantics has been useful for quickly prototyping different variants
 of the effect handler (deep vs shallow, or making both available).
 
-> MAP_GROWSDOWN
+> Using MAP_GROWSDOWN
 
-XXX TODO
+The use of mmap with MAP_GROWSDOWN for fibers would mean that the fibers are at
+least 2 4k pages in size. Currently, our fibers start at 32 words. Secondly,
+stack overflow checks are not that expensive (as shown in our results). Lastly,
+we do want effect handlers to be supported on 32-bit platforms where OCaml runs.
 
 > Relation to aspect-oriented programming
 
