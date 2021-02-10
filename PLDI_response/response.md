@@ -44,19 +44,24 @@ the microbenchmarks.
 
 We shall take into account the useful suggestions for improvements to the
 introduction. We shall augment the example to better bring out the benefits of
-dynamic scoping of handlers. 
+dynamic scoping of handlers.
 
 As the reviewer has pointed out, the modularity that we refer to is that the
 change for asynchronous I/O is localised to the point at which the effect is
 performed (`eval`) and where it is handled (`run`), and not the intervening code
 (`gsearch`). Modularity ensures that neither the handler in `run` nor the one in
 `gsearch` need to be aware of the other (lines 129-131). We shall improve the
-presentation here. 
+presentation here.
 
 The semantics aims to faithfully model the implementation modulo the one-shot
 continuations and the specialised exception handler in the implementation. The
 executable semantics has been useful for quickly prototyping different variants
 of the effect handler (deep vs shallow, or making both available).
+
+> Relation to aspect-oriented programming
+
+Kammar et al. "Handlers in Action", ICFP 13, makes connections between effect
+handlers and aspect-oriented programming.
 
 > Using MAP_GROWSDOWN
 
@@ -64,11 +69,6 @@ The use of mmap with MAP_GROWSDOWN for fibers would mean that the fibers are at
 least 2 4k pages in size. Currently, our fibers start at 32 words. Secondly,
 stack overflow checks are not that expensive (as shown in our results). Lastly,
 we do want effect handlers to be supported on 32-bit platforms where OCaml runs.
-
-> Relation to aspect-oriented programming
-
-Kammar et al. "Handlers in Action", ICFP 13, makes connections between effect
-handlers and aspect-oriented programming. 
 
 > line 291: "For external functions which allocate in the OCaml heap" -- how
   does the compiler know whether a native callee does or doesn't allocate?
