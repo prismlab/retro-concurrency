@@ -15,10 +15,10 @@ draft, so that the distribution of overheads become evident.
 
 # Review B
 
-As the reviewer has rightly suggested, we shall introduce citing [54] in section
-1.5. We shall drop the reference to effect system from R4 and retain the
-modularity arguments. Section 3 (line 437+) refers to the modularity requirement
-and motivates the need for `discontinue` primitive.
+As the reviewer has rightly suggested, we shall introduce Multicore OCaml citing 
+[54] in section 1.5. We shall drop the reference to effect system from R4 and 
+retain the modularity arguments. Section 3 (line 437+) refers to the modularity 
+requirement and motivates the need for `discontinue` primitive.
 
 Fibers are not necessary for parallelism, which is the main focus of [54].
 Effect handlers (supported by fibers in the runtime) bring in native support for
@@ -33,9 +33,10 @@ one fiber. In these benchmarks, the roots on this only fiber stack are marked at
 the beginning of the cycle, which is the same as what stock OCaml does. Hence,
 the integration of fibers with concurrent mark-and-sweep GC does not contribute
 to the observed differences. The observed differences are due to the difference
-in the allocator designs between stock and multicore; multicore allocator has
-less fragmentation and this leads to differences in the pacing of the
-incremental GC.
+in the allocator designs between stock and multicore; Multicore OCaml's 
+size-segmented free-list allocator has less fragmentation that the stock OCaml's 
+next fit allocator and this leads to differences in the pacing of the incremental 
+GC.
 
 We shall add comparison to domains (units of parallelism in Multicore OCaml) in
 the microbenchmarks.
@@ -43,25 +44,20 @@ the microbenchmarks.
 # Review C
 
 We shall take into account the useful suggestions for improvements to the
-introduction. We shall augment the example to better bring out the benefits of
-dynamic scoping of handlers.
+introduction. We shall choose more illustrative example to better bring out 
+the benefits of dynamic scoping of handlers.
 
 As the reviewer has pointed out, the modularity that we refer to is that the
 change for asynchronous I/O is localised to the point at which the effect is
 performed (`eval`) and where it is handled (`run`), and not the intervening code
 (`gsearch`). Modularity ensures that neither the handler in `run` nor the one in
-`gsearch` need to be aware of the other (lines 129-131). We shall improve the
-presentation here.
+`gsearch` need to be aware of the other (lines 129-131). We shall make this
+explicit in the text.
 
 The semantics aims to faithfully model the implementation modulo the one-shot
 continuations and the specialised exception handler in the implementation. The
 executable semantics has been useful for quickly prototyping different variants
 of the effect handler (deep vs shallow, or making both available).
-
-> Relation to aspect-oriented programming
-
-Kammar et al. "Handlers in Action", ICFP 13, makes connections between effect
-handlers and aspect-oriented programming.
 
 > Using MAP_GROWSDOWN
 
@@ -69,9 +65,9 @@ The use of mmap with MAP_GROWSDOWN for fibers would mean that the fibers are at
 least two 4k pages in size. Currently, our fibers start at 32 words. Secondly,
 stack overflow checks are not that expensive (as shown in our results). Last, we
 do want effect handlers to be supported on 32-bit platforms where OCaml runs,
-even if parallelism may not be supported. Stack switching is portable across the
-platforms supported by OCaml. That said, MAP_GROWSDOWN solution may be
-appropriate where the stacks cannot be moved (which we understand is the
+even if parallelism may not be supported. The current solutions is portable 
+across the platforms supported by OCaml. That said, MAP_GROWSDOWN solution 
+may be appropriate where the stacks cannot be moved (which we understand is the
 situation with Web Assembly).
 
 > Relation to aspect-oriented programming
@@ -105,7 +101,7 @@ We shall go for a more illustrative example in the introduction (as suggested by
 other reviewers as well). We shall add the main results in the body of the paper
 for the final version.
 
-Multicore OCaml clearly separates out concurrency from parallelism (running on
+Multicore OCaml separates out concurrency from parallelism (running on
 2+ cores) using distinct mechanisms to express them -- domains and effect
 handlers. We can have one without the other. [54] discusses retrofitting
 parallelism to OCaml; fibers are not necessary for parallelism. The focus of
@@ -126,9 +122,9 @@ heap to the configuration), but tedious. It does not bring in novel insights but
 would obscure the presentation. Hence, we avoided encoding one-shot semantics.
 
 Since the exactly-once use of continuations is an expectation not enforced by
-the compiler, the semantics would not change. In the final version, we shall
-state upfront (in Section 4.2) that the dynamic semantics aims to model stack
-manipulation.
+the compiler, the semantics would not change due to this requirement. In the 
+final version, we shall state upfront (in Section 4.2) that the dynamic semantics 
+aims to model stack manipulation.
 
 Hillerstrom et al. [29] do not model C and OCaml stacks explicitly. [29] is also
 in a setting with an effect system. Hence, programs with unhandled effects would
