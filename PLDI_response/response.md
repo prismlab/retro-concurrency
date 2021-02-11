@@ -66,14 +66,24 @@ handlers and aspect-oriented programming.
 > Using MAP_GROWSDOWN
 
 The use of mmap with MAP_GROWSDOWN for fibers would mean that the fibers are at
-least 2 4k pages in size. Currently, our fibers start at 32 words. Secondly,
-stack overflow checks are not that expensive (as shown in our results). Lastly,
-we do want effect handlers to be supported on 32-bit platforms where OCaml runs.
+least two 4k pages in size. Currently, our fibers start at 32 words. Secondly,
+stack overflow checks are not that expensive (as shown in our results). Last, we
+do want effect handlers to be supported on 32-bit platforms where OCaml runs,
+even if parallelism may not be supported. Stack switching is portable across the
+platforms supported by OCaml. That said, MAP_GROWSDOWN solution may be
+appropriate where the stacks cannot be moved (which we understand is the
+situation with Web Assembly).
+
+> Relation to aspect-oriented programming
+
+Kammar et al. "Handlers in Action", ICFP 13, makes some connections between
+effect handlers and aspect-oriented programming. 
 
 > line 291: "For external functions which allocate in the OCaml heap" -- how
   does the compiler know whether a native callee does or doesn't allocate?
 
-Non-allocating external functions may optionally be annotated by the programmer.
+Non-allocating external functions may optionally be annotated by the programmer
+as `@noalloc`. The compiler does not ensure that these annotations are correct.
 
 > line 313: "In order to forward exceptions..." -- perhaps a silly question but
 why is forwarding necessary? Also, can C frames install exception handlers?
@@ -84,6 +94,48 @@ in the outer OCaml frames to which the exception must be forwarded.
 > (This is for me one of the weaker points of the design... are finalisers
   *that* expensive? Is there experimental data on that?)
 
-Thanks for this suggestion. We shall include a thorough evaluation of the
+Thanks for this suggestion. As other reviewers have pointed out, this is one of
+the weaknesses of our solution. We shall include a thorough evaluation of the
 overheads of installing a finaliser for every captured continuation on the micro
-and macro benchmarks.
+and macro benchmarks to justify our trade off.
+
+# Review 4
+
+We shall go for a more illustrative example in the introduction (as suggested by
+other reviewers as well). We shall add the main results in the body of the paper
+for the final version.
+
+Multicore OCaml clearly separates out concurrency from parallelism (running on
+2+ cores) using distinct mechanisms to express them -- domains and effect
+handlers. We can have one without the other. [54] discusses retrofitting
+parallelism to OCaml; fibers are not necessary for parallelism. The focus of
+[54] is the concurrent garbage collector. [54] briefly touches upon fibers only
+to describe the interaction with the concurrent GC. None of the benchmarks in
+[54] use effect handlers. The focus of this paper is retrofitting concurrency to
+OCaml. None of the benchmarks in this paper involve parallelism. 
+
+Our aim with the semantics was to formally capture the semantics of stack
+manipulation, making explicit the interaction between C and OCaml stacks, which
+other presentations typically avoid. We chose not to model one-shot
+continuations since they are well understood. In the implementation,
+continuations are fresh heap objects that refer to the fiber. This reference
+gets overwritten with NULL when a continuation is resumed. Continuation
+resumption raises exception when the reference to the fiber in a continuation is
+NULL. Modelling this in the semantics would be straight-forward (by adding a
+heap to the configuration), but tedious. It does not bring in novel insights but
+would obscure the presentation. Hence, we avoided encoding one-shot semantics.
+
+Since the exactly-once use of continuations is an expectation not enforced by
+the compiler, the semantics would not change. In the final version, we shall
+state upfront (in Section 4.2) that the dynamic semantics aims to model stack
+manipulation.
+
+Hillerstrom et al. [29] do not model C and OCaml stacks explicitly. [29] is also
+in a setting with an effect system. Hence, programs with unhandled effects would
+be statically rejected. In this work, unhandled effects raise exceptions at the
+point of perform to clean up resources. [29] models both deep and shallow
+handlers. Our handlers are deep. [29] uses fine-grained call-by-value (FGCBV),
+but we use call-by-value (CBV). While FGCBV would avoid a few administrative
+reduxes by having a separate syntactic category of "interesting" operations, we
+chose CBV so that the examples in the executable semantics (see supplement)
+remain syntactically similar to their analogues in Multicore OCaml.
