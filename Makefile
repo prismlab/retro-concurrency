@@ -20,6 +20,7 @@ retro-concurrency-sources.zip:
 all: techrep retro-concurrency-sources.zip
 
 clean:
-	make -C semantics clean
+	make -C bench clean
+	make -C code clean
 	rm -rf *.log *.aux *.bbl *.blg *~ *.out techrep retro-concurrency-sources \
 		retro-concurrency-sources.zip
