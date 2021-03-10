@@ -5,6 +5,8 @@ ifeq ($(COMPILER),stock)
 	OCAMLOPT := ocamlopt.opt
 else ifeq ($(COMPILER),mc)
 	OCAMLOPT := ~/repos/ocaml-multicore/_install/bin/ocamlopt.opt
+else ifeq ($(COMPILER),mcsc)
+	OCAMLOPT := ~/repos/ocaml-multicore-sc/_install/bin/ocamlopt.opt
 else ifeq ($(COMPILER),mc+noredzone)
 	OCAMLOPT := ~/repos/ocaml-multicore-redzone0/_install/bin/ocamlopt.opt
 else
@@ -55,7 +57,7 @@ time_monad: exe
 
 time_eff: exe
 	taskset --cpu-list 2-10 hyperfine -u millisecond --export-json \
-		$(COMPILER)_eff.bench -m 2 \
+		$(COMPILER)_eff.bench -m 5 \
 		'./$(COMPILER)_eff_tak.exe 1 35 20 11' \
 		'./$(COMPILER)_eff_fib.exe 1 37' \
 		'./$(COMPILER)_eff_sudan.exe 1_000_000 2 2 2' \
