@@ -295,7 +295,7 @@ user-interface continuation so that the application remains responsive. Observe
 that neither the division-by-zero handler nor the I/O handler needs to be aware
 of the other.
 
-\vspace{-1.5mm}
+%\vspace{-1.5mm}
 \subsection{Retrofitting effect handlers}
 
 There are many research languages and libraries built around effect
@@ -359,10 +359,9 @@ millions of continuations at the same time to support highly-concurrent
 applications. Installing effect handlers, capturing and resuming continuations
 must be fast.
 
-\noindent \textbf{R4: Forwards compatibility.} While this work does not present
-an effect system, the design must be compatible with a future effect system for
-OCaml. As a cornerstone of modularity, we also want blocking I/O code to
-\emph{transparently} be made asynchronous with the help of effect handlers.
+\noindent \textbf{R4: Forwards compatibility.} As a cornerstone of modularity,
+we also want blocking I/O code to \emph{transparently} be made asynchronous
+with the help of effect handlers.
 
 The need to host millions of continuations at the same time rules out the use
 of a large contiguous stack space as in C for continuations. Instead, we resort
@@ -402,7 +401,12 @@ Our contributions are to present:
 
 We have implemented effect handlers in a multicore extension of the OCaml
 programming language which we call \textbf{Multicore OCaml} to distinguish it
-from stock OCaml.
+from stock OCaml. Multicore OCaml clearly delineates concurrency (overlapped
+execution of tasks) from parallelism (simultaneous execution of tasks) with
+separate mechanisms for expressing them. Sivaramakrishnan et
+al.~\cite{Sivaramakrishnan20} describe the parallelism support in Multicore
+OCaml enabled by \emph{domains}. The focus of this paper is the concurrency
+support enabled by effect handlers.
 
 The remainder of the paper continues with a description of the stock OCaml
 program stack (\S\ref{sec:stack}). We then refine the design further by
@@ -436,7 +440,7 @@ let omain () =
   | with E1 -> 42;;
 let _ = assert (omain () = 42)
     \end{lstlisting}
-    \vspace{-2mm}
+    %\vspace{-2mm}
     \subcaption{\texttt{meander.ml}}
     \label{code:meander_ml}
   \end{minipage}
@@ -451,7 +455,7 @@ value ocaml_to_c (value unit) {
   return Val_int(0);
 }
     \end{lstlisting}
-    \vspace{-4mm}
+    %\vspace{-4mm}
     \subcaption{\texttt{meander.c}}
     \label{code:meander_c}
   \end{minipage}
@@ -1253,11 +1257,12 @@ However, Multicore OCaml does not enforce this behaviour in order to avoid the
 costs associated with installing a finaliser every time a continuation is
 captured.
 
-For stack walking during GC, the only change necessary was to make the runtime
-aware of fiber layout and how to follow the parent pointers. The stack map
-generation and scanning each frame for roots remains the same. The
+For stack walking during GC, the only change necessary was to make the
+runtime aware of fiber layout and how to follow the parent pointers. The
+stack map generation and scanning each frame for roots remains the same. The
 challenges and solutions for integrating fibers with the concurrent
-mark-and-sweep GC of Multicore OCaml have been discussed previously~\cite{Sivaramakrishnan20}.
+mark-and-sweep GC of Multicore OCaml have been discussed
+previously~\cite{Sivaramakrishnan20}.
 
 %\vspace{-2mm}
 \section{Evaluation}
@@ -1635,14 +1640,14 @@ then $init(e) \multistep ~\config \wedge final(\config) \wedge term(\config) =
 \subsection*{No effect macro benchmarks}
 
 \begin{figure*}
-	\includegraphics[angle=90,scale=0.44]{sandmark-notebook/sandmark_time}
+	\includegraphics[scale=0.35]{sandmark-notebook/sandmark_time}
 	\caption{Normalized time of macro benchmarks. Baseline is Stock OCaml,
 		whose running time in seconds in given in parenthesis.}
 	\label{res:macro_time}
 \end{figure*}
 
 \begin{figure*}
-	\includegraphics[angle=90,scale=0.44]{sandmark-notebook/sandmark_codesize}
+	\includegraphics[scale=0.35]{sandmark-notebook/sandmark_codesize}
 	\caption{Normalized OCaml text section size (OTSS) of macro benchmarks.
 	Baseline is Stock OCaml, whose size in bytes given in parenthesis.}
 	\label{res:macro_size}
