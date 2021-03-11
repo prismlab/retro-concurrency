@@ -485,13 +485,13 @@ value ocaml_to_c (value unit) {
 #12 caml_startup (...) at startup_nat.c:172
 #13 0x6f55c in main (...) at main.c:44
 \end{lstlisting}
-\vspace{-2mm}
+%\vspace{-2mm}
 \subcaption{\texttt{gdb} backtrace before raise \texttt{E1}.}
 \label{code:gdb_backtrace}
 \end{minipage}
-\vspace{-2mm}
+%\vspace{-2mm}
 \caption{Program stack on stock OCaml.}
-\vspace{-2mm}
+%\vspace{-2mm}
 \end{figure*}
 
 The main challenge in implementing effect handlers in Multicore OCaml is
@@ -729,7 +729,7 @@ original performer. In the implementation, reperform is implemented as a
 primitive to avoid executing code on the resumption path.
 
 \begin{figure*}
-\vspace{-2mm}
+%\vspace{-2mm}
 \begin{minipage}{\linewidth}
   \begin{minipage}[t]{0.49\linewidth}
   \begin{smathpar}
@@ -932,7 +932,7 @@ fiber $\fiber \coloneqq (\fl,\hc)$ is a list of frames $\fl$ and a handler
 closure $\hc \coloneqq (h,\env)$, which is a pair of handler $h$ and its
 environment $\env$. We use the infix operator $@$ for appending two lists.
 
-\vspace{-1mm}
+%\vspace{-1mm}
 \subsubsection{Top-level reductions}
 
 The initial configuration for an expression $e$ is
@@ -940,7 +940,7 @@ $\configa{e}{\emptyset}{\cstacka{[]}{\bullet}}$, where the environment and the
 stack are empty. The top-level reductions (Figure ~\ref{sem:toplevel}) can be
 performed by either by taking a C step $\cstep$ or an OCaml step $\ostep$.
 
-\vspace{-1mm}
+%\vspace{-1mm}
 \subsubsection{C reductions}
 
 We can take a C step (Figure~\ref{sem:cstep}) by taking an administrative
@@ -965,7 +965,7 @@ the enclosing OCaml stack. \textsc{ExnFwdO} forwards a raised exception to the
 enclosing OCaml stack, unwinding the rest of the frames. This captures the
 semantics of raising OCaml exceptions from C.
 
-\vspace{-1mm}
+%\vspace{-1mm}
 \subsubsection{OCaml reductions}
 
 In OCaml (Figure~\ref{sem:ostep}), reductions always occur on the top-most
@@ -1021,7 +1021,7 @@ OCaml. We assume an x86\_64 architecture for the remainder of this paper.
 Although Multicore OCaml currently only supports the x86\_64 backend on Linux,
 our design does not preclude other CPUs and OSs.
 
-\vspace{-2mm}
+%\vspace{-2mm}
 \subsection{Exceptions}
 
 The implementation follows the operational semantics, but has a few key
@@ -1035,7 +1035,7 @@ compatibility. This differs from other research languages with effect
 handlers~\cite{Hillerstrom20,Frank,Eff}, which implement exceptions using
 effects (by ignoring the continuation argument in the handler).
 
-\vspace{-2mm}
+%\vspace{-2mm}
 \subsection{Heap-allocated fibers}
 \label{sec:hafibers}
 
@@ -1052,13 +1052,15 @@ effects (by ignoring the continuation argument in the handler).
     \includegraphics[scale=0.4]{figures/multicore_stack}
     \subcaption{Stack layout for \texttt{meander} example from \S\ref{sec:stack}.}
     \label{fig:mcstack}
-    \vspace{2mm}
+    %\vspace{2mm}
   \end{minipage}
   %
   \begin{minipage}{0.55\linewidth}
+		\vspace{1mm}
     \begin{lstlisting}
 effect E : unit
 effect F : unit;;
+
 match (* comp_e *)
   match (* comp_f *)
     (*p1*) perform E (*p3*)
@@ -1071,15 +1073,16 @@ with | v -> v
   \end{minipage}
   %
   \begin{minipage}{0.44\linewidth}
+		\vspace{2mm}
     \centering
     \includegraphics[scale=0.42]{figures/fiber_handler}
 		\subcaption{Program state for code in~\ref{code:effimpl}}
     \label{fig:fiber_handler}
   \end{minipage}
 \end{minipage}
-\vspace{-2mm}
+%\vspace{-2mm}
 \caption{Layout of Multicore OCaml effect handlers.}
-\vspace{-3mm}
+%\vspace{-3mm}
 \end{figure*}
 
 In the operational semantics, the continuations may be resumed more than once.
@@ -1131,7 +1134,7 @@ stack pointer of the current stack and loading the same on the target stack.
 Since OCaml does not generate pointers into the stack, the two |fiber_info|
 fields are the only ones that need to be updated when fibers are moved.
 
-\vspace{-3mm}
+%\vspace{-3mm}
 \subsection{External calls and callbacks}
 
 Since C functions do not have stack overflow checks, we have to execute the
@@ -1155,7 +1158,7 @@ before calling and after returning from |c_to_ocaml| function, respectively.
 Thanks to the fiber representation, external calls and callbacks remain
 competitive with stock OCaml.
 
-\vspace{-3mm}
+%\vspace{-3mm}
 \subsection{Effect handlers}
 \label{sec:effimpl}
 
@@ -1188,7 +1191,7 @@ appropriate closure to either |continue| or |discontinue| the continuation
 (position |p3|). We perform tail-call optimisation so that resumptions at tail
 positions do not build up stack.
 
-\vspace{-3mm}
+%\vspace{-3mm}
 \subsection{Stack unwinding}
 
 The challenge with DWARF stack unwinding is to make it aware of the
@@ -1234,7 +1237,7 @@ interpretation overhead, |perf| dumps the (user) call stack when
 sampled~\cite{Bastian19}. This only includes the frames from the current fiber.
 This is a limitation of |perf| and not of our stack layout.
 
-\vspace{-2mm}
+%\vspace{-2mm}
 \subsection{Garbage collection}
 
 Recall that OCaml programs are written with the expectation that function calls
@@ -1276,7 +1279,7 @@ Intel\textregistered Xeon\textregistered Gold 5120
 x86-64~\cite{IntelXeonGold5120Spec} server running Ubuntu 18.04 with 64GB of main
 memory.
 
-\vspace{-3mm}
+%\vspace{-3mm}
 \subsection{No effects benchmarks}
 
 In this section, we measure the impact of the addition of effect handlers on
@@ -1291,26 +1294,43 @@ red zone (|MC+RedZone0|) in the fibers (all OCaml functions will have a stack
 overflow check) and a red zone size of 32 words (|MC+RedZone32|). Recall that
 the default red zone size in Multicore OCaml is 16 words (\S\ref{sec:hafibers}).
 
-The complete results are presented in the supplementary material, which we
-summarise here. On average (geometric mean of the normalized values against
-|stock| as the baseline), the multicore variants were \textbf{less than 1\%
-slower} than |stock|. The outliers (on either ends) were due to the difference
-in the allocator and the GC between stock and Multicore OCaml.
+\begin{figure*}
+	\includegraphics[scale=0.35]{sandmark-notebook/sandmark_time}
+	\caption{Normalized time of macro benchmarks. Baseline is Stock OCaml,
+		whose running time in seconds in given in parenthesis.}
+	\label{res:macro_time}
+\end{figure*}
+
+\begin{figure*}
+	\includegraphics[scale=0.35]{sandmark-notebook/sandmark_codesize}
+	\caption{Normalized OCaml text section size (OTSS) of macro benchmarks.
+	Baseline is Stock OCaml, whose size in kilobytes given in parenthesis.}
+	\label{res:macro_size}
+\end{figure*}
+
+Figure~\ref{res:macro_time} presents the running time of the different
+multicore variants normalized against the sequential baseline |stock|. On
+average (geometric mean of the normalized values against |stock| as the
+baseline), the multicore variants were \textbf{less than 1\% slower} than
+|stock|. The outliers (on either ends) were due to the difference in the
+allocator and the GC between stock and Multicore OCaml.
 
 The biggest impact was the increase in the OCaml text section size (OTSS) due
 to the stack overflow checks. We define OTSS as the sum of the sizes of all the
 OCaml text sections in the compiled binary file ignoring the data sections, the
 debug symbols, the text sections associated with OCaml runtime and other
-statically linked C libraries. Compared to |stock|, OTSS is 19\% more for |MC|
-and |MC+RedZone32|, and 30\% more for |MC+RedZone0|. The result shows that our
-16-word red zone is effective at reducing OTSS compared to having no red zone,
-whereas the 32-word red zone does not noticeably reduce OTSS further. Further
-work is required to bring OTSS closer to |stock|.
+statically linked C libraries. Figure~\ref{res:macro_size} presents the OTSS of
+the multicore variants normalized against the sequential baseline |stock|.
+Compared to |stock|, OTSS is 19\% more for |MC| and |MC+RedZone32|, and 30\%
+more for |MC+RedZone0|. The result shows that our 16-word red zone is effective
+at reducing OTSS compared to having no red zone, whereas the 32-word red zone
+does not noticeably reduce OTSS further. Further work is required to bring OTSS
+closer to |stock|.
 
 \begin{table}
 \caption{Micro benchmarks without effects. Each entry is the percentage
 	difference for Multicore OCaml over stock OCaml.}
-\vspace{-7mm}
+%\vspace{-7mm}
 {
 \begin{tabular}{r c c c c c c c c c c}
 	& \rot{exnval} & \rot{exnraise} & \rot{extcall} & \rot{callback} & \rot{ack}
@@ -1320,7 +1340,7 @@ work is required to bring OTSS closer to |stock|.
 	\textbf{Instr} & +0.0 & +0.0 & +10 & +72 & +16
 								 & +24 & +16 & +14 & +17 \\ \hline
 \end{tabular}
-\vspace{-5mm}
+%\vspace{-5mm}
 }
 \label{tab:micro_noeffect}
 \end{table}
@@ -1346,13 +1366,13 @@ does not need to do this. Callback performance is less important than external
 calls, which are far more numerous. As seen previously, these results however
 do not affect macro benchmark performance.
 
-\vspace{-3mm}
+%\vspace{-3mm}
 \subsection{No perform benchmarks}
 
 \begin{table}
 \caption{Micro benchmarks with handlers but no perform. Each entry is the
 	slowdown factor ($\times$ times) over its idiomatic implementation in stock OCaml.}
-\vspace{-3mm}
+%\vspace{-3mm}
 {
 \begin{tabular}{r c c c c c}
 	& \textbf{ack} & \textbf{fib} & \textbf{motzkin} & \textbf{sudan} & \textbf{tak} \\ \hline
@@ -1361,7 +1381,7 @@ do not affect macro benchmark performance.
 \end{tabular}
 }
 \label{tab:micro_noperform}
-	\vspace{-5mm}
+	%\vspace{-5mm}
 \end{table}
 
 Next, we aim to quantify the overhead of setting up and tearing down effect
@@ -1390,7 +1410,7 @@ monad implementation due to optimisations to reduce the heap allocation of
 continuation frames. But Farvardin et al.~\cite{Farvardin20} show that CPS with
 optimisations is still slower than using the call stack.
 
-\vspace{-3mm}
+%\vspace{-3mm}
 \subsection{Concurrent benchmarks}
 
 Next we look at benchmarks that utilize non-local control flow using effect
@@ -1454,19 +1474,19 @@ threaded, the Go benchmark is run with \texttt{GOMAXPROCS=1}.
 	\begin{minipage}{0.49\linewidth}
 		\centering
 		\includegraphics[width=0.9\linewidth]{http-benchmarks/throughput.pdf}
-		\vspace{-2mm}
+		%\vspace{-2mm}
 		\subcaption{Throughput}
 		\label{grf:throughput}
 	\end{minipage}
 	\begin{minipage}{0.49\linewidth}
 		\includegraphics[width=0.9\linewidth]{http-benchmarks/latency.pdf}
-		\vspace{-2mm}
+		%\vspace{-2mm}
 		\subcaption{Tail latency}
 		\label{grf:latency}
 	\end{minipage}
-	\vspace{-3mm}
+	%\vspace{-3mm}
 	\caption{Web server performance.}
-	\vspace{-5mm}
+	%\vspace{-5mm}
 \end{figure}
 
 The client workload was generated with \texttt{wrk2}~\cite{wrk2}. We maintain
@@ -1485,7 +1505,7 @@ backtrace snapshot of all current requests. Such a feature is available in
 Go~\cite{gopprof}, but not in OCaml concurrency libraries such as Async and
 Lwt which lack the notion of a thread.
 
-\vspace{-2mm}
+%\vspace{-2mm}
 \section{Related Work}
 \label{sec:related}
 
@@ -1563,7 +1583,7 @@ of effect handlers and asynchronous exceptions. This is orthogonal to the
 contributions of this paper. Our focus is the compiler and runtime system
 support for implementing effect handlers.
 
-\vspace{-3mm}
+%\vspace{-3mm}
 \section{Conclusions}
 \label{sec:conc}
 
@@ -1579,7 +1599,7 @@ runtime~\cite{Sivaramakrishnan20}, will open OCaml to highly scalable
 concurrent and task-parallel applications with minimal hit to sequential
 performance.
 
-\clearpage
+%\clearpage
 
 \bibliographystyle{ACM-Reference-Format}
 \bibliography{retro-concurrency}
@@ -1636,30 +1656,6 @@ then $init(e) \multistep ~\config \wedge final(\config) \wedge term(\config) =
 \begin{proof}
 \end{proof}
 \fi
-
-\subsection*{No effect macro benchmarks}
-
-\begin{figure*}
-	\includegraphics[scale=0.35]{sandmark-notebook/sandmark_time}
-	\caption{Normalized time of macro benchmarks. Baseline is Stock OCaml,
-		whose running time in seconds in given in parenthesis.}
-	\label{res:macro_time}
-\end{figure*}
-
-\begin{figure*}
-	\includegraphics[scale=0.35]{sandmark-notebook/sandmark_codesize}
-	\caption{Normalized OCaml text section size (OTSS) of macro benchmarks.
-	Baseline is Stock OCaml, whose size in bytes given in parenthesis.}
-	\label{res:macro_size}
-\end{figure*}
-
-Figures~\ref{res:macro_time} and \ref{res:macro_size} present the impact on
-macro benchmarks that do not use effects using the Multicore OCaml compiler
-which supports effect handlers. The aim is to quantify the impact of the
-addition of effect handlers to the language on code that does not use effect
-handlers. The |MC| is Multicore OCaml with the default red zone size (16
-words). |MC+RedZone0| uses red zone size of 0; every OCaml function has a stack
-overflow check. |MC+RedZone32| uses a red zone size of 32 words.
 
 \subsection*{Experimental support for multi-shot continuations}
 
