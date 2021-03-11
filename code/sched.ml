@@ -34,8 +34,8 @@ let do_reads (l : (in_channel * (string, unit) continuation) list) :
 
 let async_io main =
   let runq = Queue.create () in
+  let suspend k = Queue.push (continue k) runq in
   let reads = ref [] in
-  let suspend k = Queue.push k runq in
   let rec run_next () =
     match Queue.take_opt runq with
     | None ->
@@ -45,10 +45,11 @@ let async_io main =
             let (done_,todo) = do_reads todo in
                                (* blocks until one of the reads succeeds *)
             reads := todo;
-            List.iter (fun (str,k) -> continue k str) done_;
+            List.iter (fun (str,k) ->
+              Queue.push (fun () -> continue k str) runq) done_;
             run_next ()
         end
-    | Some k -> continue k ()
+    | Some f -> f ()
   in
   let rec spawn f =
     match f () with
