@@ -1,5 +1,5 @@
 \documentclass[sigplan,screen]{acmart}
-\setcopyright{none}
+\setcopyright{rightsretained}
 \acmPrice{}
 \acmDOI{10.1145/3453483.3454039}
 \acmYear{2021}
@@ -165,49 +165,49 @@
 
 \author{KC Sivaramakrishnan}
 \affiliation{
-  \institution{IIT Madras}            %% \institution is required
-	\city{Chennai}
-	\country{India}
+  \institution{\small IIT Madras}            %% \institution is required
+	\city{\small Chennai}
+	\country{\small India}
 }
 \email{kcsrk@cse.iitm.ac.in}          %% \email is recommended
 
 \author{Stephen Dolan}
 \affiliation{
-  \institution{OCaml Labs}            %% \institution is required
-	\city{Cambridge}
-	\country{UK}
+  \institution{\small OCaml Labs}            %% \institution is required
+	\city{\small Cambridge}
+	\country{\small UK}
 }
 \email{stephen.dolan@cl.cam.ac.uk}
 
 \author{Leo White}
 \affiliation{
-  \institution{Jane Street}            %% \institution is required
-	\city{London}
-	\country{UK}
+  \institution{\small Jane Street}            %% \institution is required
+	\city{\small London}
+	\country{\small UK}
 }
 \email{leo@lpw25.net}
 
 \author{Sadiq Jaffer}
 \affiliation{
-  \institution{Opsian and OCaml Labs} %% \institution is required
-	\city{Cambridge}
-	\country{UK}
+  \institution{\small Opsian and OCaml Labs} %% \institution is required
+	\city{\small Cambridge}
+	\country{\small UK}
 }
 \email{sadiq@toao.com}
 
 \author{Tom Kelly}
 \affiliation{
-  \institution{OCaml Labs}            %% \institution is required
-	\city{Cambridge}
-	\country{UK}
+  \institution{\small OCaml Labs}            %% \institution is required
+	\city{\small Cambridge}
+	\country{\small UK}
 }
 \email{tom.kelly@cantab.net}
 
 \author{Anil Madhavapeddy}
 \affiliation{
-  \institution{University of Cambridge Computer Laboratory and OCaml Labs}            %% \institution is required
-	\city{Cambridge}
-	\country{UK}
+  \institution{\small University of Cambridge Computer Laboratory and OCaml Labs}            %% \institution is required
+	\city{\small Cambridge}
+	\country{\small UK}
 }
 \email{avsm2@cl.cam.ac.uk}          %% \email is recommended
 
@@ -227,6 +227,45 @@ Effect handlers have been gathering momentum as a mechanism for modular
 	stack; and {\em (iii)} is efficient for new code that makes use of effect
 	handlers.
 \end{abstract}
+
+\begin{CCSXML}
+<ccs2012>
+   <concept>
+       <concept_id>10011007.10011006.10011041.10011048</concept_id>
+       <concept_desc>Software and its engineering~Runtime environments</concept_desc>
+       <concept_significance>500</concept_significance>
+       </concept>
+   <concept>
+       <concept_id>10011007.10011006.10011008.10011024.10011034</concept_id>
+       <concept_desc>Software and its engineering~Concurrent programming structures</concept_desc>
+       <concept_significance>500</concept_significance>
+       </concept>
+   <concept>
+       <concept_id>10011007.10011006.10011008.10011024.10011027</concept_id>
+       <concept_desc>Software and its engineering~Control structures</concept_desc>
+       <concept_significance>500</concept_significance>
+       </concept>
+   <concept>
+       <concept_id>10011007.10011006.10011008.10011009.10010175</concept_id>
+       <concept_desc>Software and its engineering~Parallel programming languages</concept_desc>
+       <concept_significance>300</concept_significance>
+       </concept>
+   <concept>
+       <concept_id>10011007.10011006.10011008.10011009.10011014</concept_id>
+       <concept_desc>Software and its engineering~Concurrent programming languages</concept_desc>
+       <concept_significance>500</concept_significance>
+       </concept>
+ </ccs2012>
+\end{CCSXML}
+
+\ccsdesc[500]{Software and its engineering~Runtime environments}
+\ccsdesc[500]{Software and its engineering~Concurrent programming structures}
+\ccsdesc[500]{Software and its engineering~Control structures}
+\ccsdesc[300]{Software and its engineering~Parallel programming languages}
+\ccsdesc[500]{Software and its engineering~Concurrent programming languages}
+
+\keywords{Effect handlers, Backwards compatibility, Fibers, Continuations,
+Backtraces}
 
 \maketitle
 
