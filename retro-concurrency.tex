@@ -1229,13 +1229,13 @@ with | v -> v
 
 In the operational semantics, the continuations may be resumed more than once.
 Captured continuations are copies of the original fibers and resuming the
-continuation copies the fibers and leaves the continuation as it is. In our use
-cases, continuations will be resumed at-most once, and copying fibers is
-unnecessary and inefficient. Instead, Multicore OCaml optimises fibers for
-one-shot continuations. Fibers are allocated on the C heap using |malloc| and
-are |free|d when the handled computation returns with a value or an exception.
-Similar to Farvardin et al.~\cite{Farvardin20}, we use a \emph{stack cache} of
-recently freed stacks in order to speed up allocation.
+continuation copies the fibers and leaves the continuation as it is. Since our
+primary use case is concurrency, continuations will be resumed at-most once, and
+copying fibers is unnecessary and inefficient. Instead, Multicore OCaml
+optimises fibers for one-shot continuations. Fibers are allocated on the C heap
+using |malloc| and are |free|d when the handled computation returns with a value
+or an exception. Similar to Farvardin et al.~\cite{Farvardin20}, we use a
+\emph{stack cache} of recently freed stacks in order to speed up allocation.
 
 Figure~\ref{fig:fiber} shows the layout of a fiber in Multicore OCaml. At the
 bottom of the stack, we have the |handler_info|, which contains the pointer to
