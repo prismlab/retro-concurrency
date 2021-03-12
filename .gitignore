@@ -8,3 +8,4 @@ retro-concurrency.pdf
 retro-parallel-sources
 .*.swp
 .ipynb_checkpoints
+.DS_Store
