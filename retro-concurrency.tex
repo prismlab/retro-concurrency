@@ -305,7 +305,7 @@ and subsequently make it asynchronous without changing the client code for
 asynchrony.
 
 Many programming languages, including OCaml, require non-local change to the
-code in order to support asynchronous I/O, often leading to a dichotomy
+code in order to support asynchronous I/O, often leading to a dichotomy between
 synchronous and asynchronous code~\cite{colour}. Since OCaml does not have
 primitive support for concurrency, users will have to use monadic I/O libraries
 such as Lwt~\cite{lwt} and Async~\cite{async}, where all asynchronous code must
@@ -315,7 +315,7 @@ However, these languages bake-in the lightweight thread implementation into the
 runtime system. With effect handlers, asynchronous I/O can be implemented
 directly in OCaml as a library.
 
-In order to support forking and yielding threads, we declare effects the
+In order to support forking and yielding threads, we declare the
 following effects:
 
 \begin{lstlisting}
@@ -323,8 +323,8 @@ effect Fork : (unit -> unit) -> unit
 effect Yield : unit
 \end{lstlisting}
 
-The |Fork| effect takes a thunk which is spawned as a concurrent thread, and
-|Yield| yields control to another thread in the scheduler queue. We can define
+The |Fork| effect takes a thunk which is spawned as a concurrent thread, and the
+|Yield| effect yields control to another thread in the scheduler queue. We can define
 helper functions to perform these effects:
 
 \begin{lstlisting}
