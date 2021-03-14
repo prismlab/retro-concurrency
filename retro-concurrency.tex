@@ -379,10 +379,10 @@ let rec spawn f =
   | effect (Read ic) k -> continue k (input_line ic)
 \end{lstlisting}
 %
-which uses OCaml standard library's |input_line| function to read a line from
+This uses OCaml standard library's |input_line| function to read a line from
 the channel |ic| and resume the continuation |k| with the resultant string.
 However, performing reads synchronously blocks the entire scheduler, preventing
-other threads to run until the I/O is completed.
+other threads from running until the I/O is completed.
 
 We can make the I/O asynchronous by modifying the |run| function as follows:
 
