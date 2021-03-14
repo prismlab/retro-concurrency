@@ -1816,7 +1816,7 @@ OCaml has an experimental feature for explicitly cloning continuations, which
 makes a copy of each of its constituent fibers.
 
 Multi-shot continuations are difficult to
-reason about in the presence of linear resources such as file descriptors.
+reason about in the presence of linear resources such as file descriptors~\cite{de-vilhena-pottier-21}.
 Recall that OCaml programs are written with the expectation that function calls
 return \emph{exactly-once} either normally or exceptionally. With multi-shot
 continuations, they may return \emph{more than once}, leading to errors such as
