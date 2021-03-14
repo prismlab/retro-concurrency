@@ -340,9 +340,9 @@ let run main =
   let runq = Queue.create () in
   let suspend k = Queue.push k runq in
   let rec run_next () =
-    match Queue.take_opt runq with
-    | None -> ()
-    | Some k -> continue k ()
+    match Queue.pop runq with
+    | k -> continue k ()
+    | exception Queue.Empty -> ()
   in
   let rec spawn f =
     match f () with
