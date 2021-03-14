@@ -426,7 +426,7 @@ other threads in the scheduler to run.
 
 When the scheduler queue is empty, the |run_next| function performs the pending
 reads. We abstract away the details of the event-based I/O using the |do_reads|
-function (line 13). |do_reads| takes a list of pending reads and blocks until
+function (line 14). |do_reads| takes a list of pending reads and blocks until
 at least one of the reads succeeds. It returns a pair of lists |compl| and
 |todo|. |compl| contains the result strings from successful reads and
 corresponding continuations. These continuations are arranged to be resumed
