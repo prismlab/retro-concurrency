@@ -290,7 +290,7 @@ offloading it to an event loop such as |libuv|. Thanks to the separation of
 effectful operations from their interpretations, effect handlers enable new
 approaches to modular programming.
 
-\vspace{-1em}
+%\vspace{-1em}
 \subsection{Asynchronous I/O}
 \label{sec:aio}
 
@@ -389,9 +389,7 @@ We can make the I/O asynchronous by modifying the |run| function as follows:
 \begin{lstlisting}[numbers=left]
 let run main =
   let runq = Queue.create () in
-  let suspend k =
-    Queue.push (fun () -> continue k ()) runq
-  in
+  let suspend k = Queue.push (continue k) runq in
   let pending_reads = ref [] in
   let rec run_next () =
     match Queue.pop runq with
@@ -420,13 +418,13 @@ let run main =
 
 The scheduler queue |runq| now holds thunks instead of continuations. The value
 |pending_reads| maintains a list of pending reads and the associated
-continuations (line 6). We handle the |Read| effect by pushing the pair of
-input channel |ic| and continuation |k| to |pending_reads| (line 25), allowing
+continuations (line 4). We handle the |Read| effect by pushing the pair of
+input channel |ic| and continuation |k| to |pending_reads| (line 24), allowing
 other threads in the scheduler to run.
 
 When the scheduler queue is empty, the |run_next| function performs the pending
 reads. We abstract away the details of the event-based I/O using the |do_reads|
-function (line 14). |do_reads| takes a list of pending reads and blocks until
+function (line 12). |do_reads| takes a list of pending reads and blocks until
 at least one of the reads succeeds. It returns a pair of lists |compl| and
 |todo|. |compl| contains the result strings from successful reads and
 corresponding continuations. These continuations are arranged to be resumed
@@ -537,8 +535,10 @@ Our contributions are to present:
     inspect the stack using DWARF unwind tables. We have validated our DWARF
     unwind tables with the assistance of an automated validator
     tool~\cite{Bastian19}.
-  \item a formal operational semantics for the effect handler implementation in
-    OCaml.
+	\item a formal operational semantics for the effect handler implementation in
+		OCaml. Our formalism explicitly models the subtle interactions with the C
+		stack, which is generally overlooked by other formal models, but which the
+		implementations must handle.
 	\item extensive evaluation which shows that our implementation has negligible
 		impact on code that does not use effect handlers, and serves as an
 		efficient foundation for scalable concurrent programming.
@@ -1443,6 +1443,7 @@ the default red zone size in Multicore OCaml is 16 words (\S\ref{sec:hafibers}).
 	\includegraphics[scale=0.35]{sandmark-notebook/sandmark_time}
 	\caption{Normalized time of macro benchmarks. Baseline is Stock OCaml,
 		whose running time in seconds in given in parenthesis.}
+	%\vspace{-2mm}
 	\label{res:macro_time}
 \end{figure*}
 
@@ -1450,6 +1451,7 @@ the default red zone size in Multicore OCaml is 16 words (\S\ref{sec:hafibers}).
 	\includegraphics[scale=0.35]{sandmark-notebook/sandmark_codesize}
 	\caption{Normalized OCaml text section size (OTSS) of macro benchmarks.
 	Baseline is Stock OCaml, whose size in kilobytes given in parenthesis.}
+	%\vspace{-2mm}
 	\label{res:macro_size}
 \end{figure*}
 
@@ -1475,7 +1477,7 @@ closer to |stock|.
 \begin{table}
 \caption{Micro benchmarks without effects. Each entry is the percentage
 	difference for Multicore OCaml over stock OCaml.}
-%\vspace{-7mm}
+\vspace{-5mm}
 {
 \begin{tabular}{r c c c c c c c c c c}
 	& \rot{exnval} & \rot{exnraise} & \rot{extcall} & \rot{callback} & \rot{ack}
@@ -1485,7 +1487,7 @@ closer to |stock|.
 	\textbf{Instr} & +0.0 & +0.0 & +10 & +72 & +16
 								 & +24 & +16 & +14 & +17 \\ \hline
 \end{tabular}
-%\vspace{-5mm}
+\vspace{-5mm}
 }
 \label{tab:micro_noeffect}
 \end{table}
@@ -1517,7 +1519,7 @@ do not affect macro benchmark performance.
 \begin{table}
 \caption{Micro benchmarks with handlers but no perform. Each entry is the
 	slowdown factor ($\times$ times) over its idiomatic implementation in stock OCaml.}
-%\vspace{-3mm}
+\vspace{-3mm}
 {
 \begin{tabular}{r c c c c c}
 	& \textbf{ack} & \textbf{fib} & \textbf{motzkin} & \textbf{sudan} & \textbf{tak} \\ \hline
@@ -1526,7 +1528,7 @@ do not affect macro benchmark performance.
 \end{tabular}
 }
 \label{tab:micro_noperform}
-	%\vspace{-5mm}
+\vspace{-3mm}
 \end{table}
 
 Next, we aim to quantify the overhead of setting up and tearing down effect
@@ -1634,9 +1636,9 @@ threaded, the Go benchmark is run with \texttt{GOMAXPROCS=1}.
 		\subcaption{Tail latency}
 		\label{grf:latency}
 	\end{minipage}
-	%\vspace{-3mm}
+	\vspace{-3mm}
 	\caption{Web server performance.}
-	%\vspace{-5mm}
+	\vspace{-5mm}
 \end{figure}
 
 The client workload was generated with \texttt{wrk2}~\cite{wrk2}. We maintain
