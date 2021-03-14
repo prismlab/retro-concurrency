@@ -6,9 +6,9 @@ let sync_io main =
   let runq = Queue.create () in
   let suspend k = Queue.push k runq in
   let rec run_next () =
-    match Queue.take_opt runq with
-    | None -> ()
-    | Some k -> continue k ()
+    match Queue.pop runq with
+    | k -> continue k ()
+    | exception Queue.Empty -> ()
   in
   let rec spawn f =
     match f () with
@@ -37,8 +37,9 @@ let async_io main =
   let suspend k = Queue.push (continue k) runq in
   let reads = ref [] in
   let rec run_next () =
-    match Queue.take_opt runq with
-    | None ->
+    match Queue.pop runq with
+    | f -> f ()
+    | exception Queue.Empty ->
         begin match !reads with
         | [] -> () (* no pending reads *)
         | todo ->
@@ -49,7 +50,6 @@ let async_io main =
               Queue.push (fun () -> continue k str) runq) done_;
             run_next ()
         end
-    | Some f -> f ()
   in
   let rec spawn f =
     match f () with

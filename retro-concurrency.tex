@@ -346,7 +346,7 @@ let run main =
   in
   let rec spawn f =
     match f () with
-		| () -> run_next () (* value case *)
+    | () -> run_next () (* value case *)
     | effect Yield k -> suspend k; run_next ()
     | effect (Fork f') k -> suspend k; spawn f'
   in
@@ -387,13 +387,14 @@ We can make the I/O asynchronous by modifying the |run| function as follows:
 \begin{lstlisting}[numbers=left]
 let run main =
   let runq = Queue.create () in
-	let suspend k =
-	  Queue.push (fun () -> continue k ()) runq
-	in
+  let suspend k =
+    Queue.push (fun () -> continue k ()) runq
+  in
   let pending_reads = ref [] in
   let rec run_next () =
-    match Queue.take_opt runq with
-    | None ->
+    match Queue.pop runq with
+    | f -> f ()
+    | exception Queue.empty ->
       begin match !pending_reads with
       | [] -> () (* no pending reads *)
       | todo ->
@@ -403,11 +404,10 @@ let run main =
         pending_reads := todo;
         run_next ()
       end
-    | Some f -> f ()
   in
   let rec spawn f =
     match f () with
-		...
+    ...
     | effect (Read ic) k ->
         pending_reads := (ic,k) :: !pending_reads;
         run_next ()
