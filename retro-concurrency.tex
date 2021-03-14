@@ -303,16 +303,17 @@ then extend this scheduler with support for synchronously reading from channels
 and subsequently make it asynchronous without changing the client code for
 asynchrony.
 
-Many programming languages, including OCaml, require non-local change to the
+Many programming languages, including OCaml, require non-local changes to source
 code in order to support asynchronous I/O, often leading to a dichotomy between
-synchronous and asynchronous code~\cite{colour}. Since OCaml does not have
-primitive support for concurrency, users will have to use monadic I/O libraries
-such as Lwt~\cite{lwt} and Async~\cite{async}, where all asynchronous code must
-use monad syntax. Languages such as GHC Haskell and Go provide lightweight
+synchronous and asynchronous code~\cite{colour}.
+Since OCaml only provides preemptive system threads as support for concurrency,
+users usually use cooperative I/O libraries such as Lwt~\cite{lwt} and
+Async~\cite{async}, where all asynchronous code must
+use a monadic style. Languages such as GHC Haskell and Go provide lightweight
 threads, which avoids the dichotomy between synchronous and asynchronous code.
 However, these languages bake-in the lightweight thread implementation into the
 runtime system. With effect handlers, asynchronous I/O can be implemented
-directly in OCaml as a library.
+directly in OCaml as a library without imposing a monadic form on users of it.
 
 In order to support forking and yielding threads, we declare the
 following effects:
