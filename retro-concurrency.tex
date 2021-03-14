@@ -395,8 +395,8 @@ let run main =
   let rec run_next () =
     match Queue.pop runq with
     | f -> f ()
-    | exception Queue.empty ->
-      begin match !pending_reads with
+    | exception Queue.Empty ->
+      match !pending_reads with
       | [] -> () (* no pending reads *)
       | todo ->
         let compl,todo = do_reads todo in
@@ -404,16 +404,17 @@ let run main =
           Queue.push (fun () -> continue k str) runq) compl;
         pending_reads := todo;
         run_next ()
-      end
   in
   let rec spawn f =
     match f () with
-    ...
+    | () -> run_next () (* value case *)
+    | effect Yield k -> suspend k; run_next ()
+    | effect (Fork f') k -> suspend k; spawn f'
     | effect (Read ic) k ->
         pending_reads := (ic,k) :: !pending_reads;
         run_next ()
   in
-  ...
+  spawn main
 \end{lstlisting}
 
 The scheduler queue |runq| now holds thunks instead of continuations. The value
