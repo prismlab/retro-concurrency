@@ -396,9 +396,9 @@ let run main =
       begin match !pending_reads with
       | [] -> () (* no pending reads *)
       | todo ->
-        let (done_,todo) = do_reads todo in
+        let compl,todo = do_reads todo in
         List.iter (fun (str,k) ->
-          Queue.push (fun () -> continue k str) runq) done_;
+          Queue.push (fun () -> continue k str) runq) compl;
         pending_reads := todo;
         run_next ()
       end
@@ -408,7 +408,7 @@ let run main =
     match f () with
 		...
     | effect (Read ic) k ->
-        pending_reads := (ic,k)::!pending_reads;
+        pending_reads := (ic,k) :: !pending_reads;
         run_next ()
   in
   ...
@@ -423,8 +423,8 @@ other threads in the scheduler to run.
 When the scheduler queue is empty, the |run_next| function performs the pending
 reads. We abstract away the details of the event-based I/O using the |do_reads|
 function (line 13). |do_reads| takes a list of pending reads and blocks until
-at least one of the reads succeeds. It returns a pair of lists |done_| and
-|todo|. |done_| contains the result strings from successful reads and
+at least one of the reads succeeds. It returns a pair of lists |compl| and
+|todo|. |compl| contains the result strings from successful reads and
 corresponding continuations. These continuations are arranged to be resumed
 with the read result and pushed into the scheduler queue. |todo| contains the
 channels on which input is still pending and their corresponding continuations.
