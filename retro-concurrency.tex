@@ -1387,29 +1387,36 @@ This is a limitation of |perf| and not of our stack layout.
 
 Recall that OCaml programs are written with the expectation that function calls
 return exactly once (\S\ref{sec:refine}). Consider the scenario when a
-continuation is neither continued nor discontinued. Since fibers are
-|malloc|ed, and are |free|d when the computation being handled returns a value
-or raises an exception, not resuming continuations leaks memory. In addition,
-unresumed continuations may also leak other resource such as open file
-descriptors.
+continuation is never resumed. Since fibers allocate memory for the stack using
+|malloc|, which are |free|d when the computation returns, not resuming
+continuations leaks memory. In addition, unresumed continuations may also leak
+other system resources such as sockets and open file descriptors.
 
-We consider well-behaved Multicore OCaml programs to resume their continuations
-\emph{exactly once}. This can be enforced by installing a finaliser on every
-captured continuation that calls |discontinue| on the continuation during
-finalisation and ignores the result:
+We make a pragmatic trade-off and expect the user code to resume captured
+continuations \emph{exactly once}. One can use the GC support to free up
+resources by installing a finaliser that discontinues the continuation and
+ignores the result:
+
 \begin{lstlisting}
 Gc.finalise (fun k ->
   try ignore (discontinue k Unwind) with _ -> ()) k
 \end{lstlisting}
-However, Multicore OCaml does not enforce this behaviour in order to avoid the
-costs associated with installing a finaliser every time a continuation is
-captured.
 
-For stack walking during GC, the only change necessary was to make the
-runtime aware of fiber layout and how to follow the parent pointers. The
-stack map generation and scanning each frame for roots remains the same. The
-challenges and solutions for integrating fibers with the concurrent
-mark-and-sweep GC of Multicore OCaml have been discussed
+This frees up both the memory allocated for the fiber stack as well as other
+system resources, assuming that user code does not handle |Unwind| exception
+and fails to re-raise it. But installing a finaliser on every captured
+continuation by default introduces significant overhead to continuation
+capture. Hence, we choose not to implement such a finaliser by default. It is
+also useful to note that even if the memory for the fiber stack is managed by
+the GC rather than being allocated in the C heap as we do now, we would still
+need a finalisation mechanism to unwind the stack and release other system
+resources that may be held by the continuation.
+
+For stack walking during GC in order to find the roots, the only change
+necessary was to make the runtime aware of the fiber layout and how to follow
+the parent pointers. The stack map generation and scanning each frame for roots
+remains the same. The challenges and the solutions for integrating fibers with
+the concurrent mark-and-sweep GC of Multicore OCaml have been discussed
 previously~\cite{Sivaramakrishnan20}.
 
 %\vspace{-2mm}
@@ -1419,10 +1426,11 @@ previously~\cite{Sivaramakrishnan20}.
 In this section, we evaluate the performance of Multicore OCaml effect handlers
 against the performance requirements set in \S\ref{sec:req}. Multicore OCaml is
 an extension of the 4.10.0 OCaml compiler with support for shared memory
-parallelism and effect handlers. These results were obtained on a 2-socket
-Intel\textregistered Xeon\textregistered Gold 5120
-x86-64~\cite{IntelXeonGold5120Spec} server running Ubuntu 18.04 with 64GB of main
-memory.
+parallelism and effect handlers. Since our objective is to evaluate the impact
+of effect handlers, none of our benchmarks utilise parallelism. These results
+were obtained on a 2-socket Intel\textregistered Xeon\textregistered Gold 5120
+x86-64~\cite{IntelXeonGold5120Spec} server running Ubuntu 18.04 with 64GB of
+main memory.
 
 %\vspace{-3mm}
 \subsection{No effects benchmarks}
@@ -1561,7 +1569,7 @@ optimisations is still slower than using the call stack.
 \subsection{Concurrent benchmarks}
 
 Next we look at benchmarks that utilize non-local control flow using effect
-handlers. First, we quantify the overhead of individual operations in effect
+handlers. First, we quantify the cost of individual operations in effect
 handling. Consider the following annotated code:
 \begin{lstlisting}
 effect E : unit
@@ -1574,11 +1582,12 @@ The sequence \texttt{a-b} involves allocating a new fiber and switching to it.
 the continuation. \texttt{d-e} is returning from the fiber with a value and
 freeing the fiber. We measured the time taken to execute these sequences using
 |perf| support for cycle-accurate tracing on modern Intel processors. We
-executed 10 iterations of the code, with 3 warm-up runs. We observed that the
-sequences \texttt{a-b}, \texttt{b-c}, \texttt{c-d} and \texttt{d-e} took
-\textbf{23 ns, 5 ns, 11 ns and 7 ns}, respectively. For reference, the idle
-memory load latency for the local NUMA node is 93.2 ns as measured using the
-Intel MLC tool~\cite{mlc}.
+executed 10 iterations of the code, with 3 warm-up runs. For calibration, the
+idle memory load latency for the local NUMA node is 93.2 ns as measured using
+the Intel MLC tool~\cite{mlc}. We observed that the sequences \texttt{a-b},
+\texttt{b-c}, \texttt{c-d} and \texttt{d-e} took \textbf{23 ns, 5 ns, 11 ns and
+7 ns}, respectively. The time in the sequence \texttt{a-b} is dominated by the
+memory allocation. Thus, the individual operations in effect handling are fast.
 
 \subsubsection{Generators}
 
@@ -1586,17 +1595,17 @@ Generators allow data structures to be traversed on demand. Many languages
 including JavaScript and Python provide generators as a built-in primitive.
 Using effect handlers (|MC|), given any data structure (|'a t|) and its
 iterator (|val iter: 'a t -> ('a -> unit) -> unit|), we can derive its
-generator function (|val next : unit -> 'a option|). The code is available in
-the supplementary material. We evaluate the performance of traversing a
-complete binary tree of depth 25 using this generator. This involves $2^{26}$
-stack switches in total. For comparison, we implemented a hand-written,
-selective CPSed~\cite{Nielson01}, defunctionalised~\cite{Danvy01} version
-(|cps|) and a concurrency monad (|monad|) version of the generator for the
-tree. Both |cps| and |monad| versions are specialised to the binary tree with
-the usual caveats of not using the stack for function calls. We observed that
-the |cps| version was the fastest, thanks to specialisation and hand
-optimisation. |MC| version was only 2.76$\times$ slower than |cps| while being
-a generic solution, and the |monad| version was 8.69$\times$ slower than |cps|.
+generator function (|val next : unit -> 'a option|)\footnote{https://gist.github.com/kayceesrk/eb0ab496c22861f21b1d9484772e982d}.
+We evaluate the performance of traversing a complete binary tree of depth 25
+using this generator. This involves $2^{26}$ stack switches in total. For
+comparison, we implemented a hand-written, selective CPSed~\cite{Nielson01},
+defunctionalised~\cite{Danvy01} version (|cps|) and a concurrency monad
+(|monad|) version of the generator for the tree. Both |cps| and |monad|
+versions are specialised to the binary tree with the usual caveats of not using
+the stack for function calls. We observed that the |cps| version was the
+fastest, thanks to specialisation and hand optimisation. |MC| version was only
+2.76$\times$ slower than |cps| while being a generic solution, and the |monad|
+version was 8.69$\times$ slower than |cps|.
 
 \subsubsection{Chameneos}
 

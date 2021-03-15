@@ -19,6 +19,12 @@ end = struct
     fun () -> !step ()
 end
 
+(* A generator for a list *)
+module L = MkGen(struct
+  type 'a t = 'a list
+  let iter = List.iter
+end)
+
 type 'a tree =
 | Leaf
 | Node of 'a tree * 'a * 'a tree
@@ -31,6 +37,7 @@ let rec iter f = function
   | Leaf -> ()
   | Node (l, x, r) -> iter f l; f x; iter f r
 
+(* A generator for a tree *)
 module T = MkGen(struct
   type 'a t = 'a tree
   let iter = iter

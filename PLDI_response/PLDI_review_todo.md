@@ -1,75 +1,3 @@
-Review #82B
-===========================================================================
-
-Overall merit
--------------
-B. I support accepting this paper but will not champion it.
-
-Reviewer expertise
-------------------
-Z. **Some familiarity** = "I have a passing knowledge of the topic(s) but
-   do not follow the relevant literature"
-
-Paper summary
--------------
-In this paper, the authors take a concurrency-aware version of OCaml called
-Multicore OCaml, which they extend with a concurrency language construct, namely
-effect handlers, with a particular focus on backwards compatibility (for other
-sequential or concurrent programs without effect handlers not to be broken),
-compatibility with tools such as stack tracers or debuggers, and runtime
-performance. They present the changes on the implementation of the OCaml stack
-along with a justification for tool compatibility by means of DWARF unwind
-tables. To justify the correctness of their implementation, they present a
-mathematical semantics for Multicore OCaml and effect handlers. Finally, they
-test effect handlers for performance.
-
-Comments for author
--------------------
-From my understanding, the "Multicore OCaml" described here in Section 1.5 and
-only clearly defined in Section 6 seems to be the same as the "Multicore OCaml"
-introduced in [54], where the stack already features fibers (in Section 5.4 of
-that paper), described in detail only in Section 4.2 of this paper here. Based
-on that, I invite the authors to make this clearer early in the paper, at least
-by citing [54] as early as in 1.5.  
-
-Apart from this small quirk, the paper is very well written. It is written at an
-adequate abstraction level for those readers who are not familiar with the inner
-workings of the implementation of OCaml. The goals R1, R2 and R3 stated in
-Section 1.4 are very clearly defined, and I believe that this paper reaches at
-least those three. (Goal R4 is slightly less obvious since it is unclear how an
-effect system for OCaml could look like, and while this is strictly speaking out
-of the scope of this paper, I might not have well understood whether this paper
-is saying anything about that at all.) 
-
-The related work in 1.3, 1.4 and 7 is comprehensively studied and offers a wide
-view of the implementation techniques for effect handlers to the unaware. 
-
-In Section 6.1, "the outliers (on either ends) were due to the difference in the
-allocator and the GC between stock and Multicore OCaml." How much difference is
-due to "the integration of fibers with the concurrent mark-and-sweep GC of
-Multicore OCaml" as stated at the end of 5.6? By that, I mean that if this
-aspect dominates, then one might consider this difference as an overhead of
-effect handlers in particular, rather than Multicore OCaml at large. Said
-otherwise, while effect handlers as implemented in this paper take advantage of
-fibers introduced in [54], how much is the need for fibers described in [54]
-tied to effect handlers, i.e. do other concurrency language constructs such as
-pthreads still need fibers? (My understanding of the need for fibers in [54] was
-unclear until this submission here.) 
-
-Going further on that question, it would be nice if we could have a performance
-comparison between effect handlers and pthreads and/or other concurrency
-language constructs in Multicore OCaml, in the hope of making performance an
-additional reason (in addition to a clear semantics as defined in this paper) to
-adopt effect handlers as the preferred concurrency language construct for
-Multicore OCaml. Such a result would further strengthen the "timely" argument
-presented in Section 1.4: with such additional comparisons on concurrency
-language constructs, this paper could serve as a driver to move the WebAssembly
-community and others towards adopting effect handlers, and finally make them
-become the preferred such construct overall, instead of the thread model. 
-
-For these reasons, and in spite of the small quirks, I am inclined towards
-acceptance.
-
 Review #82C
 ===========================================================================
 
@@ -252,16 +180,9 @@ sentence. Break it and start a new one: "The finaliser calls discontinue..."
 line 1086: "were taken from [22]": go on, name the authors... for readability's
 sake
 
-line 1090: Thank you for quoting the number of instructions. The nop-padding
-anecdote is a great illustration of why microarchitectural black boxes are not
-great for "science".
-
 line 1167: ...finish that thought? I wasn't sure why you were giving us the
 memory access latency specifically. Maybe "general calibration", in which case
 fine.
-
-line 1222: thank you for highlighting the importance of debugging and profiling
-tools.
 
 Review #82D
 ===========================================================================
