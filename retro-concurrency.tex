@@ -1507,10 +1507,11 @@ time. |exnval| performs 100 million iterations of installing exception handlers
 and returning with a value. |exnraise| is similar, but raises an exception in
 each iteration. |extcall| and |callback| perform 100 million external calls and
 callbacks to identity functions. The other micro benchmarks are highly
-recursive programs and were taken from ~\cite{Farvardin20}. For micro
-benchmarks, we observed that padding tight loops with a few |nop| instructions,
-which changes the loop alignment, makes the code up to 15\% faster. Hence, the
-difference in running times under 15\% may not be statistically significant.
+recursive programs and were taken from Farvardin et al.~\cite{Farvardin20}. For
+micro benchmarks, we observed that padding tight loops with a few |nop|
+instructions, which changes the loop alignment, makes the code up to 15\%
+faster. Hence, the difference in running times under 15\% may not be
+statistically significant.
 
 The results show that exceptions are no more expensive in |MC| compared to
 |stock|. In the other programs, |MC| executes more instructions due to stack

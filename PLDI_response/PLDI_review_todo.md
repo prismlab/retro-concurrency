@@ -165,25 +165,6 @@ build the entire table.
 line 994: it seems a pity not to allude to the solution proposed in the Bastian
 et al paper, which makes unwinding a lot faster.
 
-line 1005: "not resuming a continuation leaks memory" -- this paragraph is
-ordered strangely. First it tells us there is a leak that seems obviously
-preventable ("why not use the GC?", the reader thinks). Then it tells us we can
-indeed use the GC to prevent this. Then it says actually this is not automated,
-so user code *is* responsible and can leak. I would suggest reordering it so
-that ther is an up-front statement of a pragmatic trade-off that allows leaks
-here... then elaborate on why. (This is for me one of the weaker points of the
-design... are finalisers *that* expensive? Is there experimental data on that?)
-
-line 1011: "... a finaliser on every captured continuation that" -- ambiguous
-sentence. Break it and start a new one: "The finaliser calls discontinue..."
-
-line 1086: "were taken from [22]": go on, name the authors... for readability's
-sake
-
-line 1167: ...finish that thought? I wasn't sure why you were giving us the
-memory access latency specifically. Maybe "general calibration", in which case
-fine.
-
 Review #82D
 ===========================================================================
 
