@@ -290,154 +290,25 @@ offloading it to an event loop such as |libuv|. Thanks to the separation of
 effectful operations from their interpretations, effect handlers enable new
 approaches to modular programming.
 
-%\vspace{-1em}
-\subsection{Asynchronous I/O}
-\label{sec:aio}
-
 Effect handlers provide a structured form of delimited
 continuations~\cite{Danvy90} that enables non-local control-flow mechanisms
 such as resumable exceptions, lightweight threads, coroutines, generators and
 asynchronous I/O to be composably expressed. One of the primary motivations to
-extend OCaml with effect handlers is to support concurrent programming. To
-illustrate this, let us implement a simple lightweight thread library with
-support for forking new threads and yielding control to other threads. We will
-then extend this scheduler with support for synchronously reading from channels
-and subsequently make it asynchronous without changing the client code for
-asynchrony.
-
-Many programming languages, including OCaml, require non-local changes to source
-code in order to support asynchronous I/O, often leading to a dichotomy between
-synchronous and asynchronous code~\cite{colour}.
-Since OCaml only provides preemptive system threads as support for concurrency,
-users usually use cooperative I/O libraries such as Lwt~\cite{lwt} and
-Async~\cite{async}, where all asynchronous code must
-use a monadic style. Languages such as GHC Haskell and Go provide lightweight
-threads, which avoids the dichotomy between synchronous and asynchronous code.
-However, these languages bake-in the lightweight thread implementation into the
-runtime system. With effect handlers, asynchronous I/O can be implemented
-directly in OCaml as a library without imposing a monadic form on users of it.
-
-In order to support forking and yielding threads, we declare the
-following effects:
-
-\begin{lstlisting}
-effect Fork : (unit -> unit) -> unit
-effect Yield : unit
-\end{lstlisting}
-
-The |Fork| effect takes a thunk which is spawned as a concurrent thread, and the
-|Yield| effect yields control to another thread in the scheduler queue. We can define
-helper functions to perform these effects:
-
-\begin{lstlisting}
-let fork f = perform (Fork f)
-let yield () = perform Yield
-\end{lstlisting}
-
-The implementation of the scheduler queue is defined in the |run| function,
-which handles the effects appropriately:
-
-\begin{lstlisting}[numbers=left]
-let run main =
-  let runq = Queue.create () in
-  let suspend k = Queue.push k runq in
-  let rec run_next () =
-    match Queue.pop runq with
-    | k -> continue k ()
-    | exception Queue.Empty -> ()
-  in
-  let rec spawn f =
-    match f () with
-    | () -> run_next () (* value case *)
-    | effect Yield k -> suspend k; run_next ()
-    | effect (Fork f') k -> suspend k; spawn f'
-  in
-  spawn main
-\end{lstlisting}
-
-The function |spawn| (line 9) evaluates the computation |f| in an effect
-handler. The computation |f| may return normally with a value, or perform
-effects |Fork f'| and |Yield|. The pattern |effect Yield k| handles the effect
-|Yield| and binds |k| to the continuation of the corresponding |perform|
-delimited by this handler. The scheduler queue |runq| maintains a queue of
-these continuations. |suspend| pushes continuations into the queue, |run_next|
-pops continuations from the queue and resumes them with |()| value using the
-|continue| primitive. In the case of |Yield| effect, we suspend the current
-continuation |k| and resume the next available continuation. In the case of
-|Fork f'| effect, we suspend the current continuation and recursively call
-|spawn| on |f'| in order to run |f'| concurrently.
-
-Effect handlers provide modularity. Observe that we can change the scheduling
-algorithm from FIFO to LIFO by changing the scheduler queue to a stack. We can
-implement support for synchronous read from channels by adding the following
-case to the effect handler in |spawn|:
-
-\begin{lstlisting}
-let rec spawn f =
-  match f () with
-	...
-  | effect (Read ic) k -> continue k (input_line ic)
-\end{lstlisting}
-%
-This uses OCaml standard library's |input_line| function to read a line from
-the channel |ic| and resume the continuation |k| with the resultant string.
-However, performing reads synchronously blocks the entire scheduler, preventing
-other threads from running until the I/O is completed.
-
-We can make the I/O asynchronous by modifying the |run| function as follows:
-
-\begin{lstlisting}[numbers=left]
-let run main =
-  let runq = Queue.create () in
-  let suspend k = Queue.push (continue k) runq in
-  let pending_reads = ref [] in
-  let rec run_next () =
-    match Queue.pop runq with
-    | f -> f ()
-    | exception Queue.Empty ->
-      match !pending_reads with
-      | [] -> () (* no pending reads *)
-      | todo ->
-        let compl,todo = do_reads todo in
-        List.iter (fun (str,k) ->
-          Queue.push (fun () -> continue k str) runq) compl;
-        pending_reads := todo;
-        run_next ()
-  in
-  let rec spawn f =
-    match f () with
-    | () -> run_next () (* value case *)
-    | effect Yield k -> suspend k; run_next ()
-    | effect (Fork f') k -> suspend k; spawn f'
-    | effect (Read ic) k ->
-        pending_reads := (ic,k) :: !pending_reads;
-        run_next ()
-  in
-  spawn main
-\end{lstlisting}
-
-The scheduler queue |runq| now holds thunks instead of continuations. The value
-|pending_reads| maintains a list of pending reads and the associated
-continuations (line 4). We handle the |Read| effect by pushing the pair of
-input channel |ic| and continuation |k| to |pending_reads| (line 24), allowing
-other threads in the scheduler to run.
-
-When the scheduler queue is empty, the |run_next| function performs the pending
-reads. We abstract away the details of the event-based I/O using the |do_reads|
-function (line 12). |do_reads| takes a list of pending reads and blocks until
-at least one of the reads succeeds. It returns a pair of lists |compl| and
-|todo|. |compl| contains the result strings from successful reads and
-corresponding continuations. These continuations are arranged to be resumed
-with the read result and pushed into the scheduler queue. |todo| contains the
-channels on which input is still pending and their corresponding continuations.
-|pending_reads| is updated to point to the |todo| list so that they may be
-attempted later. Observe that all of the changes to add asynchrony are
-localised to the |run| function, and the computation that performs these
-effects can remain in \emph{direct-style} (as opposed to the monadic-style in
-Lwt and Async).
-
-%\vspace{-1.5mm}
-\subsection{Retrofitting effect handlers}
+extend OCaml with effect handlers is to natively support composable
+asynchronous I/O. Many programming languages, including OCaml, require
+non-local changes to source code in order to support asynchronous I/O, often
+leading to a dichotomy between synchronous and asynchronous code~\cite{colour}.
+In the absence of native support for concurrent programming, OCaml developers
+use monadic I/O libraries such as Lwt~\cite{lwt} and Async~\cite{async}, where
+asynchronous functions are represented as monadic computations. In these
+libraries, while asynchronous functions can call synchronous functions
+directly, the converse is not true. In particular, any function that calls an
+asynchronous function will also have to be marked as asynchronous. Languages
+such as GHC Haskell and Go provide lightweight threads, which avoids the
+dichotomy between synchronous and asynchronous code. However, these languages
+bake-in the lightweight thread implementation into the runtime system. With
+effect handlers, asynchronous I/O can be implemented directly in OCaml as a
+library without imposing a monadic form on the users.
 
 There are many research languages and libraries built around effect
 handlers~\cite{Leijen14,Hillerstrom20,Pyro,Frank,Eff}. Unlike these efforts,
@@ -449,12 +320,7 @@ applications~\cite{Madhavapeddy13}. OCaml is particularly favoured for its
 competitive yet predictable performance, with a fast foreign-function interface
 (FFI). It has excellent compatibility with program analysis tools such as
 debuggers and profilers that utilise DWARF stack unwind tables~\cite{DWARF} to
-obtain a backtrace. Our primary motivation for adding effect handlers to OCaml
-is to support: {\em (i)} highly concurrent applications such as web servers
-using a natural \emph{direct-style} as opposed to using callbacks; and {\em
-(ii)} efficient nested parallel programs in the vein of Cilk~\cite{Cilk},
-OpenMP~\cite{OpenMP}, X10~\cite{Charles05}, Intel TBB~\cite{IntelTBB}, and
-variants of Parallel ML~\cite{MaPLe, Fluet10, Sivaramakrishnan14}.
+obtain a backtrace.
 
 OCaml currently does not support any non-local control flow mechanisms other
 than exceptions. This makes it particularly challenging to implement the
@@ -465,20 +331,18 @@ representation (IR)~\cite{Leijen14}. OCaml does not use a CPS IR, and changing
 the compiler to utilise a CPS IR would be an enormous undertaking that would
 affect the performance profile of existing OCaml applications due to the
 increased memory allocations as the continuation closures get allocated on the
-heap~\cite{Farvardin20}. Moreover, with CPS, stack unwinding is meaningless and
-hence, we would lose compatibility with tools that inspect the program stack.
-Hence, we choose not to use CPS translation and represent the continuations as
-call stacks.
+heap~\cite{Farvardin20}. Moreover, with CPS, stack unwinding is meaningless,
+and hence, we would lose compatibility with tools that inspect the program
+stack. Hence, we choose not to use CPS translation and represent the
+continuations as call stacks.
 
 The search for an expressive effect system that guarantees that all the effects
 performed in the program are handled (\emph{effect safety}) in the presence of
 advanced features such as polymorphism, modularity and generativity is an
 active area of research~\cite{Leijen14, Biernacki19, Biernacki20,
 Hillerstrom20}. We do not focus on this question in this paper, and our
-implementation of effect handlers in OCaml does not guarantee effect safety.
-For example, running |perform (Read stdin)| without an enclosing handler raises
-|Unhandled| exception at the point of |perform|. We leave the question of
-effect safety for future work.
+implementation of effect handlers in OCaml does not guarantee effect safety. We
+leave the question of effect safety for future work.
 
 \subsection{Requirements}
 \label{sec:req}
@@ -733,6 +597,126 @@ by OCaml to walk the stack for GC.
 
 \section{Refining the design}
 \label{sec:refine}
+
+In order to support forking and yielding threads, we declare the
+following effects:
+
+\begin{lstlisting}
+effect Fork : (unit -> unit) -> unit
+effect Yield : unit
+\end{lstlisting}
+
+The |Fork| effect takes a thunk which is spawned as a concurrent thread, and the
+|Yield| effect yields control to another thread in the scheduler queue. We can define
+helper functions to perform these effects:
+
+\begin{lstlisting}
+let fork f = perform (Fork f)
+let yield () = perform Yield
+\end{lstlisting}
+
+The implementation of the scheduler queue is defined in the |run| function,
+which handles the effects appropriately:
+
+\begin{lstlisting}[numbers=left]
+let run main =
+  let runq = Queue.create () in
+  let suspend k = Queue.push k runq in
+  let rec run_next () =
+    match Queue.pop runq with
+    | k -> continue k ()
+    | exception Queue.Empty -> ()
+  in
+  let rec spawn f =
+    match f () with
+    | () -> run_next () (* value case *)
+    | effect Yield k -> suspend k; run_next ()
+    | effect (Fork f') k -> suspend k; spawn f'
+  in
+  spawn main
+\end{lstlisting}
+
+The function |spawn| (line 9) evaluates the computation |f| in an effect
+handler. The computation |f| may return normally with a value, or perform
+effects |Fork f'| and |Yield|. The pattern |effect Yield k| handles the effect
+|Yield| and binds |k| to the continuation of the corresponding |perform|
+delimited by this handler. The scheduler queue |runq| maintains a queue of
+these continuations. |suspend| pushes continuations into the queue, |run_next|
+pops continuations from the queue and resumes them with |()| value using the
+|continue| primitive. In the case of |Yield| effect, we suspend the current
+continuation |k| and resume the next available continuation. In the case of
+|Fork f'| effect, we suspend the current continuation and recursively call
+|spawn| on |f'| in order to run |f'| concurrently.
+
+Effect handlers provide modularity. Observe that we can change the scheduling
+algorithm from FIFO to LIFO by changing the scheduler queue to a stack. We can
+implement support for synchronous read from channels by adding the following
+case to the effect handler in |spawn|:
+
+\begin{lstlisting}
+let rec spawn f =
+  match f () with
+	...
+  | effect (Read ic) k -> continue k (input_line ic)
+\end{lstlisting}
+%
+This uses OCaml standard library's |input_line| function to read a line from
+the channel |ic| and resume the continuation |k| with the resultant string.
+However, performing reads synchronously blocks the entire scheduler, preventing
+other threads from running until the I/O is completed.
+
+We can make the I/O asynchronous by modifying the |run| function as follows:
+
+\begin{lstlisting}[numbers=left]
+let run main =
+  let runq = Queue.create () in
+  let suspend k = Queue.push (continue k) runq in
+  let pending_reads = ref [] in
+  let rec run_next () =
+    match Queue.pop runq with
+    | f -> f ()
+    | exception Queue.Empty ->
+      match !pending_reads with
+      | [] -> () (* no pending reads *)
+      | todo ->
+        let compl,todo = do_reads todo in
+        List.iter (fun (str,k) ->
+          Queue.push (fun () -> continue k str) runq) compl;
+        pending_reads := todo;
+        run_next ()
+  in
+  let rec spawn f =
+    match f () with
+    | () -> run_next () (* value case *)
+    | effect Yield k -> suspend k; run_next ()
+    | effect (Fork f') k -> suspend k; spawn f'
+    | effect (Read ic) k ->
+        pending_reads := (ic,k) :: !pending_reads;
+        run_next ()
+  in
+  spawn main
+\end{lstlisting}
+
+The scheduler queue |runq| now holds thunks instead of continuations. The value
+|pending_reads| maintains a list of pending reads and the associated
+continuations (line 4). We handle the |Read| effect by pushing the pair of
+input channel |ic| and continuation |k| to |pending_reads| (line 24), allowing
+other threads in the scheduler to run.
+
+When the scheduler queue is empty, the |run_next| function performs the pending
+reads. We abstract away the details of the event-based I/O using the |do_reads|
+function (line 12). |do_reads| takes a list of pending reads and blocks until
+at least one of the reads succeeds. It returns a pair of lists |compl| and
+|todo|. |compl| contains the result strings from successful reads and
+corresponding continuations. These continuations are arranged to be resumed
+with the read result and pushed into the scheduler queue. |todo| contains the
+channels on which input is still pending and their corresponding continuations.
+|pending_reads| is updated to point to the |todo| list so that they may be
+attempted later. Observe that all of the changes to add asynchrony are
+localised to the |run| function, and the computation that performs these
+effects can remain in \emph{direct-style} (as opposed to the monadic-style in
+Lwt and Async).
+
 
 In this section, we refine the effect handler design for the OCaml use case. The
 primary motivation for adding effect handlers to OCaml is to support a non-local
