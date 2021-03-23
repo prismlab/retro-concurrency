@@ -685,17 +685,16 @@ functions are executed as OCaml callbacks.
 \subsection{Exception handlers}
 \label{sec:exn_handlers}
 
-The lack of callee-saved registers also makes exception handling fast as there
-are no callee-saved registers to be restored when the exception handler runs.
-Installing an exception handler simply pushes the program counter (|pc|) of the
-handler and the current exception pointer (|exn_ptr| -- a field in
-|Caml_state|) to the stack. After this, the current exception pointer is
+The lack of callee-saved registers also makes exception handling fast. In the
+absence of callee-saved registers, no registers need to be saved when entering
+a |try| block. Similarly, no registers need to be restored when handling an
+exception. Installing an exception handler simply pushes the program counter
+(|pc|) of the handler and the current exception pointer (|exn_ptr| -- a field
+in |Caml_state|) to the stack. After this, the current exception pointer is
 updated to be the current stack pointer (|rsp|). This creates a linked-list of
 exception handler frames on the stack as shown in Figure~\ref{fig:stock_stack}.
 Raising an exception simply sets |rsp| to |exn_ptr|, loads the saved |exn_ptr|,
 and jumps to the |pc| of the handler.
-
-% Note |caml_call_ocaml| is |caml_start_program| in ocaml-multicore source
 
 In order to forward exceptions across C frames, the C stub function
 |caml_call_ocaml|, pushes an exception handler frame that either forwards the
@@ -1307,7 +1306,14 @@ competitive with stock OCaml.
 \subsection{Effect handlers}
 \label{sec:effimpl}
 
-In order to illustrate the implementation of handling effects, consider the
+Similar to exception handlers, the lack of callee-saved registers in OCaml
+benefits effect handlers. There is no register state to save when entering an
+effect handler or performing an effect. Similarly, there is no register state
+to restore when handling an effect or resuming a continuation. This fortuitous
+design choice in stock OCaml has a significant impact towards fast switching
+between fibers in Multicore OCaml.
+
+In order to illustrate the runtime support for handling effects, consider the
 example presented in Figure~\ref{code:effimpl}. The layout of the program state
 as the program executes is captured in Figure~\ref{fig:fiber_handler}. The code
 performs effect |E| which is handled in the outer-most handler, and is
@@ -1769,12 +1775,12 @@ performance.
 \bibliographystyle{ACM-Reference-Format}
 \bibliography{retro-concurrency}
 
+\if{0}
 \clearpage
 
 \section*{Supplementary Material}
 \setcounter{figure}{0}
 
-\if{0}
 \subsection*{Dynamic Semantics}
 
 \begin{definition}[Initial configuration]
@@ -1820,7 +1826,6 @@ then $init(e) \multistep ~\config \wedge final(\config) \wedge term(\config) =
 
 \begin{proof}
 \end{proof}
-\fi
 
 \subsection*{Experimental support for multi-shot continuations}
 
@@ -1869,6 +1874,6 @@ continuation ends up with a copy of |r|, and the program prints |1 1|. Thus, in
 the presence of multi-shot continuations, compiler optimisations need to be
 made aware of the effects of a function. We leave proper support for multi-shot
 continuations to future work.
-
+\fi
 
 \end{document}
