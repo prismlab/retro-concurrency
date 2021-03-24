@@ -357,9 +357,9 @@ requirements:
 
 \begin{enumerate}[label=R\arabic*]
 	\item \textbf{Backwards compatibility.} Extant OCaml programs \kc{Extant
-		better than legacy?} do not break under OCaml extended with effect
-		handlers. OCaml code that does not use effect handlers will pay negligible
-		performance and memory cost.
+		better than legacy?} \tk{Existing might be better?} do not break under
+    OCaml extended with effect handlers. OCaml code that does not use effect
+    handlers will pay negligible performance and memory cost.
 
 	\item \textbf{Tool compatibility.} OCaml programs with effect handlers
 		produce well-formed backtraces and remain compatible with program analysis
@@ -657,8 +657,8 @@ effects |Fork f'| and |Yield|. The pattern |effect Yield k| handles the effect
 delimited by this handler. The scheduler queue |runq| maintains a queue of
 these continuations. |suspend| pushes continuations into the queue, |run_next|
 pops continuations from the queue and resumes them with |()| value using the
-|continue| primitive. In the case of |Yield| effect, we suspend the current
-continuation |k| and resume the next available continuation. In the case of
+|continue| primitive. In the case of the |Yield| effect, we suspend the current
+continuation |k| and resume the next available continuation. In the case of the
 |Fork f'| effect, we suspend the current continuation and recursively call
 |spawn| on |f'| in order to run |f'| concurrently. Observe that we can change
 the scheduling algorithm from FIFO to LIFO by changing the scheduler queue to a
@@ -765,7 +765,7 @@ of input, which is handled by the exception handler which closes the channels.
 The |close_*| functions do nothing if the channel is already closed. The code
 is written in a defensive style to handle other exceptional cases such as the
 channels being closed externally. Both |input_line| and |output_string| raise
-|Sys_error| exception if the channel is closed. In this case, the catch-all
+a |Sys_error| exception if the channel is closed. In this case, the catch-all
 exception handler closes the channels and reraises the exception to communicate
 the exceptional behaviour to the caller.
 
