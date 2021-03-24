@@ -1394,6 +1394,7 @@ fiber.
 
 %\vspace{-2mm}
 \subsection{Garbage collection}
+\label{sec:gc}
 
 Recall that OCaml programs are written with the expectation that function calls
 return exactly once (\S\ref{sec:refine}). Consider the scenario when a
@@ -1415,12 +1416,12 @@ Gc.finalise (fun k ->
 This frees up both the memory allocated for the fiber stack as well as other
 system resources, assuming that user code does not handle |Unwind| exception
 and fails to re-raise it. But installing a finaliser on every captured
-continuation by default introduces significant overhead to continuation
-capture. Hence, we choose not to implement such a finaliser by default. It is
-also useful to note that even if the memory for the fiber stack is managed by
-the GC rather than being allocated in the C heap as we do now, we would still
-need a finalisation mechanism to unwind the stack and release other system
-resources that may be held by the continuation.
+continuation by default introduces significant overhead to continuation capture
+(\S\ref{sec:res_final_k}). Hence, we choose not to implement such a finaliser by
+default. It is also useful to note that even if the memory for the fiber stack
+is managed by the GC rather than being allocated in the C heap as we do now, we
+would still need a finalisation mechanism to unwind the stack and release other
+system resources that may be held by the continuation.
 
 For stack walking during GC in order to find the roots, the only change
 necessary was to make the runtime aware of the fiber layout and how to follow
@@ -1626,6 +1627,15 @@ synchronization. We compare effect handler (|MC|), concurrency monad (|monad|)
 and Lwt, a widely used concurrency programming library for OCaml (|lwt|)
 versions. We observed that |MC| was the fastest, and |monad| (|lwt|) was
 1.67$\times$ (4.29$\times$) slower than |MC|.
+
+\subsubsection{Finalised continuations}
+\label{sec:res_final_k}
+
+In \S\ref{sec:gc}, we described how continuation resources can be cleaned up by
+attaching a finaliser. Attaching this finaliser to every captured continuation
+slows down generator (chameneos) benchmark by 4.1$\times$ (2.1$\times$)
+compared to not attaching a finaliser. Hence, Multicore OCaml does not attach
+such finaliser to every continuation by default.
 
 \subsubsection{Webserver}
 
