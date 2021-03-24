@@ -608,7 +608,7 @@ the design to retrofit them onto OCaml.
 \subsection{Asynchronous I/O}
 
 Since our primary motivation is to enable composable asynchronous I/O, let us
-implement a simple lightweight thread library with support for forking new
+implement a cooperative lightweight thread library with support for forking new
 threads and yielding control to other threads. We will then extend this library
 with support for synchronously reading from channels and subsequently make it
 asynchronous \textit{without changing the client code for asynchrony}. In order
@@ -673,7 +673,7 @@ let rec spawn f =
   | effect (In_line ic) k -> continue k (input_line ic)
 \end{lstlisting}
 %
-This uses OCaml standard library's |input_line| function to read a line
+This uses OCaml's standard |input_line| function to read a line
 synchronously from the channel |ic| and resume the continuation |k| with the
 resultant string. However, performing reads synchronously blocks the entire
 scheduler, preventing other threads from running until the I/O is completed.
@@ -730,7 +730,7 @@ localised to the |run| function, and the computation that performs these
 effects can remain in direct style (as opposed to the monadic-style in
 Lwt and Async).
 
-Observe that this example does not resume a continuation more than once. This
+This example does not resume a continuation more than once. This
 also holds true for other use cases such as generators and coroutines. Hence,
 our continuations are one-shot, and resuming the continuation more than once
 raises an |Invalid_argument| exception. It is well-known that one-shot
