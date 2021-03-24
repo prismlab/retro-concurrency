@@ -356,10 +356,9 @@ We motivate our effect handler design based on the following ideal
 requirements:
 
 \begin{enumerate}[label=R\arabic*]
-	\item \textbf{Backwards compatibility.} Extant OCaml programs \kc{Extant
-		better than legacy?} \tk{Existing might be better?} do not break under
-    OCaml extended with effect handlers. OCaml code that does not use effect
-    handlers will pay negligible performance and memory cost.
+	\item \textbf{Backwards compatibility.} Existing OCaml programs do not break
+		under OCaml extended with effect handlers. OCaml code that does not use
+		effect handlers will pay negligible performance and memory cost.
 
 	\item \textbf{Tool compatibility.} OCaml programs with effect handlers
 		produce well-formed backtraces and remain compatible with program analysis
@@ -1506,9 +1505,9 @@ closer to |stock|.
 	\textbf{Instr} & +0.0 & +0.0 & +10 & +72 & +16
 								 & +24 & +16 & +14 & +17 \\ \hline
 \end{tabular}
-\vspace{-5mm}
 }
 \label{tab:micro_noeffect}
+\vspace{-3mm}
 \end{table}
 
 We also present micro benchmarks results in Table~\ref{tab:micro_noeffect}.
