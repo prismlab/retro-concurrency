@@ -286,31 +286,34 @@ value. A computation can perform the |In_line| effect without knowing how the
 |In_line| effect is implemented. This computation may be enclosed by different
 handlers that handle |In_line| differently. For example, |In_line| may be
 implemented by performing a blocking read on the input channel or performing
-the read asynchronously by offloading it to an event loop such as |libuv|.
-Thanks to the separation of effectful operations from their interpretations,
-effect handlers enable new approaches to modular programming.
+the read asynchronously by offloading it to an event loop such as |libuv|,
+without changing the computation. Thanks to the separation of effectful
+operations from their implementation, effect handlers enable new approaches to
+modular programming. Effect handlers are a generalization of exception
+handlers, where, in addition to the effect being handled, the handler is
+provided with the delimited continuation~\cite{Danvy90} of the perform site,
+which may be resumed later. This enables non-local control-flow mechanisms such
+as resumable exceptions, lightweight threads, coroutines, generators and
+asynchronous I/O to be composably expressed.
 
-Effect handlers expose a structured form of delimited
-continuations~\cite{Danvy90} that enables non-local control-flow mechanisms
-such as resumable exceptions, lightweight threads, coroutines, generators and
-asynchronous I/O to be composably expressed. One of the primary motivations to
-extend OCaml with effect handlers is to natively support composable
-asynchronous I/O to enable highly scalable concurrent applications such as web
-servers. Many programming languages, including OCaml, require non-local changes
-to source code in order to support asynchronous I/O, often leading to a
-dichotomy between synchronous and asynchronous code~\cite{colour}. In the
-absence of native support for concurrent programming, OCaml developers use
-monadic I/O libraries such as Lwt~\cite{lwt} and Async~\cite{async}, where
-asynchronous functions are represented as monadic computations. In these
-libraries, while asynchronous functions can call synchronous functions
-directly, the converse is not true. In particular, any function that calls an
-asynchronous function will also have to be marked as asynchronous. As a result,
-large parts of the applications using these libraries tend to be in monadic
-form. Languages such as GHC Haskell and Go provide lightweight threads, which
-avoids the dichotomy between synchronous and asynchronous code. However, these
-languages bake-in the lightweight thread implementation into the runtime
-system. With effect handlers, asynchronous I/O can be implemented directly in
-OCaml as a library without imposing a monadic form on the users.
+One of the primary motivations to extend OCaml with effect handlers is to
+natively support asynchronous I/O in order to express highly scalable
+concurrent applications such as web servers in \emph{direct style} (as opposed
+to using \emph{callbacks}). Many programming languages, including OCaml,
+require non-local changes to source code in order to support asynchronous I/O,
+often leading to a dichotomy between synchronous and asynchronous
+code~\cite{colour}. For asynchronous I/O, OCaml developers typically use
+libraries such as Lwt~\cite{lwt} and Async~\cite{async}, where asynchronous
+functions are represented as monadic computations. In these libraries, while
+asynchronous functions can call synchronous functions directly, the converse is
+not true. In particular, any function that calls an asynchronous function will
+also have to be marked as asynchronous. As a result, large parts of the
+applications using these libraries end up being in monadic form. Languages such
+as GHC Haskell and Go provide lightweight threads, which avoids the dichotomy
+between synchronous and asynchronous code. However, these languages bake-in the
+lightweight thread implementation into the runtime system. With effect
+handlers, asynchronous I/O can be implemented directly in OCaml as a library
+without imposing a monadic form on the users.
 
 There are many research languages and libraries built around effect
 handlers~\cite{Leijen14,Hillerstrom20,Pyro,Frank,Eff}. Unlike these efforts,
@@ -333,10 +336,10 @@ representation (IR)~\cite{Leijen14}. OCaml does not use a CPS IR, and changing
 the compiler to utilise a CPS IR would be an enormous undertaking that would
 affect the performance profile of existing OCaml applications due to the
 increased memory allocations as the continuation closures get allocated on the
-heap~\cite{Farvardin20}. Moreover, with CPS, stack unwinding is not meaningful,
-and hence, we would lose compatibility with tools that inspect the program
-stack. Hence, we choose not to use CPS translation and represent the
-continuations as call stacks.
+heap~\cite{Farvardin20}. Moreover, with CPS, an explicit stack is absent, and
+hence, we would lose compatibility with tools that inspect the program stack.
+Hence, we choose not to use CPS translation and represent the continuations as
+call stacks.
 
 The search for an expressive effect system that guarantees that all the effects
 performed in the program are handled (\emph{effect safety}) in the presence of
@@ -353,9 +356,10 @@ We motivate our effect handler design based on the following ideal
 requirements:
 
 \begin{enumerate}[label=R\arabic*]
-	\item \textbf{Backwards compatibility.} A well-behaved OCaml program does
-		not break under OCaml extended with effect handlers. OCaml code that does
-		not use effect handlers will pay negligible performance and memory cost.
+	\item \textbf{Backwards compatibility.} Extant OCaml programs \kc{Extant
+		better than legacy?} do not break under OCaml extended with effect
+		handlers. OCaml code that does not use effect handlers will pay negligible
+		performance and memory cost.
 
 	\item \textbf{Tool compatibility.} OCaml programs with effect handlers
 		produce well-formed backtraces and remain compatible with program analysis
@@ -386,7 +390,7 @@ Our work is also timely. The WebAssembly~\cite{Hass17} community group is
 considering effect handlers as one of the mechanisms for supporting
 concurrency, asynchronous I/O and generators~\cite{WasmProposal}. Project
 Loom~\cite{loom} is an OpenJDK project that adds virtual threads and delimited
-continuations to Java. The Swift roadmap~\cite{swift} includes direct-style
+continuations to Java. The Swift roadmap~\cite{swift} includes direct style
 asynchronous programming and structured concurrency as milestones. We believe
 that our design choices will inform similar choices to be made in other
 industrial-strength languages.
@@ -396,11 +400,10 @@ industrial-strength languages.
 Our contributions are to present:
 
 \begin{itemize}
-  \item the design and implementation of one-shot effect handlers for OCaml.
-    Our design retains OCaml's compatibility with program analysis tools that
-    inspect the stack using DWARF unwind tables. We have validated our DWARF
-    unwind tables with the assistance of an automated validator
-    tool~\cite{Bastian19}.
+	\item the design and implementation of effect handlers for OCaml. Our design
+		retains OCaml's compatibility with program analysis tools that inspect the
+		stack using DWARF unwind tables. We have validated our DWARF unwind tables
+		with the assistance of an automated validator tool~\cite{Bastian19}.
 	\item a formal operational semantics for the effect handler implementation in
 		OCaml. Our formalism explicitly models the subtle interactions with the C
 		stack, which is generally overlooked by other formal models, but which the
@@ -543,10 +546,10 @@ extremely fast in OCaml. If the external function does not allocate in the
 OCaml heap, then it can be called directly and no bookkeeping is necessary. For
 external functions which allocate in the OCaml heap, the cached allocation
 pointer is saved to |Caml_state| before the external call and it is restored on
-return. Similarly, callbacks into OCaml are also cheap: these involve loading
-the arguments in the right registers and calling the OCaml function. OCaml
-callbacks are relatively common as the garbage collector (GC) finalisation
-functions are executed as OCaml callbacks.
+return. Similarly, callbacks into OCaml from C are also cheap: these involve
+loading the arguments in the right registers and calling the OCaml function.
+OCaml callbacks are relatively common as the garbage collector (GC), which is
+implemented in C, executes OCaml finalisation functions as callbacks.
 
 \subsection{Exception handlers}
 \label{sec:exn_handlers}
@@ -556,7 +559,7 @@ absence of callee-saved registers, no registers need to be saved when entering
 a |try| block. Similarly, no registers need to be restored when handling an
 exception. Installing an exception handler simply pushes the program counter
 (|pc|) of the handler and the current exception pointer (|exn_ptr| -- a field
-in |Caml_state|) to the stack. After this, the current exception pointer is
+in |Caml_state|) onto the stack. After this, the current exception pointer is
 updated to be the current stack pointer (|rsp|). This creates a linked-list of
 exception handler frames on the stack as shown in Figure~\ref{fig:stock_stack}.
 Raising an exception simply sets |rsp| to |exn_ptr|, loads the saved |exn_ptr|,
@@ -575,8 +578,8 @@ common to use them for \emph{local} control flow.
 OCaml generates \emph{stack maps} in order to accurately identify roots on the
 stack for assisting the GC. For every call point in the program, the OCaml
 compiler emits the size of the frame and the set of all live registers in the
-frame containing pointers into the heap. During a GC, the OCaml stack is walked
-and the roots are marked, skipping over the C frames.
+frame that point to the heap. During a GC, the OCaml stack is walked and the
+roots are marked, skipping over the C frames.
 
 OCaml also generates precise DWARF unwind information for OCaml, thanks to
 which debuggers such as |gdb| and |lldb|, and profilers such as |perf| work
@@ -725,7 +728,7 @@ channels on which input is still pending and their corresponding continuations.
 |pending_reads| is updated to point to the |todo| list so that they may be
 attempted later. Observe that all of the changes to add asynchrony are
 localised to the |run| function, and the computation that performs these
-effects can remain in \emph{direct-style} (as opposed to the monadic-style in
+effects can remain in direct style (as opposed to the monadic-style in
 Lwt and Async).
 
 Observe that this example does not resume a continuation more than once. This
@@ -857,9 +860,9 @@ match_with (fun () -> e)
 \end{lstlisting}
 For the sake of exposition, we introduce a |('a,'b) handler| type. This handler
 handles a |'a comp| that returns a |'a| value, and itself returns a |'b| value.
-The handler has a return case |retc| of type |'a -> 'b|. The effect case |effc|
-handles effects of type |'c eff| with |('c,'b) continuation| and returns a
-value of type |'b|. The last case in |effc| \emph{reperforms} any unmatched
+The handler has a return field |retc| of type |'a -> 'b|. The effect field
+|effc| handles effects of type |'c eff| with |('c,'b) continuation| and returns
+a value of type |'b|. The last case in |effc| \emph{reperforms} any unmatched
 effect to the outer handler and returns the value and exceptions back to the
 original performer. In the implementation, reperform is implemented as a
 primitive to avoid executing code on the resumption path.
@@ -1029,7 +1032,7 @@ executable version of the semantics, implemented as an OCaml interpreter, along
 with examples, is included in the supplementary material.
 
 \subsubsection{Syntax} Our expressions (Figure~\ref{sem:syntax}) consist of
-integer constants ($n$), variables ($x$), abstraction ($\lam{x}{x}$),
+integer constants ($n$), variables ($x$), abstraction ($\lam{x}{e}$),
 application ($e~e$), arithmetic expressions ($e \odot e$) where $\odot$ ranges
 over $\{+,-,*,/\}$, raising exceptions ($\throw{l}{e}$), performing effects
 ($\perform{l}{e}$), and handling effects ($\handle{e}{h}$). Abstractions come
@@ -1089,7 +1092,7 @@ indicate that an exception is being raised. Similarly, \textsc{Perform} pushes
 a function frame with an effect value with an empty continuation
 $[[],(\{\caseval{x}{x}\},\emptyset)]$ with no captured frames and an empty
 handler with an identity return case alone. We shall return to \textsc{Resume1}
-and \textsc{Resume2} later.
+and \textsc{Resume2} in the next subsection.
 
 Continuing with the rest of the C reduction steps, \textsc{CallC} captures the
 behaviour of calling a C function. Since the program is currently executing C,
@@ -1224,7 +1227,7 @@ with | v -> v
 In the operational semantics, the continuations may be resumed more than once.
 Captured continuations are copies of the original fibers and resuming the
 continuation copies the fibers and leaves the continuation as it is. Since our
-primary use case is concurrency, continuations will be resumed at-most once, and
+primary use case is concurrency, continuations will be resumed at most once, and
 copying fibers is unnecessary and inefficient. Instead, Multicore OCaml
 optimises fibers for one-shot continuations. Fibers are allocated on the C heap
 using |malloc| and are |free|d when the handled computation returns with a value
@@ -1249,11 +1252,11 @@ is invoked.
 Next, we have the variable-sized area for the OCaml frames. In order to keep
 fibers small, this area is initially 16 words in length. When the stack pointer
 |rsp| becomes less than the \emph{stack threshold} (maintained in the
-|Caml_state| table), the stack is said to have overflown. On stack overflow, we
-copy the whole fiber to a new area with double the size. In Multicore OCaml, we
-introduce stack overflow checks into the function prologue of OCaml functions.
-These stack overflows are rare and so the overflow checks will be correctly predicted
-by the CPU branch predictor.
+|Caml_state| table), the stack is said to have overflowed. On stack overflow,
+we copy the whole fiber to a new area with double the size. In Multicore OCaml,
+we introduce stack overflow checks into the function prologue of OCaml
+functions. These stack overflows are rare and so the overflow checks will be
+correctly predicted by the CPU branch predictor.
 
 In our evaluation of real world OCaml programs (\S\ref{sec:eval}), we observed
 that most function calls are to leaf functions with small frame sizes. Can we
@@ -1618,7 +1621,7 @@ versions. We observed that |MC| was the fastest, and |monad| (|lwt|) was
 \subsubsection{Webserver}
 
 As one of our primary goals of adding effect handlers to OCaml is to support
-direct-style concurrency, we implement a full-fledged HTTP/1.1 web server using
+direct style concurrency, we implement a full-fledged HTTP/1.1 web server using
 effect handlers (|MC|). We use effect handlers to implement a user-level
 threading library that spawns a thread per request. We use
 \texttt{httpaf}~\cite{httpaf} for HTTP handling, and
@@ -1675,7 +1678,7 @@ backend~\cite{Hillerstrom20} use an interpreter similar to our operational
 semantics to implement effect handlers. Effekt~\cite{Effekt}, Links JavaScript
 backend~\cite{Hillerstrom20} and Koka~\cite{Leijen17} use type-directed
 selective CPS translation. These language are equipped with an effect system,
-which allows compiling pure code in direct-style and effectful code in CPS.
+which allows compiling pure code in direct style and effectful code in CPS.
 Leijen~\cite{Leijen14} implements effect handlers as a library in C using stack
 copying. C allows pointers into the stack, so care is taken to ensure that
 when continuations are resumed, the constituent frames are restored to the same
@@ -1758,9 +1761,9 @@ with a surprisingly low performance overhead for sequential code that preserves
 the spirit of ``fast exceptions'' that has always characterised OCaml
 programming. We believe that the introduction of effect handlers into OCaml
 implemented using lightweight fibers, along with a parallel
-runtime~\cite{Sivaramakrishnan20}, will open OCaml to highly scalable
-concurrent and task-parallel applications with minimal hit to sequential
-performance.
+runtime~\cite{Sivaramakrishnan20}, as has been demonstrated in our work, will
+open OCaml to highly scalable concurrent and task-parallel applications with
+minimal hit to sequential performance.
 
 %\clearpage
 
