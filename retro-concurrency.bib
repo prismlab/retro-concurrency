@@ -527,13 +527,35 @@ pages = {313–323},
 numpages = {11}
 }
 
-@online{lwt,
-	key = {Lwt},
-	title = {OCaml promises and concurrent I/O},
-	url = {https://github.com/ocsigen/lwt},
-	year = {2020},
-	urldate = {2020-11-10}
+@inproceedings{lwt,
+author = {Vouillon, J\'{e}r\^{o}me},
+title = {Lwt: A Cooperative Thread Library},
+year = {2008},
+isbn = {9781605580623},
+publisher = {Association for Computing Machinery},
+address = {New York, NY, USA},
+url = {https://doi.org/10.1145/1411304.1411307},
+doi = {10.1145/1411304.1411307},
+abstract = {We present a cooperative thread library for Objective Caml. The library is entirely written in Objective Caml and does not rely on any external C function. Programs involving threads are written in a monadic style. This makes it possible to write threaded code almost as regular ML code, even though it has a different semantics. Cooperative threads are especially well suited for concurrent network applications, where threads perform little computation and spend most of their time waiting for input or output, at which time other threads can run. This library has been successfully used in the Unison file synchronizer and the Ocsigen Web server.},
+booktitle = {Proceedings of the 2008 ACM SIGPLAN Workshop on ML},
+pages = {3–12},
+numpages = {10},
+keywords = {programming, monad, networking, implementation, concurrency, thread, ml, objective caml},
+location = {Victoria, BC, Canada},
+series = {ML '08}
 }
+
+@book{rwo,
+  author    = {Yaron Minsky and
+               Anil Madhavapeddy and
+               Jason Hickey},
+  title     = {Real World OCaml: Functional Programming for the Masses},
+  publisher = {O'Reilly},
+  year      = {2013},
+  url       = {https://realworldocaml.org},
+  isbn      = {978-1-4493-2391-2},
+}
+
 
 @online{async,
 	key = {Async},

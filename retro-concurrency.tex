@@ -303,7 +303,7 @@ to using \emph{callbacks}). Many programming languages, including OCaml,
 require non-local changes to source code in order to support asynchronous I/O,
 often leading to a dichotomy between synchronous and asynchronous
 code~\cite{colour}. For asynchronous I/O, OCaml developers typically use
-libraries such as Lwt~\cite{lwt} and Async~\cite{async}, where asynchronous
+libraries such as Lwt~\cite{lwt} and Async~\cite[\S18]{rwo}, where asynchronous
 functions are represented as monadic computations. In these libraries, while
 asynchronous functions can call synchronous functions directly, the converse is
 not true. In particular, any function that calls an asynchronous function will
