@@ -382,7 +382,7 @@ OCaml functions, irrespective of whether they use effect handlers, need to
 perform stack overflow checks, and external C functions (which do not have stack
 overflow checks) must be performed on a separate system stack. Additionally, we
 must generate DWARF stack unwind tables for stacks that may be non-contiguous.
-In this work, we develop the compiler and runtime support for implementing
+In this work, we develop the compiler and runtime support required for implementing
 efficient effect handlers for OCaml that satisfy these requirements.
 
 Our work is also timely. The WebAssembly~\cite{Hass17} community group is
