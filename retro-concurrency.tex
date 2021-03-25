@@ -1680,8 +1680,8 @@ competitive with |go|, and |MC| performs best in terms of tail latency.
 
 Multicore OCaml supports backtraces for continuations in addition to backtraces
 of the current stack as in stock OCaml. Using effect handlers in a system such
-as a web server aides debugging and profiling because it is possible to get a
-backtrace snapshot of all current requests. Such a feature is available in
+as a web server aids debugging and profiling because it is possible to get a
+backtrace snapshot of all current requests. This feature is available in
 Go~\cite{gopprof}, but not in OCaml concurrency libraries such as Async and
 Lwt which lack the notion of a thread.
 
@@ -1779,10 +1779,8 @@ minimal hit to sequential performance.
 
 \section*{Acknowledgements}
 
-We thank the PLDI reviewers and our shepherd, Matthew Flatt, whose comments
-substantially improved the presentation. This research was funded via a Royal
-Commission for the Exhibition of 1851 and Darwin College Research Fellowships,
-and by grants from Jane Street and Tezos Foundation.
+We thank Sam Lindley, Franc\'{o}is Pottier, the PLDI reviewers and our shepherd, Matthew Flatt, whose comments substantially improved the presentation. This research was funded via Royal Commission for the Exhibition of 1851 and Darwin College Research Fellowships,
+and by grants from Jane Street and the Tezos Foundation.
 
 \bibliographystyle{ACM-Reference-Format}
 \bibliography{retro-concurrency}
