@@ -289,7 +289,7 @@ implemented by performing a blocking read on the input channel or performing
 the read asynchronously by offloading it to an event loop such as |libuv|,
 without changing the computation. Thanks to the separation of effectful
 operations from their implementation, effect handlers enable new approaches to
-modular programming. Effect handlers are a generalization of exception
+modular programming. Effect handlers are a generalisation of exception
 handlers, where, in addition to the effect being handled, the handler is
 provided with the delimited continuation~\cite{Danvy90} of the perform site,
 which may be resumed later. This enables non-local control-flow mechanisms such
@@ -1165,7 +1165,7 @@ body of the closure.
 
 We now present the implementation details of effect handlers in Multicore
 OCaml. While we assume an x86\_64 architecture for the remainder of this paper,
-our design does not preclude other architectures and OSs.
+our design does not preclude other architectures and operating systems.
 
 %\vspace{-2mm}
 \subsection{Exceptions}
