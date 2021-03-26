@@ -1734,11 +1734,11 @@ presence of effect handlers.
 The interaction of non-local control flow and resources has been studied
 extensively. Scheme uses |dynamic-wind|~\cite{R5RS}, which is a generalisation
 of Common Lisp |unwind-protect|~\cite{Steele90}, which ensures de-allocation
-(and re-allocation) of resources every time the non-local control leaves and
-enters back into a context. |dynamic-wind| is not quite sufficient for resource
-clean up~\cite{Kiselyov,Sitaram03} as returning exits must be distinguished
-from non-returning ones, and resource cleanup is only necessary during
-non-returning exits.
+and re-allocation of resources every time the non-local control leaves and
+enters back into a context. |dynamic-wind| is not quite the right abstraction
+as resources need to be cleaned up only on non-returning
+exists~\cite{Kiselyov,Sitaram03}. This requires distinguishing returning exits
+from non-returning ones.
 
 Multicore OCaml builds on the existing defensive coding practices against
 exceptions to clean up resources on non-returning exits. We assume that the
@@ -1780,8 +1780,11 @@ minimal hit to sequential performance.
 
 \section*{Acknowledgements}
 
-We thank Sam Lindley, Franc\'{o}is Pottier, the PLDI reviewers and our shepherd, Matthew Flatt, whose comments substantially improved the presentation. This research was funded via Royal Commission for the Exhibition of 1851 and Darwin College Research Fellowships,
-and by grants from Jane Street and the Tezos Foundation.
+We thank Sam Lindley, Franc\'{o}is Pottier, the PLDI reviewers and our
+shepherd, Matthew Flatt, whose comments substantially helped improve the
+presentation. This research was funded via Royal Commission for the Exhibition
+of 1851 and Darwin College Research Fellowships, and by grants from Jane Street
+and the Tezos Foundation.
 
 \bibliographystyle{ACM-Reference-Format}
 \bibliography{retro-concurrency}
