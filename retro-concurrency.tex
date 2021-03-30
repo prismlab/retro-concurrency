@@ -1570,7 +1570,7 @@ concurrency monad suffers due to the heap allocation of continuation frames
 stack allocation of the frames. For example, the number of major collections
 for the |ack| benchmark is 0 for stock OCaml, 1 for |MC| and 112 for |monad|.
 Our concurrency monad (and other monadic concurrency libraries such as
-Lwt~\cite{lwt} and Async~\cite{async}) also have other downsides -- exceptions,
+Lwt~\cite{lwt} and Async~\cite[\S18]{rwo}) also have other downsides -- exceptions,
 backtraces, and DWARF unwinding are no longer useful due to the lack of a
 stack.
 
