@@ -291,10 +291,11 @@ without changing the computation. Thanks to the separation of effectful
 operations from their implementation, effect handlers enable new approaches to
 modular programming. Effect handlers are a generalisation of exception
 handlers, where, in addition to the effect being handled, the handler is
-provided with the delimited continuation~\cite{Danvy90} of the perform site,
-which may be resumed later. This enables non-local control-flow mechanisms such
-as resumable exceptions, lightweight threads, coroutines, generators and
-asynchronous I/O to be composably expressed.
+provided with the delimited continuation~\cite{Danvy90} of the perform site.
+This continuation may be used to resume the suspended computation later. This
+enables non-local control-flow mechanisms such as resumable exceptions,
+lightweight threads, coroutines, generators and asynchronous I/O to be
+composably expressed.
 
 One of the primary motivations to extend OCaml with effect handlers is to
 natively support asynchronous I/O in order to express highly scalable
@@ -316,11 +317,11 @@ handlers, asynchronous I/O can be implemented directly in OCaml as a library
 without imposing a monadic form on the users.
 
 There are many research languages and libraries built around effect
-handlers~\cite{Leijen14,Hillerstrom20,Pyro,Frank,Eff}. Unlike these efforts,
-our goal is to retrofit effect handlers onto the OCaml programming language,
-which has been in continuous use for the past 25 years in large codebases
-including verification tools~\cite{everest,Coq}, mission critical software
-systems~\cite{astree} and latency sensitive networked
+handlers~\cite{Leijen14,Biernacki20,Hillerstrom20,Pyro,Frank,Eff}. Unlike these
+efforts, our goal is to retrofit effect handlers onto the OCaml programming
+language, which has been in continuous use for the past 25 years in large
+codebases including verification tools~\cite{everest,Coq}, mission critical
+software systems~\cite{astree} and latency sensitive networked
 applications~\cite{Madhavapeddy13}. OCaml is particularly favoured for its
 competitive yet predictable performance, with a fast foreign-function interface
 (FFI). It has excellent compatibility with program analysis tools such as
@@ -349,6 +350,7 @@ Hillerstrom20}. We do not focus on this question in this paper, and our
 implementation of effect handlers in OCaml does not guarantee effect safety. We
 leave the question of effect safety for future work.
 
+\vspace{-1mm}
 \subsection{Requirements}
 \label{sec:req}
 
@@ -379,11 +381,12 @@ The need to host millions of continuations at the same time rules out the use
 of a large contiguous stack space as in C for continuations. Instead, we resort
 to using small initial stacks and growing the stacks on demand. As a result,
 OCaml functions, irrespective of whether they use effect handlers, need to
-perform stack overflow checks, and external C functions (which do not have stack
-overflow checks) must be performed on a separate system stack. Additionally, we
-must generate DWARF stack unwind tables for stacks that may be non-contiguous.
-In this work, we develop the compiler and runtime support required for implementing
-efficient effect handlers for OCaml that satisfy these requirements.
+perform stack overflow checks, and external C functions (which do not have
+stack overflow checks) must be performed on a separate system stack.
+Additionally, we must generate DWARF stack unwind tables for stacks that may be
+non-contiguous. In this work, we develop the compiler and runtime support
+required for implementing efficient effect handlers for OCaml that satisfy
+these requirements.
 
 Our work is also timely. The WebAssembly~\cite{Hass17} community group is
 considering effect handlers as one of the mechanisms for supporting
@@ -404,8 +407,8 @@ Our contributions are to present:
 		stack using DWARF unwind tables. We have validated our DWARF unwind tables
 		with the assistance of an automated validator tool~\cite{Bastian19}.
 	\item a formal operational semantics for the effect handler implementation in
-		OCaml. Our formalism explicitly models the subtle interactions with the C
-		stack, which is generally overlooked by other formal models, but which the
+		OCaml. Our formalism explicitly models the interactions with the C stack,
+		which is generally overlooked by other formal models, but which the
 		implementations must handle.
 	\item extensive evaluation which shows that our implementation has minimal
 		impact on code that does not use effect handlers, and serves as an
@@ -1177,8 +1180,8 @@ just exception patterns (exception handlers) are implemented differently than
 effect handlers. As mentioned in \S\ref{sec:exn_handlers}, exceptions are
 pervasive in OCaml and are so cheap that they are used for local control flow.
 Hence, we retain the linked exception handler frame implementation of stock
-OCaml exception handlers in Multicore OCaml for performance backwards
-compatibility. This differs from other research languages with effect
+OCaml in Multicore OCaml to ensure performance backwards compatibility. This
+differs from other research languages with effect
 handlers~\cite{Hillerstrom20,Frank,Eff}, which implement exceptions using
 effects (by ignoring the continuation argument in the handler).
 
@@ -1313,8 +1316,8 @@ Similar to exception handlers, the lack of callee-saved registers in OCaml
 benefits effect handlers. There is no register state to save when entering an
 effect handler or performing an effect. Similarly, there is no register state
 to restore when handling an effect or resuming a continuation. This fortuitous
-design choice in stock OCaml has a significant impact towards fast switching
-between fibers in Multicore OCaml.
+design choice in stock OCaml has a significant impact in enabling fast
+switching between fibers in Multicore OCaml.
 
 In order to illustrate the runtime support for handling effects, consider the
 example presented in Figure~\ref{code:effimpl}. The layout of the program state
@@ -1358,26 +1361,27 @@ unwinding.
 Logically, DWARF call-frame information maintains a large table which records
 for every machine instruction where the return address and callee-saved
 registers are stored. To avoid reifying this large table, DWARF directives
-represent the table using a compact bytecode representation. This bytecode must
-be interpreted on demand from the start of the function definition to compute
-the call-frame information at any given instruction within the function. For
-each function, DWARF maintains a \emph{canonical frame address} (CFA) and is
-traditionally the stack pointer before entering this function. Hence, on
-x86-64, where the return address is pushed on the stack on call, the return
-address is at |CFA - 8|.
+represent the table using a compact bytecode representation that describes the
+unwind table as a sequence of edits from the start of the function. In order to
+compute the call-frame information at any given instruction within a function,
+the DWARF bytecode from the start of that function must be interpreted on
+demand. For each function, DWARF maintains a \emph{canonical frame address}
+(CFA) and is traditionally the stack pointer before entering this function.
+Hence, on x86-64, where the return address is pushed on the stack on call, the
+return address is at |CFA - 8|.
 
-Our goal is to encode the CFA using DWARF directives when stacks are switched.
-Recall that stack switching occurs in effect handlers, external calls and
-callbacks. At the entry to a effect handler block, we insert DWARF bytecode to
-follow the |parent_fiber| pointer and dereference the |saved_sp| to get the CFA
-(|saved_sp + 8|). During callbacks into OCaml, we save the current system stack
-pointer in the |context block| in Figure~\ref{fig:fiber} to identify the CFA in
-the C stack. DWARF unwinding for external calls is implemented by following a
-link to the current OCaml stack pointer. With these changes, we get the same
-backtrace for the \texttt{meander} program from \S\ref{sec:unwind}, modulo
-runtime system functions due to effect handlers. We have verified the
-correctness of our DWARF directives using the verification tool from Bastian et
-al.~\cite{Bastian19}.
+Our goal is to compute the CFA of the caller when stacks are switched using the
+DWARF directives. Recall that stack switching occurs in effect handlers,
+external calls and callbacks. At the entry to an effect handler block, we insert
+DWARF bytecode to follow the |parent_fiber| pointer and dereference the
+|saved_sp| to get the CFA (|saved_sp + 8|). During callbacks into OCaml, we
+save the current system stack pointer in the |context block| in
+Figure~\ref{fig:fiber} to identify the CFA in the C stack. DWARF unwinding for
+external calls is implemented by following a link to the current OCaml stack
+pointer. With these changes, we get the same backtrace for the \texttt{meander}
+program from \S\ref{sec:unwind}, modulo runtime system functions due to effect
+handlers. We have verified the correctness of our DWARF directives using the
+verification tool from Bastian et al.~\cite{Bastian19}.
 
 Despite the correct DWARF unwind information, using DWARF to record call stack
 information in |perf| only captures the call stack of the current fiber in
@@ -1388,10 +1392,10 @@ This is a limitation of |perf| and not of our stack layout. Bastian et
 al.~\cite{Bastian19} report on a technique to pre-compile the unwind table to
 assembly, which speeds up DWARF-based unwinding by up to 25$\times$. With this
 technique, |perf| can unwind the stack at sample points rather than dumping the
-call stack, which captures the complete backtrace rather than just the current
-fiber.
+call stack, which would capture the complete backtrace rather than just the
+current fiber.
 
-\vspace{-2mm}
+\vspace{-1mm}
 \subsection{Garbage collection}
 \label{sec:gc}
 
@@ -1421,27 +1425,24 @@ memory for the fiber stack is managed by the GC, we would still need a
 finalisation mechanism to unwind the stack and release other system resources
 that may be held by the continuation.
 
-For stack walking during GC in order to find the roots, the only change
-necessary was to make the runtime aware of the fiber layout and how to follow
-the parent pointers. The stack map generation and scanning each frame for roots
-remains the same. The challenges and the solutions for integrating fibers with
-the concurrent mark-and-sweep GC of Multicore OCaml have been discussed
+The challenges and the solutions for integrating fibers with the concurrent
+mark-and-sweep GC of Multicore OCaml have been discussed
 previously~\cite{Sivaramakrishnan20}.
 
-\vspace{-2mm}
+%\vspace{-1mm}
 \section{Evaluation}
 \label{sec:eval}
 
 In this section, we evaluate the performance of Multicore OCaml effect handlers
 against the performance requirements set in \S\ref{sec:req}. Multicore OCaml is
-an extension of the 4.10.0 OCaml compiler with support for shared memory
+an extension of the OCaml 4.10.0 compiler with support for shared memory
 parallelism and effect handlers. Since our objective is to evaluate the impact
 of effect handlers, none of our benchmarks utilise parallelism. These results
 were obtained on a 2-socket Intel\textregistered Xeon\textregistered Gold 5120
 x86-64~\cite{IntelXeonGold5120Spec} server running Ubuntu 18.04 with 64GB of
 main memory.
 
-\vspace{-2mm}
+\vspace{-1mm}
 \subsection{No effects benchmarks}
 
 In this section, we measure the impact of the addition of effect handlers on
