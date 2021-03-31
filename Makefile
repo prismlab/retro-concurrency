@@ -13,9 +13,18 @@ haste:
 
 retro-concurrency-sources.zip:
 	mkdir -p retro-concurrency-sources
-	cp -r figures results acmart.cls ACM-Reference-Format.bst retro-concurrency.bib \
-		retro-concurrency.tex Makefile retro-concurrency-sources
+	mkdir -p retro-concurrency-sources/sandmark-notebook
+	mkdir -p retro-concurrency-sources/http-benchmarks
+	cp -r figures acmart.cls ACM-Reference-Format.bst retro-concurrency.bib \
+		retro-concurrency.tex Makefile unicode-preamble.tex \
+		retro-concurrency-sources
+	cp sandmark-notebook/*.pdf retro-concurrency-sources/sandmark-notebook
+	cp http-benchmarks/*.pdf retro-concurrency-sources/http-benchmarks
 	zip -r retro-concurrency-sources.zip retro-concurrency-sources
+
+graphs:
+	make -C sandmark-notebook
+	make -C http-benchmarks
 
 all: techrep retro-concurrency-sources.zip
 

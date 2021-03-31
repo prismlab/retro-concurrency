@@ -130,7 +130,7 @@
 \newcommand{\perform}[2]{\kw{perform} ~#1 ~#2}
 
 \newcommand{\caseval}[2]{\kw{return}~#1 \mapsto #2}
-\newcommand{\caseexn}[3]{\kw{exception} ~#1 ~#2 \mapsto #3}
+\newcommand{\caseexn}[3]{\kw{exception} ~#1 ~#2 \allowbreak \mapsto #3}
 \newcommand{\caseeff}[4]{\kw{effect} ~#1 ~#2 ~#3 \mapsto #4}
 
 \newcommand{\farg}[2]{\langle #1 ~#2 \rangle_{\text a}}
@@ -441,7 +441,7 @@ our design goals (\S\ref{sec:req}). Finally, we discuss the related work
 \begin{figure*}
 \begin{minipage}{0.30\linewidth}
   \begin{minipage}{\linewidth}
-    \begin{lstlisting}[numbers=left]
+		\begin{lstlisting}[xleftmargin=0.05\linewidth]
 external ocaml_to_c
   : unit -> int = "ocaml_to_c"
 exception E1
@@ -461,8 +461,7 @@ let _ = assert (omain () = 42)
     \label{code:meander_ml}
   \end{minipage}
   \begin{minipage}{\linewidth}
-    \begin{lstlisting}[language=c,numbers=left]
-
+		\begin{lstlisting}[language=c, xleftmargin=0.05\linewidth]
 #include <caml/mlvalues.h>
 #include <caml/callback.h>
 
@@ -641,7 +640,7 @@ let yield () = perform Yield
 The implementation of the scheduler queue is defined in the |run| function,
 which handles the effects appropriately:
 
-\begin{lstlisting}[numbers=left]
+\begin{lstlisting}[numbers=left, xleftmargin=0.025\textwidth]
 let run main =
   let runq = Queue.create () in
   let suspend k = Queue.push k runq in
@@ -690,7 +689,7 @@ scheduler, preventing other threads from running until the I/O is completed.
 
 We can make the I/O asynchronous by modifying the |run| function as follows:
 
-\begin{lstlisting}[numbers=left]
+\begin{lstlisting}[numbers=left, xleftmargin=.025\textwidth]
 let run main =
   let runq = Queue.create () in
   let suspend k = Queue.push (continue k) runq in
@@ -703,8 +702,8 @@ let run main =
       | [] -> () (* no pending reads *)
       | todo ->
         let compl,todo = do_reads todo in
-        List.iter (fun (str,k) ->
-          Queue.push (fun () -> continue k str) runq) compl;
+        List.iter (fun (s,k) ->
+         Queue.push (fun () -> continue k s) runq) compl;
         pending_reads := todo;
         run_next ()
   in
@@ -804,6 +803,7 @@ return at all}. To remedy this, when such an effect bubbles up to the
 top-level, we discontinue the continuation with an |Unhandled| exception so
 that the exception handlers may run and clean up the resources.
 
+\vspace{-1mm}
 \section{Semantics}
 \label{sec:semantics}
 
@@ -814,13 +814,13 @@ In this section, we formalise the effect handler design for Multicore OCaml.
 \label{sec:static_semantics}
 
 As mentioned earlier, effect handlers in Multicore OCaml do not guarantee
-effect safety, but only guarantee type safety. Programs without matching effect
-handlers are well-typed Multicore OCaml programs. As a result, our static
-semantics is simpler than languages that ensure effect safety~\cite{Eff,
-Hillerstrom20, Leijen14, Effekt, Frank, Biernacki19}. This is important for
-backwards compatibility as our goal is to retrofit effect handlers to a
-language with large legacy codebases; programs that do not use effects remain
-well-typed, and those that do compose well with those that don't.
+effect safety. Programs without matching effect handlers are well-typed
+Multicore OCaml programs. As a result, our static semantics is simpler than
+languages that ensure effect safety~\cite{Eff, Hillerstrom20, Leijen14, Effekt,
+Frank, Biernacki19}. This is important for backwards compatibility as our goal
+is to retrofit effect handlers to a language with large legacy codebases;
+programs that do not use effects remain well-typed, and those that do compose
+well with those that don't.
 
 The static semantics of effect handlers in OCaml is captured succinctly by its
 API:
@@ -847,8 +847,8 @@ is syntactic sugar for adding a new constructor to the variant type
 resumption and returns a |'b| value. The continuations may be continued with a
 suitably typed value or discontinued with an exception.
 
-For handling the effects, our implementation extends OCaml's |match ... with|
-syntax with effect patterns. The expression
+For effect handling, we extend OCaml's |match ... with| syntax with effect
+patterns. The expression
 \begin{lstlisting}
 match e with
 | None -> false | Some b -> b
@@ -911,12 +911,12 @@ primitive to avoid executing code on the resumption path.
   \label{sem:syntax}
 \end{minipage}
 %
-\begin{minipage}{\linewidth}
+\begin{minipage}{0.25\linewidth}
 	\begin{smathpar}
-		\begin{array}{cc}
+		\begin{array}{c}
 			\textsc{StepC} ~
 			\inferrule{(\term, \env, \fl, \ostack) \cstep \config}
-								{\configa{\term}{\env}{\cstacka{\fl}{\ostack}} \step \config} &
+								{\configa{\term}{\env}{\cstacka{\fl}{\ostack}} \step \config} \\ \\
 			\textsc{StepO} ~
 			\inferrule{(\term, \env, k, \cstack) \ostep \config}
 								{\configa{\term}{\env}{\ostacka{k}{\cstack}} \step \config}
@@ -926,7 +926,7 @@ primitive to avoid executing code on the resumption path.
 	\label{sem:toplevel}
 \end{minipage}
 %
-\begin{minipage}{\linewidth}
+\begin{minipage}{0.69\linewidth}
   \begin{smathpar}
     \begin{array}{rrcl}
       \textsc{Var}     & (x,\env, \fl) & \rightsquigarrow
@@ -1284,7 +1284,7 @@ stack pointer of the current stack and loading the same on the target stack.
 Since OCaml does not generate pointers into the stack, the two |fiber_info|
 fields are the only ones that need to be updated when fibers are moved.
 
-\vspace{-2mm}
+%\vspace{-1mm}
 \subsection{External calls and callbacks}
 
 Since C functions do not have stack overflow checks, we have to execute the
@@ -1308,7 +1308,7 @@ before calling and after returning from |c_to_ocaml| function, respectively.
 Thanks to the fiber representation, external calls and callbacks remain
 competitive with stock OCaml.
 
-\vspace{-2mm}
+%\vspace{-1mm}
 \subsection{Effect handlers}
 \label{sec:effimpl}
 
@@ -1458,7 +1458,7 @@ overflow check) and a red zone size of 32 words (|MC+RedZone32|). Recall that
 the default red zone size in Multicore OCaml is 16 words (\S\ref{sec:hafibers}).
 
 \begin{figure*}
-	\includegraphics[scale=0.35]{sandmark-notebook/sandmark_time}
+	\includegraphics[scale=0.34]{sandmark-notebook/sandmark_time}
 	\vspace{-4mm}
 	\caption{Normalized time of macro benchmarks. Baseline is Stock OCaml,
 		whose running time in seconds in given in parenthesis.}
@@ -1467,7 +1467,7 @@ the default red zone size in Multicore OCaml is 16 words (\S\ref{sec:hafibers}).
 \end{figure*}
 
 \begin{figure*}
-	\includegraphics[scale=0.35]{sandmark-notebook/sandmark_codesize}
+	\includegraphics[scale=0.34]{sandmark-notebook/sandmark_codesize}
 	\vspace{-4mm}
 	\caption{Normalized OCaml text section size (OTSS) of macro benchmarks.
 	Baseline is Stock OCaml, whose size in kilobytes given in parenthesis.}
@@ -1788,107 +1788,7 @@ of 1851 and Darwin College Research Fellowships, and by grants from Jane Street
 and the Tezos Foundation.
 
 \bibliographystyle{ACM-Reference-Format}
+\balance
 \bibliography{retro-concurrency}
-
-\if{0}
-\clearpage
-
-\section*{Supplementary Material}
-\setcounter{figure}{0}
-
-\subsection*{Dynamic Semantics}
-
-\begin{definition}[Initial configuration]
-	Given an expression $e$, we define the initial configuration $\textsf{init}(e)$
-	to be $\configa{e}{\emptyset}{\cstacka{[]}{\bullet}}$.
-\end{definition}
-
-Intuitively, the initial environment is empty and the initial stack is an empty
-C stack.
-
-\begin{definition}[Final value configuration]
-	Given a configuration $\config$, we say that the configuration is the final
-	value configuration (written $\textsf{finalval}(\config)$) if ~$\config =
-	\configa{v}{\env}{\cstacka{[]}{\bullet}}$~ for some value $v$ and environment
-	$\env$.
-\end{definition}
-
-\begin{definition}[Final exception configuration]
-	Given a configuration $\config$, we say that the configuration is the final
-	exception configuration (written $\textsf{finalexn}(\config)$) if ~$\config
-	= \configa{v}{\env}{\cstacka{\ffun{\exnval{l}}::\fl}{\bullet}}$~ for some
-	value $v$, label $l$, frame list $\fl$ and environment $\env$.
-\end{definition}
-
-Given a configuration $\config = \configa{\term}{\env}{\stack}$, we define
-$\textsf{term}(\config)$ to be $\tau$. We define the relation $\multistep$ as
-the transitive reflexive closure of the top-level reduction relation $\step$.
-
-\subsubsection*{Example 1}
-
-Let
-
-\begin{smathpar}
-	\begin{array}{rcll}
-		e & = & (\olam{x}{ & \kw{match} ~\perform{E}{~0}~ \kw{with} \\
-			&   &            & \mid \caseexn{\textsf{Unhandled}}{x}{42} \\
-			&   &            & \mid \caseval{v}{v}})~0
-	\end{array}
-\end{smathpar}
-
-then $init(e) \multistep ~\config \wedge final(\config) \wedge term(\config) =
-42$.
-
-\begin{proof}
-\end{proof}
-
-\subsection*{Experimental support for multi-shot continuations}
-
-Languages with effect handlers typically allow continuations to be resumed more
-than once to enable use cases such as backtracking search and probabilistic
-programming (for example, see Uber's Pyro language~\cite{Pyro}). Multicore
-OCaml has an experimental feature for explicitly cloning continuations, which
-makes a copy of each of its constituent fibers.
-
-Multi-shot continuations are difficult to
-reason about in the presence of linear resources such as file descriptors~\cite{de-vilhena-pottier-21}.
-Recall that OCaml programs are written with the expectation that function calls
-return \emph{exactly-once} either normally or exceptionally. With multi-shot
-continuations, they may return \emph{more than once}, leading to errors such as
-double-freeing malloced memory. Since our goal is to retrofit effect handlers
-onto OCaml, we relegate continuation cloning to the OCaml |Obj| module, which
-contains unsafe features.
-
-In addition, multi-shot continuations currently are not safe under compiler
-optimisations. For example consider the following program:
-
-\begin{minipage}{\linewidth}
-\begin{lstlisting}
-effect E : unit
-let foo () = perform E
-let bar f =
-  let r = ref 0 in
-	f ();
-  r := !r + 1;
-  !r
-;;
-match bar foo with
-| v -> v
-| effect E k ->
-    let k' = Obj.clone_continuation k in
-    let r1 = continue k () in
-    let r2 = continue k' () in
-    Printf.printf "%d %d\n" r1 r2;
-		0
-\end{lstlisting}
-\end{minipage}
-
-This program is expected to print |1 2|. However, OCaml optimizes |bar| by
-converting the heap allocation of |r| to a stack allocation. As a result, each
-continuation ends up with a copy of |r|, and the program prints |1 1|. Thus, in
-the presence of multi-shot continuations, compiler optimisations need to be
-made aware of the effects of a function. We leave proper support for multi-shot
-continuations to future work.
-\fi
 
 \end{document}
