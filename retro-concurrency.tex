@@ -713,7 +713,8 @@ let run main =
     | effect Yield k -> suspend k; run_next ()
     | effect (Fork f') k -> suspend k; spawn f'
     | effect (In_line ic) k ->
-      pending_reads := (ic,k)::!pending_reads; run_next ()
+      pending_reads := (ic,k)::!pending_reads;
+      run_next ()
   in
   spawn main
 \end{lstlisting}
