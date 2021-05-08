@@ -536,7 +536,7 @@ overflow is detected by a memory fault and a |Stack_overflow| exception is
 raised to unwind the stack.
 
 \vspace{-1mm}
-\subsection{External calls and callbacks}
+\subsection{External Calls and Callbacks}
 \label{sec:external}
 
 OCaml does not use the C calling convention. In particular, there are no
@@ -555,7 +555,7 @@ OCaml callbacks are relatively common as the garbage collector (GC), which is
 implemented in C, executes OCaml finalisation functions as callbacks.
 
 \vspace{-1mm}
-\subsection{Exception handlers}
+\subsection{Exception Handlers}
 \label{sec:exn_handlers}
 
 The lack of callee-saved registers also makes exception handling fast. In the
@@ -577,7 +577,7 @@ there are no enclosing handlers. Exceptions are so cheap in OCaml that it is
 common to use them for \emph{local} control flow.
 
 \vspace{-1mm}
-\subsection{Stack unwinding}
+\subsection{Stack Unwinding}
 \label{sec:unwind}
 
 OCaml generates \emph{stack maps} in order to accurately identify roots on the
@@ -752,7 +752,7 @@ complex endeavour~\cite{Leijen17}, and we find that the complexity budget
 outweighs the relatively fewer mechanisms enabled by this addition in our
 setting.
 
-\subsection{Resource cleanup}
+\subsection{Resource Cleanup}
 
 The interaction of non-local control flow with systems programming is quite
 subtle~\cite{TFP17, Leijen18}. Consider the following function that uses
@@ -811,7 +811,7 @@ that the exception handlers may run and clean up the resources.
 In this section, we formalise the effect handler design for Multicore OCaml.
 
 \vspace{-1mm}
-\subsection{Static semantics}
+\subsection{Static Semantics}
 \label{sec:static_semantics}
 
 As mentioned earlier, effect handlers in Multicore OCaml do not guarantee
@@ -1033,7 +1033,7 @@ primitive to avoid executing code on the resumption path.
 \end{figure*}
 
 \vspace{-1mm}
-\subsection{Dynamic semantics}
+\subsection{Dynamic Semantics}
 
 We present an operational semantics for a core language of effect handlers that
 faithfully captures the semantics of the Multicore OCaml implementation. An
@@ -1084,7 +1084,7 @@ closure $\hc \coloneqq (h,\env)$, which is a pair of handler $h$ and its
 environment $\env$. We use the infix operator $@$ for appending two lists.
 
 \vspace{-1mm}
-\subsubsection{Top-level reductions}
+\subsubsection{Top-level Reductions}
 
 The initial configuration for an expression $e$ is
 $\configa{e}{\emptyset}{\cstacka{[]}{\bullet}}$, where the environment and the
@@ -1092,7 +1092,7 @@ stack are empty. The top-level reductions (Figure ~\ref{sem:toplevel}) can be
 performed by either by taking a C step $\cstep$ or an OCaml step $\ostep$.
 
 \vspace{-1mm}
-\subsubsection{C reductions}
+\subsubsection{C Reductions}
 
 We can take a C step (Figure~\ref{sem:cstep}) by taking an administrative
 reduction step $\rightsquigarrow$. The administrative reductions are common to
@@ -1117,7 +1117,7 @@ enclosing OCaml stack, unwinding the rest of the frames. This captures the
 semantics of raising OCaml exceptions from C.
 
 \vspace{-1mm}
-\subsubsection{OCaml reductions}
+\subsubsection{OCaml Reductions}
 
 In OCaml (Figure~\ref{sem:ostep}), reductions always occur on the top-most
 fiber in the current stack. \textsc{AdminO} performs administrative reductions.
@@ -1187,7 +1187,7 @@ handlers~\cite{Hillerstrom20,Frank,Eff}, which implement exceptions using
 effects (by ignoring the continuation argument in the handler).
 
 %\vspace{-2mm}
-\subsection{Heap-allocated fibers}
+\subsection{Heap-allocated Fibers}
 \label{sec:hafibers}
 
 \begin{figure*}
@@ -1286,7 +1286,7 @@ Since OCaml does not generate pointers into the stack, the two |fiber_info|
 fields are the only ones that need to be updated when fibers are moved.
 
 %\vspace{-1mm}
-\subsection{External calls and callbacks}
+\subsection{External Calls and Callbacks}
 
 Since C functions do not have stack overflow checks, we have to execute the
 external calls in the system stack. Calling a C function from OCaml involves
@@ -1310,7 +1310,7 @@ Thanks to the fiber representation, external calls and callbacks remain
 competitive with stock OCaml.
 
 %\vspace{-1mm}
-\subsection{Effect handlers}
+\subsection{Effect Handlers}
 \label{sec:effimpl}
 
 Similar to exception handlers, the lack of callee-saved registers in OCaml
@@ -1350,7 +1350,7 @@ appropriate closure to either |continue| or |discontinue| the continuation
 positions do not build up stack.
 
 \vspace{-2mm}
-\subsection{Stack unwinding}
+\subsection{Stack Unwinding}
 
 The challenge with DWARF stack unwinding is to make it aware of the
 non-contiguous stacks. While the complete details of DWARF stack unwinding is
@@ -1397,7 +1397,7 @@ call stack, which would capture the complete backtrace rather than just the
 current fiber.
 
 \vspace{-1mm}
-\subsection{Garbage collection}
+\subsection{Garbage Collection}
 \label{sec:gc}
 
 Recall that OCaml programs are written with the expectation that function calls
@@ -1444,7 +1444,7 @@ x86-64~\cite{IntelXeonGold5120Spec} server running Ubuntu 18.04 with 64GB of
 main memory.
 
 \vspace{-1mm}
-\subsection{No effects benchmarks}
+\subsection{No Effects Benchmarks}
 
 In this section, we measure the impact of the addition of effect handlers on
 code that does not use effect handlers. Our macro benchmark suite consists of
@@ -1537,7 +1537,7 @@ does not need to do this. Callback performance is less important than external
 calls, which are far more numerous.
 
 \vspace{-2mm}
-\subsection{No perform benchmarks}
+\subsection{No Perform Benchmarks}
 
 \begin{table}
 \caption{Micro benchmarks with handlers but no perform. Each entry is the
@@ -1581,7 +1581,7 @@ continuation frames. But Farvardin et al.~\cite{Farvardin20} show that CPS with
 optimisations is still slower than using the call stack.
 
 %\vspace{-3mm}
-\subsection{Concurrent benchmarks}
+\subsection{Concurrent Benchmarks}
 
 Next we look at benchmarks that utilize non-local control flow using effect
 handlers. First, we quantify the cost of individual operations in effect
@@ -1631,7 +1631,7 @@ and Lwt, a widely used concurrency programming library for OCaml (|lwt|)
 versions. We observed that |MC| was the fastest, and |monad| (|lwt|) was
 1.67$\times$ (4.29$\times$) slower than |MC|.
 
-\subsubsection{Finalised continuations}
+\subsubsection{Finalised Continuations}
 \label{sec:res_final_k}
 
 In \S\ref{sec:gc}, we described how continuation resources can be cleaned up by
