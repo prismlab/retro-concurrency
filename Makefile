@@ -11,12 +11,12 @@ techrep: paper
 haste:
 	pdflatex retro-concurrency
 
-retro-concurrency-sources.zip:
+retro-concurrency-sources.zip: paper
 	mkdir -p retro-concurrency-sources
 	mkdir -p retro-concurrency-sources/sandmark-notebook
 	mkdir -p retro-concurrency-sources/http-benchmarks
 	cp -r figures acmart.cls ACM-Reference-Format.bst retro-concurrency.bib \
-		retro-concurrency.tex Makefile unicode-preamble.tex \
+		retro-concurrency.tex Makefile unicode-preamble.tex retro-concurrency.bbl \
 		retro-concurrency-sources
 	cp sandmark-notebook/*.pdf retro-concurrency-sources/sandmark-notebook
 	cp http-benchmarks/*.pdf retro-concurrency-sources/http-benchmarks
